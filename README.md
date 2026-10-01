@@ -42,7 +42,8 @@ Chaque monde compte trois salles puis un combat de boss. Les mondes se débloque
 | Descendre d'une plateforme | Flèche bas ou S | | Bas | Bas |
 | Recommencer la salle | R | | Vue (Select) | Share / Create |
 | Pause | Échap ou P | | Menu (Start) | Options |
-| Couper le son | M | | | |
+| Couper tout le son | M | | | |
+| Options | O (menu et pause) | Bouton Options | Y | △ |
 
 Dans les menus, la manette se pilote avec la croix ou le stick : **A / ✕** pour valider, **B / ○** pour revenir. Sur l'écran de pause et l'écran de fin de monde, la croix choisit le bouton et A / ✕ le valide. Dès qu'une manette est utilisée, les consignes à l'écran affichent ses boutons (lettres Xbox ou symboles PlayStation selon la manette détectée) ; une touche du clavier ou un toucher de l'écran remet les consignes habituelles.
 
@@ -51,6 +52,16 @@ Avec deux manettes branchées, c'est la première sur laquelle on appuie qui jou
 Sur téléphone et tablette, des commandes tactiles apparaissent automatiquement : une croix à gauche, et à droite les boutons saut, coup, dash et pouvoir. Le jeu se joue en mode paysage.
 
 Astuce parent : **Maj + D** sur l'écran de choix des mondes débloque tous les mondes.
+
+## Options
+
+Le bouton **Options** du menu (ou de l'écran de pause) règle le jeu. Les choix restent enregistrés dans le navigateur.
+
+- **Musique** et **Bruitages** : à couper séparément.
+- **Voix** : une voix française lit les consignes de chaque salle, le nom du monde et du boss, et annonce l'ouverture de la porte. Elle utilise la synthèse vocale du navigateur (rien à télécharger) ; désactivée au départ.
+- **Mode copain** : quand on n'a plus de cœurs, on repart sur place avec tous ses cœurs, sans recommencer la salle. Sans effet en mode Doom.
+- **Vibration de la manette** : quand on est touché, qu'on perd ou qu'un boss tombe (si la manette et le navigateur le permettent).
+- **Touches du clavier** et **Boutons de la manette** : choisir la touche ou le bouton de chaque action, avec un retour aux touches de base. Les consignes à l'écran suivent les touches choisies. Échap, P, R, M et O restent réservées au jeu ; à la manette, la croix et le stick servent toujours à se déplacer.
 
 ## Installer comme une appli
 

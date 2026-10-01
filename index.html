@@ -100,14 +100,14 @@ const CHARS = [
   { id: "lune", name: "Lune", ability: "Double saut · Ralenti", color: "#de6eff", glow: "222,110,255", ui: "#de6eff", ui2: "#ff6ec7",
     sky: ["#120828", "#2f0f4a", "#5a1650"], moon: ["#ffe8f6", "#c98cff"], stripe: "#3a1252", stars: "255,230,255", city: ["#1e0b38", "#160830"], atkW: 34, specialFrames: 4 },
 ];
-// Consignes : [clavier, tactile, manette] ; certaines dépendent du personnage. {A}, {X}… : nom du bouton de la manette
+// Consignes : [clavier, tactile, manette] ; certaines dépendent du personnage. {JUMP}, {ATK}… : bouton choisi pour l'action
 const HINTS = {
-  MOVE: ["Flèches ou ZQSD pour bouger, Espace pour sauter", "Croix pour bouger, ▲ pour sauter", "Stick ou croix pour bouger, {A} pour sauter"],
-  ATTACK: ["J ou clic pour trancher les robots", "Bouton ⚔ pour trancher les robots", "Bouton {X} pour trancher les robots"],
-  SPECIAL: { helio: ["K ou clic droit : dash éclair à travers les robots", "Bouton ➤ : dash éclair à travers les robots", "Bouton {B} : dash éclair à travers les robots"],
-             lune: ["Appuie deux fois sur Espace : double saut", "Appuie deux fois sur ▲ : double saut", "Appuie deux fois sur {A} : double saut"] },
-  POWER: { helio: ["Maintiens Maj ou L : super vitesse !", "Maintiens » : super vitesse !", "Maintiens {RT} : super vitesse !"],
-           lune: ["Maintiens Maj ou L pour ralentir le temps", "Maintiens ⏳ pour ralentir le temps", "Maintiens {RT} pour ralentir le temps"] },
+  MOVE: ["Flèches ou ZQSD pour bouger, Espace pour sauter", "Croix pour bouger, ▲ pour sauter", "Stick ou croix pour bouger, {JUMP} pour sauter"],
+  ATTACK: ["J ou clic pour trancher les robots", "Bouton ⚔ pour trancher les robots", "Bouton {ATK} pour trancher les robots"],
+  SPECIAL: { helio: ["K ou clic droit : dash éclair à travers les robots", "Bouton ➤ : dash éclair à travers les robots", "Bouton {SPEC} : dash éclair à travers les robots"],
+             lune: ["Appuie deux fois sur Espace : double saut", "Appuie deux fois sur ▲ : double saut", "Appuie deux fois sur {JUMP} : double saut"] },
+  POWER: { helio: ["Maintiens Maj ou L : super vitesse !", "Maintiens » : super vitesse !", "Maintiens {POW} : super vitesse !"],
+           lune: ["Maintiens Maj ou L pour ralentir le temps", "Maintiens ⏳ pour ralentir le temps", "Maintiens {POW} pour ralentir le temps"] },
 };
 const BOSSES = {
   bar:      { kind: "brute",  name: "Le Videur",          hp: 8,  body: "#8a3a4a", accent: "#ffb43c" },
@@ -134,12 +134,62 @@ const ROOMS = [];
 WORLDS.forEach((w, wi) => w.rooms.forEach((r, ri) => ROOMS.push({ ...r, w: wi, ri })));
 const firstRoom = wi => ROOMS.findIndex(r => r.w === wi);
 
+/* ---------------- Options ---------------- */
+// Réglages du joueur, sauvegardés dans localStorage (lunelio-options).
+// Touches du clavier : listes de codes physiques par action ; boutons de manette : indices de la disposition standard.
+const KB_ACTIONS = [["left", "Aller à gauche"], ["right", "Aller à droite"], ["jump", "Sauter"], ["drop", "Descendre"],
+  ["attack", "Coup de sabre"], ["special", "Dash d'Hélio"], ["power", "Pouvoir"]];
+const PAD_ACTIONS = [["jump", "Sauter"], ["attack", "Coup de sabre"], ["special", "Dash d'Hélio"], ["power", "Pouvoir"]];
+const KB_DEFAULT = { left: ["ArrowLeft", "KeyA"], right: ["ArrowRight", "KeyD"], jump: ["Space", "ArrowUp", "KeyW"], drop: ["ArrowDown", "KeyS"],
+  attack: ["KeyJ"], special: ["KeyK"], power: ["ShiftLeft", "ShiftRight", "KeyL"] };
+const PAD_DEFAULT = { jump: [0], attack: [2, 3], special: [1], power: [7, 6, 5, 4] };
+const KB_RESERVED = ["Escape", "KeyP", "KeyR", "KeyM", "Semicolon", "KeyO", "Tab", "MetaLeft", "MetaRight", "ContextMenu"];   // pause, recommencer, son, options…
+const PAD_BINDABLE = [0, 1, 2, 3, 4, 5, 6, 7, 10, 11];   // pas Select/Start (8, 9) ni la croix (12-15)
+const OPT_DEFAULT = { music: true, sfx: true, voice: false, buddy: false, rumble: true };
+const OPT = { ...OPT_DEFAULT, kb: {}, pad: {}, labels: {} };
+function loadOptions() {
+  let o = null;
+  try { o = JSON.parse(localStorage.getItem("lunelio-options") || "null"); } catch (e) {}
+  if (!o || typeof o !== "object") o = {};
+  for (const k in OPT_DEFAULT) OPT[k] = typeof o[k] === "boolean" ? o[k] : OPT_DEFAULT[k];
+  for (const [a] of KB_ACTIONS) {
+    const v = o.kb && o.kb[a];
+    OPT.kb[a] = Array.isArray(v) && v.length && v.every(c => typeof c === "string") ? v.slice() : KB_DEFAULT[a].slice();
+  }
+  for (const [a] of PAD_ACTIONS) {
+    const v = o.pad && o.pad[a];
+    OPT.pad[a] = Array.isArray(v) && v.length && v.every(i => PAD_BINDABLE.includes(i)) ? v.slice() : PAD_DEFAULT[a].slice();
+  }
+  OPT.labels = {};
+  if (o.labels && typeof o.labels === "object") for (const c in o.labels) if (typeof o.labels[c] === "string") OPT.labels[c] = o.labels[c].slice(0, 4);
+}
+function saveOptions() { try { localStorage.setItem("lunelio-options", JSON.stringify(OPT)); } catch (e) {} }
+loadOptions();
+// Noms des touches : disposition réelle du clavier quand le navigateur la donne (Chrome, Edge), sinon AZERTY
+const KEY_NAMES = { Space: "Espace", ArrowLeft: "←", ArrowRight: "→", ArrowUp: "↑", ArrowDown: "↓", ShiftLeft: "Maj", ShiftRight: "Maj droite",
+  ControlLeft: "Ctrl", ControlRight: "Ctrl droite", AltLeft: "Alt", AltRight: "Alt Gr", Enter: "Entrée", NumpadEnter: "Entrée",
+  Backspace: "Retour arrière", CapsLock: "Verr. maj", KeyW: "Z", KeyA: "Q", KeyQ: "A", KeyZ: "W", KeyM: ",", Semicolon: "M" };
+let layoutMap = null;
+try { if (navigator.keyboard && navigator.keyboard.getLayoutMap) navigator.keyboard.getLayoutMap().then(m => { layoutMap = m; }).catch(() => {}); } catch (e) {}
+function keyName(code) {
+  const l = layoutMap && layoutMap.get(code);
+  if (l && l.trim()) return l.toUpperCase();
+  if (OPT.labels[code]) return OPT.labels[code];
+  if (KEY_NAMES[code]) return KEY_NAMES[code];
+  if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+  if (/^Digit\d$/.test(code)) return code.slice(5);
+  if (/^Numpad\d$/.test(code)) return "Pavé " + code.slice(6);
+  return code;
+}
+
 /* ---------------- Entrées ---------------- */
 const keys = {}, pressed = {};
 const mouse = { x: 0, y: 0 };
 const GAME_KEYS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "Backspace"];
+let keyWait = false, keyCaught = null;   // choix d'une nouvelle touche dans les options
 addEventListener("keydown", e => {
-  if (GAME_KEYS.includes(e.code)) e.preventDefault();
+  if (keyWait) { e.preventDefault(); if (!e.repeat) keyCaught = { code: e.code, key: e.key }; keys[e.code] = true; setPad(false); audio.init(); return; }
+  if (GAME_KEYS.includes(e.code) || Object.values(OPT.kb).some(l => l.includes(e.code))) e.preventDefault();
   if (!keys[e.code]) pressed[e.code] = true;
   keys[e.code] = true;
   setPad(false); audio.init();
@@ -165,12 +215,17 @@ cv.addEventListener("contextmenu", e => e.preventDefault());
 const down = (...c) => c.some(k => keys[k]);
 const hit = (...c) => c.some(k => pressed[k]);
 const K = {
-  left: ["ArrowLeft", "KeyA", "TLeft", "GLeft"], right: ["ArrowRight", "KeyD", "TRight", "GRight"], jump: ["Space", "ArrowUp", "KeyW", "TJump", "GA"],
-  drop: ["ArrowDown", "KeyS", "TDown", "GDown"], attack: ["KeyJ", "Mouse0", "TAtk", "GX", "GY"], special: ["KeyK", "Mouse2", "TSpec", "GB"],
-  power: ["ShiftLeft", "ShiftRight", "KeyL", "TPow", "GPow"],
-  // menus
+  // menus (fixes)
   up: ["ArrowUp", "KeyW", "GUp"], down: ["ArrowDown", "KeyS", "GDown"], ok: ["Enter", "Space", "NumpadEnter", "GA", "GStart"],
 };
+// Actions de jeu : touches choisies dans les options, plus la souris, le tactile et la manette (GJump… suivent les boutons choisis)
+function rebuildK() {
+  const kb = OPT.kb;
+  K.left = [...kb.left, "TLeft", "GLeft"]; K.right = [...kb.right, "TRight", "GRight"]; K.jump = [...kb.jump, "TJump", "GJump"];
+  K.drop = [...kb.drop, "TDown", "GDown"]; K.attack = [...kb.attack, "Mouse0", "TAtk", "GAtk"]; K.special = [...kb.special, "Mouse2", "TSpec", "GSpec"];
+  K.power = [...kb.power, "TPow", "GPower"];
+}
+rebuildK();
 
 /* ---- Commandes tactiles (affichées seulement sur mobile et tablette) ---- */
 let TOUCH = false;
@@ -225,13 +280,19 @@ function syncTouchUI() {
 /* ---- Manettes (Gamepad API) ---- */
 // Disposition « standard » : 0 A/✕, 1 B/○, 2 X/□, 3 Y/△, 4-7 gâchettes, 8 Select/Share, 9 Start/Options, 12-15 croix.
 // Les manettes produisent des touches virtuelles (GLeft, GA…), lues à chaque image par readPads().
+// GA, GB, GX, GY sont les boutons eux-mêmes (menus) ; GJump, GAtk, GSpec, GPower suivent les boutons choisis dans les options (jeu).
 // La première manette sur laquelle on appuie pilote le jeu ; les autres sont ignorées (réservées à la future coop).
-let PAD = false, padIdx = null, padStyle = "xbox";
-const PAD_KEYS = ["GLeft", "GRight", "GUp", "GDown", "GA", "GB", "GX", "GY", "GPow", "GStart", "GSelect"];
+let PAD = false, padIdx = null, padStyle = "xbox", padRaw = [], padRawPrev = [];
+const PAD_KEYS = ["GLeft", "GRight", "GUp", "GDown", "GA", "GB", "GX", "GY", "GJump", "GAtk", "GSpec", "GPower", "GStart", "GSelect"];
 const PAD_LABELS = {
-  xbox: { A: "A", B: "B", X: "X", RT: "RT", START: "Menu", SELECT: "Vue" },
-  ps: { A: "✕", B: "○", X: "□", RT: "R2", START: "Options", SELECT: "Share" },
+  xbox: { A: "A", B: "B", X: "X", Y: "Y", START: "Menu", SELECT: "Vue" },
+  ps: { A: "✕", B: "○", X: "□", Y: "△", START: "Options", SELECT: "Share" },
 };
+const PAD_BTN_NAMES = {
+  xbox: ["A", "B", "X", "Y", "LB", "RB", "LT", "RT", "Vue", "Menu", "L3", "R3"],
+  ps: ["✕", "○", "□", "△", "L1", "R1", "L2", "R2", "Share", "Options", "L3", "R3"],
+};
+const padBtnName = i => PAD_BTN_NAMES[padStyle][i] || `Bouton ${i + 1}`;
 function setPad(on) { if (PAD === on) return; PAD = on; document.body.classList.toggle("pad", on); }
 const padStyleOf = id => /054c|sony|playstation|dualshock|dualsense/i.test(id) ? "ps" : "xbox";
 const padBtn = (g, i) => { const b = g.buttons[i]; return !!b && (b.pressed || b.value > 0.5); };
@@ -245,12 +306,14 @@ function readPads() {
     }
   }
   const s = {};
+  padRawPrev = padRaw; padRaw = g ? g.buttons.map((b, i) => padBtn(g, i)) : [];
   if (g) {
     const ax = g.axes[0] || 0, ay = g.axes[1] || 0, vert = Math.abs(ay) > Math.abs(ax);
     s.GLeft = padBtn(g, 14) || ax < -0.45; s.GRight = padBtn(g, 15) || ax > 0.45;
     s.GUp = padBtn(g, 12) || (ay < -0.6 && vert); s.GDown = padBtn(g, 13) || (ay > 0.6 && vert);
     s.GA = padBtn(g, 0); s.GB = padBtn(g, 1); s.GX = padBtn(g, 2); s.GY = padBtn(g, 3);
-    s.GPow = padBtn(g, 4) || padBtn(g, 5) || padBtn(g, 6) || padBtn(g, 7);
+    const any = l => l.some(i => padBtn(g, i));
+    s.GJump = any(OPT.pad.jump); s.GAtk = any(OPT.pad.attack); s.GSpec = any(OPT.pad.special); s.GPower = any(OPT.pad.power);
     s.GSelect = padBtn(g, 8); s.GStart = padBtn(g, 9);
   }
   let used = false;
@@ -262,13 +325,34 @@ function readPads() {
   }
 }
 addEventListener("gamepaddisconnected", e => { if (e.gamepad.index === padIdx) { padIdx = null; if (state === "play") pauseGame(); } });
-const padText = s => s.replace(/\{(\w+)\}/g, (_, k) => PAD_LABELS[padStyle][k] || k);
-// Consigne adaptée à la commande utilisée : clavier, tactile ou manette ({A}, {B}… donnent le nom du bouton)
+// Vibration de la manette (si l'option est active et que la manette sait vibrer)
+function rumble(ms, strong, weak) {
+  if (!OPT.rumble || !PAD || padIdx === null || !navigator.getGamepads) return;
+  try {
+    const g = navigator.getGamepads()[padIdx]; if (!g) return;
+    const a = g.vibrationActuator, h = g.hapticActuators && g.hapticActuators[0];
+    if (a && a.playEffect) a.playEffect("dual-rumble", { duration: ms, strongMagnitude: strong, weakMagnitude: weak }).catch(() => {});
+    else if (h && h.pulse) h.pulse(Math.max(strong, weak), ms);
+  } catch (e) {}
+}
+// {A}, {B}, {X}, {Y}, {START}, {SELECT} : boutons eux-mêmes ; {JUMP}, {ATK}, {SPEC}, {POW} : boutons choisis pour ces actions
+const PAD_ACT_TOKENS = { JUMP: "jump", ATK: "attack", SPEC: "special", POW: "power" };
+const padText = s => s.replace(/\{(\w+)\}/g, (_, k) => PAD_ACT_TOKENS[k] ? padBtnName(OPT.pad[PAD_ACT_TOKENS[k]][0]) : PAD_LABELS[padStyle][k] || k);
+// Consigne adaptée à la commande utilisée : clavier, tactile ou manette
 const say = (kb, touch, pad) => PAD ? padText(pad) : TOUCH ? touch : kb;
+// Version clavier des consignes quand les touches ont été changées dans les options
+const kbNames = a => OPT.kb[a].map(keyName).join(" ou ");
+const KB_HINTS = {
+  MOVE: [["left", "right", "jump"], () => `${kbNames("left")} et ${kbNames("right")} pour bouger, ${kbNames("jump")} pour sauter`],
+  ATTACK: [["attack"], () => `${kbNames("attack")} ou clic pour trancher les robots`],
+  SPECIAL: [["special", "jump"], () => ch().id === "helio" ? `${kbNames("special")} ou clic droit : dash éclair à travers les robots` : `Appuie deux fois sur ${kbNames("jump")} : double saut`],
+  POWER: [["power"], () => ch().id === "helio" ? `Maintiens ${kbNames("power")} : super vitesse !` : `Maintiens ${kbNames("power")} pour ralentir le temps`],
+};
 function hintText(tok) {
   const H = HINTS[tok]; if (!H) return tok;
-  const v = Array.isArray(H) ? H : H[ch().id];
-  return say(v[0], v[1], v[2]);
+  const v = Array.isArray(H) ? H : H[ch().id], kh = KB_HINTS[tok];
+  const custom = kh && kh[0].some(a => OPT.kb[a].join() !== KB_DEFAULT[a].join());
+  return say(custom ? kh[1]() : v[0], v[1], v[2]);
 }
 
 /* ---------------- Audio ---------------- */
@@ -341,7 +425,7 @@ const audio = {
     this.fx = fx; if (!this.ctx) return; const t = this.ctx.currentTime;
     this.filter.frequency.setTargetAtTime(fx === "slow" ? 900 : 18000, t, 0.08);
     if (this.cur) this.cur.s.playbackRate.setTargetAtTime(this.rate(), t, 0.1);
-    if (fx === "fast") this.tone("sawtooth", 200, t, 0.25, 0.08, this.sfxG, 1200);
+    if (fx === "fast" && OPT.sfx) this.tone("sawtooth", 200, t, 0.25, 0.08, this.sfxG, 1200);
   },
   duck(sec) { if (!this.ctx) return; const t = this.ctx.currentTime, g = this.musicBus.gain; g.cancelScheduledValues(t); g.setTargetAtTime(0.12, t, 0.05); g.setTargetAtTime(0.5, t + sec, 0.4); },
   playBuf(k, vol = 1) {
@@ -364,7 +448,7 @@ const audio = {
     s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
   },
   sfx(name) {
-    const c = this.ctx; if (!c) return; const t = c.currentTime, d = this.sfxG;
+    const c = this.ctx; if (!c || !OPT.sfx) return; const t = c.currentTime, d = this.sfxG;
     switch (name) {
       case "slash": if (!this.playBuf("attack", 0.9)) this.noiseHit(t, 0.12, 0.6, "bandpass", 3000, d); break;
       case "laser": if (!this.playBuf("laser", 0.7)) this.tone("square", 1400, t, 0.15, 0.12, d, 300); break;
@@ -390,7 +474,8 @@ audio.discover();
 function musicKey() {
   const P = audio.playlists, doom = df().id === "doom";
   let list = doom ? P.doom : P[ch().id], idx = 0;
-  if (["play", "clear", "worldclear", "pause"].includes(state) && lvl) {
+  const inRoom = ["play", "clear", "worldclear", "pause"].includes(state) || (optFrom === "pause" && (state === "options" || state === "keys"));
+  if (inRoom && lvl) {
     const room = ROOMS[lvlIdx];
     if (room.boss && P.boss.length && state !== "worldclear") return P.boss[room.w % P.boss.length];
     idx = room.w;
@@ -398,6 +483,30 @@ function musicKey() {
   if (!list.length) list = P[ch().id];
   return list.length ? list[idx % list.length] : null;
 }
+
+/* ---------------- Voix ---------------- */
+// Lecture des consignes à voix haute (synthèse vocale du navigateur, voix française si elle existe)
+const SPEAK = { "▲": "saut", "⚔": "épée", "➤": "dash", "»": "vitesse", "⏳": "sablier", "✕": "croix", "○": "rond", "□": "carré", "△": "triangle",
+  "←": "flèche gauche", "→": "flèche droite", "↑": "flèche du haut", "↓": "flèche du bas", "☠": "", "…": "." };
+const speakable = s => s.replace(/[▲⚔➤»⏳✕○□△←→↑↓☠…]/g, c => SPEAK[c]).replace(/\bZQSD\b/g, "Z Q S D").replace(/\bMaj\b/g, "majuscule").replace(/\s+/g, " ").trim();
+const voice = {
+  v: null,
+  ok() { return "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined"; },
+  pick() { const vs = speechSynthesis.getVoices(); return vs.find(v => /^fr[-_]FR/i.test(v.lang) && v.localService) || vs.find(v => /^fr/i.test(v.lang)) || null; },
+  // cut : coupe ce qui est en cours de lecture (nouvelle salle) ; sinon la phrase attend son tour
+  say(s, cut) {
+    if (!OPT.voice || !s || !this.ok()) return;
+    try {
+      if (cut) speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(speakable(s));
+      u.lang = "fr-FR"; u.rate = 0.95; u.pitch = 1.1;
+      const v = this.v || (this.v = this.pick()); if (v) u.voice = v;
+      speechSynthesis.speak(u);
+    } catch (e) {}
+  },
+  stop() { try { if (this.ok()) speechSynthesis.cancel(); } catch (e) {} },
+};
+try { if (voice.ok()) speechSynthesis.addEventListener("voiceschanged", () => { voice.v = voice.pick(); }); } catch (e) {}
 
 /* ---------------- Décor pré-rendu ---------------- */
 function mkCanvas(w, h) { const c = document.createElement("canvas"); c.width = w; c.height = h; const x = c.getContext("2d"); x.imageSmoothingEnabled = false; return [c, x]; }
@@ -776,6 +885,19 @@ function loadLevel(i) {
   lasers = []; parts = []; ghosts = []; roomTime = 0; hintT = 0; doorOpen = false; deathT = 0; powerGauge = 1;
   setTimeFx(false, false);
   state = "play";
+  if (i !== spokenRoom) { spokenRoom = i; speakRoom(); }   // pas de répétition quand on recommence la même salle
+}
+let spokenRoom = -1;
+function roomHints() {
+  const L = ROOMS[lvlIdx];
+  return (L.hint || []).filter(Boolean).map(h => (df().id === "doom" && h === "POWER") ? "Mode Doom : pas de pouvoir, pas de pitié" : hintText(h));
+}
+function speakRoom() {
+  const L = ROOMS[lvlIdx], bits = [];
+  if (L.ri === 0) bits.push(`Monde ${L.w + 1} : ${WORLDS[L.w].name}.`);
+  if (L.boss) bits.push(`Attention, voici ${BOSSES[WORLDS[L.w].id].name} !`);
+  bits.push(...roomHints().map(h => /[.!?]$/.test(h) ? h : h + "."));
+  voice.say(bits.join(" "), true);
 }
 
 /* ---------------- Effets ---------------- */
@@ -787,7 +909,7 @@ function burst(x, y, n, colors, spd, life, grav = 300, size = 2) {
   }
 }
 function checkDoor() {
-  if (enemies.every(x => !x.alive) && !doorOpen) { doorOpen = true; audio.sfx("door"); msg = { text: "La porte est ouverte !", t: 2 }; }
+  if (enemies.every(x => !x.alive) && !doorOpen) { doorOpen = true; audio.sfx("door"); msg = { text: "La porte est ouverte !", t: 2 }; voice.say(msg.text); }
 }
 function killEnemy(e) {
   if (!e.alive) return;
@@ -796,7 +918,7 @@ function killEnemy(e) {
   burst(cx, cy, 26, ["#fccc28", "#ffffff", "#ff8a3c", ch().color], 220, 0.5, 200, 1);
   burst(cx, cy, 10, ["#6f7ea8", "#9fb0d8", "#3a3460"], 160, 0.9, 700, 3);
   shake = Math.max(shake, 5); hitstop = Math.max(hitstop, 0.06); flash = 0.08;
-  audio.sfx("boom");
+  audio.sfx("boom"); rumble(80, 0, 0.35);
   checkDoor();
 }
 function damageBoss(e, dmg) {
@@ -804,14 +926,14 @@ function damageBoss(e, dmg) {
   e.hp -= dmg; e.inv = 0.45; e.flashT = 0.15;
   const cx = e.x + e.w / 2, cy = e.y + e.h / 2;
   burst(cx, cy, 18, ["#ffffff", e.cfg.accent, ch().color], 200, 0.45, 150, 1);
-  shake = Math.max(shake, 4); hitstop = Math.max(hitstop, 0.05); audio.sfx("bosshit");
+  shake = Math.max(shake, 4); hitstop = Math.max(hitstop, 0.05); audio.sfx("bosshit"); rumble(90, 0.2, 0.4);
   if (e.hp <= 0) {
     e.alive = false;
     for (let i = 0; i < 4; i++) burst(cx + (Math.random() - 0.5) * e.w, cy + (Math.random() - 0.5) * e.h, 30, ["#fccc28", "#ffffff", "#ff8a3c", e.cfg.accent], 280, 0.9, 200, 2);
     burst(cx, cy, 24, ["#6f7ea8", "#9fb0d8", "#3a3460"], 220, 1.2, 700, 3);
-    shake = 12; flash = 0.25; hitstop = 0.25; audio.sfx("boom"); audio.sfx("victory");
+    shake = 12; flash = 0.25; hitstop = 0.25; audio.sfx("boom"); audio.sfx("victory"); rumble(700, 1, 1);
     for (const m of enemies) if (m.alive && m.minion) killEnemy(m);
-    msg = { text: `${e.name} est vaincu !`, t: 3 };
+    msg = { text: `${e.name} est vaincu !`, t: 3 }; voice.say(msg.text, true);
     checkDoor();
   }
 }
@@ -828,15 +950,22 @@ function hurtPlayer(srcX) {
   p.hp--;
   shake = 6; hitstop = 0.08; audio.sfx("hurt");
   burst(p.x + 5, p.y + 14, 14, ["#ff3b5c", "#ffffff", ch().color], 180, 0.5, 300, 2);
-  if (p.hp <= 0) {
-    p.dead = true; deaths++; deathT = 1.4; audio.sfx("gameover");
+  if (p.hp <= 0 && buddyOn()) {
+    // mode copain : on repart sur place avec tous ses cœurs, les robots détruits le restent
+    deaths++; p.hp = df().hp; p.inv = 2; p.vx = Math.sign(p.x + 5 - srcX || 1) * 120; p.vy = -260;
+    burst(p.x + 5, p.y + 16, 30, ["#7dffb0", "#ffffff", "#ff4f8a", ch().color], 200, 0.7, 100, 2);
+    audio.sfx("heal"); rumble(250, 0.5, 0.5);
+    msg = { text: "Mode copain : on repart !", t: 2 }; voice.say("On repart !", true);
+  } else if (p.hp <= 0) {
+    p.dead = true; deaths++; deathT = 1.4; audio.sfx("gameover"); rumble(500, 1, 0.8); voice.say("Raté ! On recommence.", true);
     burst(p.x + 5, p.y + 16, 40, [ch().color, "#ffffff", "#ff4fd8"], 260, 0.9, 250, 2);
     doomReset = df().id === "doom" && ROOMS[lvlIdx].ri > 0;
     setTimeFx(false, false);
   } else {
-    p.inv = 1.3; p.vx = Math.sign(p.x + 5 - srcX || 1) * 170; p.vy = -220;
+    p.inv = 1.3; p.vx = Math.sign(p.x + 5 - srcX || 1) * 170; p.vy = -220; rumble(250, 0.6, 0.5);
   }
 }
+const buddyOn = () => OPT.buddy && df().id !== "doom";
 function setTimeFx(slow, fast) {
   if (slow !== slowOn || fast !== fastOn) { slowOn = slow; fastOn = fast; audio.setTimeFx(slow ? "slow" : fast ? "fast" : null); }
 }
@@ -913,7 +1042,7 @@ function updatePlayer(dt) {
     msg = { text: "+1 cœur", t: 1.2 };
   }
   if (Math.abs(p.vx) > 20 && p.onGround) p.runT += dt * boost;
-  if (p.y > VH + 40) hurtPlayer(p.x);
+  if (p.y > VH + 40) { if (buddyOn()) { p.x = lvl.start.x; p.y = lvl.start.y; p.vy = 0; p.inv = 0; } hurtPlayer(p.x); }
   if (doorOpen && ov(p, lvl.door)) { state = "clear"; clearT = 1.6; audio.sfx("start"); setTimeFx(false, false); }
 }
 function canSee(e) {
@@ -1140,12 +1269,14 @@ function updatePlay(rdt) {
     }
   }
 }
-let pausedFrom = null, pauseSel = 0;
-const PUI = { resume: { x: 170, y: 120, w: 140, h: 24 }, quit: { x: 170, y: 152, w: 140, h: 24 } };
+let pauseSel = 0;
+const PUI = { resume: { x: 170, y: 104, w: 140, h: 24 }, options: { x: 170, y: 134, w: 140, h: 24 }, quit: { x: 170, y: 164, w: 140, h: 24 } };
 function pauseGame() { state = "pause"; pauseSel = 0; setTimeFx(false, false); audio.sfx("select"); }
 function updatePause() {
-  if (hit("GUp", "GDown")) { pauseSel = 1 - pauseSel; audio.sfx("select"); }
-  if (hit("GA")) { if (pauseSel) openWorlds(); else state = "play"; return; }
+  if (hit("GUp")) { pauseSel = (pauseSel + 2) % 3; audio.sfx("select"); }
+  if (hit("GDown")) { pauseSel = (pauseSel + 1) % 3; audio.sfx("select"); }
+  if (hit("GA")) { if (pauseSel === 2) openWorlds(); else if (pauseSel === 1) openOptions("pause"); else state = "play"; return; }
+  if (hit("KeyO") || (hit("Mouse0") && inside(PUI.options))) { openOptions("pause"); return; }
   if (hit("Escape", "KeyP", "TPause", "Enter", "Space", "GStart", "GB") || (hit("Mouse0") && inside(PUI.resume))) { state = "play"; return; }
   if (hit("Backspace") || (hit("Mouse0") && inside(PUI.quit))) openWorlds();
 }
@@ -1370,7 +1501,7 @@ function drawHUD() {
   if (L.hint && hintT < 7 && !(bs && bs.alive && bs.state === "intro")) {
     const a = Math.min(1, (7 - hintT) / 1.2), hy = bs ? 22 : 0;
     ctx.globalAlpha = a; ctx.save(); ctx.translate(0, hy);
-    const lines = L.hint.filter(Boolean).map(h => (d.id === "doom" && h === "POWER") ? "Mode Doom : pas de pouvoir, pas de pitié" : hintText(h));
+    const lines = roomHints();
     R(VW / 2 - 150, 22, 300, lines.length > 1 ? 30 : 18, "rgba(10,6,24,0.75)");
     text(lines[0], VW / 2, 31, 8, "#ffffff", "center");
     if (lines[1]) text(lines[1], VW / 2, 43, 8, st.accent, "center");
@@ -1386,13 +1517,13 @@ function drawHUD() {
 function drawPause() {
   drawWorld(); drawHUD();
   R(0, 0, VW, VH, "rgba(10,6,24,0.65)");
-  text("Pause", VW / 2, 90, 26, ch().ui, "center", ch().ui);
-  [["resume", "Reprendre", ch().ui], ["quit", "Quitter le monde", "#b9a6e0"]].forEach(([k, label, col], i) => {
+  text("Pause", VW / 2, 78, 26, ch().ui, "center", ch().ui);
+  [["resume", "Reprendre", ch().ui], ["options", "Options", "#e8dcff"], ["quit", "Quitter le monde", "#b9a6e0"]].forEach(([k, label, col], i) => {
     const r = PUI[k], hov = PAD ? pauseSel === i : inside(r);
     R(r.x, r.y, r.w, r.h, hov ? "#ffffff" : "rgba(20,12,40,0.9)"); ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
     text(label, r.x + r.w / 2, r.y + r.h / 2 + 1, 10, hov ? "#120828" : col, "center");
   });
-  if (!TOUCH || PAD) text(say("Échap : reprendre    Retour arrière : quitter", "", "Croix et {A} pour choisir    {B} : reprendre"), VW / 2, 200, 8, "#b9a6e0", "center");
+  if (!TOUCH || PAD) text(say("Échap : reprendre    O : options    Retour arrière : quitter", "", "Croix et {A} pour choisir    {B} : reprendre"), VW / 2, 206, 8, "#b9a6e0", "center");
 }
 function drawOverlays() {
   if (slowOn) { R(0, 0, VW, VH, "rgba(120,60,255,0.16)"); }
@@ -1411,6 +1542,7 @@ const UI = {
   cards: [{ x: 92, y: 98, w: 140, h: 100 }, { x: 248, y: 98, w: 140, h: 100 }],
   diffs: [{ x: 110, y: 206, w: 80, h: 18 }, { x: 200, y: 206, w: 80, h: 18 }, { x: 290, y: 206, w: 80, h: 18 }],
   play: { x: 185, y: 232, w: 110, h: 22 },
+  opts: { x: 408, y: 6, w: 66, h: 18 },
 };
 const inside = (r) => mouse.x >= r.x && mouse.x <= r.x + r.w && mouse.y >= r.y && mouse.y <= r.y + r.h;
 function goMenu() { state = "menu"; setTimeFx(false, false); }
@@ -1424,6 +1556,7 @@ const WCOLS = 4;
 const WUI = WORLDS.map((w, i) => ({ x: 16 + (i % WCOLS) * 114, y: 36 + Math.floor(i / WCOLS) * 102, w: 106, h: 92 }));
 function openWorlds() {
   state = "worlds"; if (lvl) setTimeFx(false, false);
+  if (lvl) voice.stop();
   worldSel = Math.min(getProgress(), WORLDS.length - 1);
   if (thumbsFor !== ch().id) {
     thumbsFor = ch().id;
@@ -1435,7 +1568,7 @@ function openWorlds() {
     });
   }
 }
-function startWorld(wi) { curWorld = wi; runTime = 0; deaths = 0; msg = null; audio.sfx("start"); loadLevel(firstRoom(wi)); }
+function startWorld(wi) { curWorld = wi; runTime = 0; deaths = 0; msg = null; spokenRoom = -1; audio.sfx("start"); loadLevel(firstRoom(wi)); }
 function updateWorlds() {
   const prog = getProgress(), n = WORLDS.length;
   if (hit("Escape", "GB") || (hit("Mouse0") && inside({ x: 8, y: 6, w: 50, h: 20 }))) { goMenu(); return; }
@@ -1473,6 +1606,7 @@ function updateMenu() {
   if (hit(...K.right)) { charIdx = 1; audio.sfx("select"); }
   if (hit(...K.up)) { diffIdx = Math.max(0, diffIdx - 1); audio.sfx("select"); }
   if (hit(...K.down)) { diffIdx = Math.min(2, diffIdx + 1); audio.sfx("select"); }
+  if (hit("KeyO", "GY") || (hit("Mouse0") && inside(UI.opts))) { openOptions("menu"); return; }
   if (hit("Mouse0")) {
     UI.cards.forEach((r, i) => { if (inside(r)) { charIdx = i; audio.sfx("select"); } });
     UI.diffs.forEach((r, i) => { if (inside(r)) { diffIdx = i; audio.sfx("select"); } });
@@ -1523,9 +1657,157 @@ function drawMenu() {
   R(p.x, p.y, p.w, p.h, inside(p) ? "#ffffff" : pg);
   ctx.shadowColor = C0.ui; ctx.shadowBlur = 6 + pulse * 8; ctx.strokeStyle = "#ffffff"; ctx.strokeRect(p.x + 0.5, p.y + 0.5, p.w - 1, p.h - 1); ctx.shadowBlur = 0;
   text("Jouer", p.x + p.w / 2, p.y + p.h / 2 + 1, 12, "#120828", "center");
+  const o = UI.opts, oh = inside(o) && !TOUCH;
+  R(o.x, o.y, o.w, o.h, oh ? "#ffffff" : "rgba(20,12,40,0.85)"); ctx.strokeStyle = C0.ui; ctx.strokeRect(o.x + 0.5, o.y + 0.5, o.w - 1, o.h - 1);
+  text(PAD ? padText("Options {Y}") : "Options", o.x + o.w / 2, o.y + o.h / 2 + 1, 8, oh ? "#120828" : "#e8dcff", "center");
+  if (buddyOn()) text("♥ Mode copain", o.x + o.w, o.y + o.h + 9, 7, "#7dffb0", "right");
   const mute = audio.ctx && audio.ctx.state === "running" ? "" : "    Clic : activer le son";
-  text(say("← → personnage    ↑ ↓ difficulté    Entrée pour jouer    M : son", "Touche un personnage et une difficulté, puis Jouer",
+  text(say("← → personnage    ↑ ↓ difficulté    Entrée pour jouer    O : options    M : son", "Touche un personnage et une difficulté, puis Jouer",
     "← → personnage    ↑ ↓ difficulté    {A} pour jouer" + mute), VW / 2, 264, 7, "#b9a6e0", "center");
+}
+
+/* ---------------- Écran des options ---------------- */
+// Ouvert depuis le menu (O, bouton Y/△, bouton Options) ou depuis la pause ; les réglages sont sauvegardés à chaque changement
+const OPT_ROWS = [
+  { k: "music", label: "Musique", info: "Coupe ou remet la musique. Les bruitages restent." },
+  { k: "sfx", label: "Bruitages", info: "Les sons du sabre, des robots et des lasers." },
+  { k: "voice", label: "Voix", info: "Une voix lit les consignes à voix haute." },
+  { k: "buddy", label: "Mode copain", info: "Plus de cœurs ? On repart sur place ! (pas en mode Doom)" },
+  { k: "rumble", label: "Vibration de la manette", info: "La manette vibre quand on est touché ou qu'un boss tombe." },
+  { k: "kb", label: "Touches du clavier", info: "Choisis les touches pour jouer au clavier." },
+  { k: "pad", label: "Boutons de la manette", info: "Choisis les boutons pour jouer à la manette." },
+  { k: "back", label: "Retour", info: "" },
+];
+const rowRect = (i, step) => ({ x: 110, y: 44 + i * step, w: 260, h: 17 });
+let optFrom = "menu", optSel = 0, lastMouse = "";
+// survol à la souris : la ligne sous le pointeur devient la ligne choisie
+function hoverRow(n, step, cur) {
+  const m = mouse.x + "," + mouse.y; if (m === lastMouse || TOUCH) return cur; lastMouse = m;
+  for (let i = 0; i < n; i++) if (inside(rowRect(i, step))) return i;
+  return cur;
+}
+function openOptions(from) { optFrom = from; optSel = 0; lastMouse = mouse.x + "," + mouse.y; state = "options"; audio.sfx("select"); }
+function closeOptions() { saveOptions(); state = optFrom === "pause" ? "pause" : "menu"; audio.sfx("select"); }
+function optActivate(i) {
+  const r = OPT_ROWS[i]; optSel = i;
+  if (r.k === "back") { closeOptions(); return; }
+  if (r.k === "kb" || r.k === "pad") { openKeys(r.k); return; }
+  OPT[r.k] = !OPT[r.k]; saveOptions(); audio.sfx("select");
+  if (r.k === "voice") { if (OPT.voice) voice.say("La voix est activée.", true); else voice.stop(); }
+  if (r.k === "rumble" && OPT.rumble) rumble(250, 0.6, 0.6);
+}
+function updateOptions() {
+  const n = OPT_ROWS.length;
+  if (hit("Escape", "GB", "Backspace")) { closeOptions(); return; }
+  optSel = hoverRow(n, 21, optSel);
+  if (hit(...K.up)) { optSel = (optSel + n - 1) % n; audio.sfx("select"); }
+  if (hit(...K.down)) { optSel = (optSel + 1) % n; audio.sfx("select"); }
+  if (hit(...K.ok) || (hit("ArrowLeft", "ArrowRight", "GLeft", "GRight") && OPT_ROWS[optSel].k in OPT_DEFAULT)) { optActivate(optSel); return; }
+  if (hit("Mouse0")) for (let i = 0; i < n; i++) if (inside(rowRect(i, 21))) { optActivate(i); return; }
+}
+function drawOptBg() {
+  if (optFrom === "pause" && lvl) { drawWorld(); R(0, 0, VW, VH, "rgba(10,6,24,0.82)"); }
+  else { if (!menuBgs) menuBgs = CHARS.map(C => makeBackground(C.ui, C)); ctx.drawImage(menuBgs[charIdx], 0, 0); R(0, 0, VW, VH, "rgba(13,8,32,0.72)"); }
+}
+function drawRow(b, sel, label, value, valueCol) {
+  const C = ch();
+  R(b.x, b.y, b.w, b.h, sel ? "rgba(255,255,255,0.16)" : "rgba(20,12,40,0.85)");
+  ctx.strokeStyle = sel ? C.ui : "#3a2a5c"; ctx.lineWidth = 1; ctx.strokeRect(b.x + 0.5, b.y + 0.5, b.w - 1, b.h - 1);
+  if (sel) { R(b.x + 3, b.y + 5, 2, b.h - 10, C.ui); }
+  text(label, b.x + 10, b.y + b.h / 2 + 1, 9, sel ? "#ffffff" : "#e8dcff");
+  if (value) text(value, b.x + b.w - 8, b.y + b.h / 2 + 1, 9, valueCol, "right");
+}
+function drawOptions() {
+  const C = ch(); drawOptBg();
+  text("Options", VW / 2, 22, 18, C.ui, "center", C.ui);
+  OPT_ROWS.forEach((r, i) => {
+    let v = "", col = "#b9a6e0";
+    if (r.k in OPT_DEFAULT) { v = OPT[r.k] ? "Oui" : "Non"; col = OPT[r.k] ? "#7dffb0" : "#ff8ab0"; }
+    else if (r.k !== "back") v = "›";
+    drawRow(rowRect(i, 21), i === optSel, r.label, v, col);
+  });
+  const r = OPT_ROWS[optSel];
+  let info = r.info;
+  if (r.k === "voice" && !voice.ok()) info = "Ce navigateur ne sait pas lire à voix haute.";
+  if (r.k === "buddy" && df().id === "doom") info = "Le mode copain ne marche pas en mode Doom.";
+  text(info, VW / 2, 226, 8, "#e8dcff", "center");
+  text(say("↑ ↓ pour choisir    Entrée pour changer    Échap pour revenir", "Touche une ligne pour la changer",
+    "Croix pour choisir    {A} pour changer    {B} pour revenir"), VW / 2, 254, 8, "#b9a6e0", "center");
+}
+
+/* ---- Choix des touches et des boutons ---- */
+let keysKind = "kb", keysSel = 0, padWait = false, keysMsg = null;
+const keysRows = () => [...(keysKind === "kb" ? KB_ACTIONS : PAD_ACTIONS).map(([k, label]) => ({ k, label })),
+  { k: "reset", label: "Remettre les touches de base" }, { k: "back", label: "Retour" }];
+function openKeys(kind) { keysKind = kind; keysSel = 0; keyWait = padWait = false; keyCaught = null; keysMsg = null; state = "keys"; audio.sfx("select"); }
+function bindNames(a) { return keysKind === "kb" ? OPT.kb[a].map(keyName).join(" / ") : OPT.pad[a].map(padBtnName).join(" / "); }
+// Donne la touche v à l'action a ; si une autre action l'avait, elle la perd (et récupère les anciennes touches de a si elle n'a plus rien)
+function assign(kind, a, v) {
+  const B = kind === "kb" ? OPT.kb : OPT.pad, D = kind === "kb" ? KB_DEFAULT : PAD_DEFAULT, old = B[a];
+  for (const o in B) if (o !== a && B[o].includes(v)) {
+    B[o] = B[o].filter(x => x !== v);
+    if (!B[o].length) B[o] = old.filter(x => x !== v);
+    if (!B[o].length) B[o] = D[o].filter(x => x !== v);
+  }
+  B[a] = [v]; rebuildK(); saveOptions();
+}
+function keysActivate(i) {
+  const rows = keysRows(), r = rows[i]; keysSel = i; keysMsg = null;
+  if (r.k === "back") { state = "options"; audio.sfx("select"); return; }
+  if (r.k === "reset") {
+    const D = keysKind === "kb" ? KB_DEFAULT : PAD_DEFAULT, B = keysKind === "kb" ? OPT.kb : OPT.pad;
+    for (const a in D) B[a] = D[a].slice();
+    rebuildK(); saveOptions(); keysMsg = "Les touches de base sont revenues"; audio.sfx("door"); return;
+  }
+  audio.sfx("select");
+  if (keysKind === "kb") { keyWait = true; keyCaught = null; } else padWait = true;
+}
+function updateKeys() {
+  const rows = keysRows(), n = rows.length;
+  if (keyWait) {
+    if (hit("Mouse0", "Mouse2")) { keyWait = false; keyCaught = null; return; }
+    if (!keyCaught) return;
+    const { code, key } = keyCaught; keyCaught = null; keyWait = false;
+    if (code === "Escape") { audio.sfx("select"); return; }
+    if (KB_RESERVED.includes(code)) { keysMsg = "Cette touche sert déjà au jeu, choisis-en une autre"; keyWait = true; audio.sfx("hurt"); return; }
+    if (key && key.length === 1 && key !== " ") OPT.labels[code] = key.toUpperCase(); else delete OPT.labels[code];
+    assign("kb", rows[keysSel].k, code); audio.sfx("door"); return;
+  }
+  if (padWait) {
+    if (hit("Escape", "Mouse0", "Mouse2") || (padRaw[9] && !padRawPrev[9])) { padWait = false; audio.sfx("select"); return; }
+    const b = padRaw.findIndex((on, i) => on && !padRawPrev[i] && PAD_BINDABLE.includes(i));
+    if (b >= 0) { assign("pad", rows[keysSel].k, b); padWait = false; audio.sfx("door"); }
+    return;
+  }
+  if (hit("Escape", "GB", "Backspace")) { state = "options"; audio.sfx("select"); return; }
+  keysSel = hoverRow(n, 20, keysSel);
+  if (hit(...K.up)) { keysSel = (keysSel + n - 1) % n; audio.sfx("select"); }
+  if (hit(...K.down)) { keysSel = (keysSel + 1) % n; audio.sfx("select"); }
+  if (hit(...K.ok)) { keysActivate(keysSel); return; }
+  if (hit("Mouse0")) for (let i = 0; i < n; i++) if (inside(rowRect(i, 20))) { keysActivate(i); return; }
+}
+function drawKeys() {
+  const C = ch(), rows = keysRows(), waiting = keyWait || padWait;
+  drawOptBg();
+  text(keysKind === "kb" ? "Touches du clavier" : "Boutons de la manette", VW / 2, 22, 16, C.ui, "center", C.ui);
+  rows.forEach((r, i) => {
+    const sel = i === keysSel;
+    let v = "", col = "#7dffb0";
+    if (r.k !== "reset" && r.k !== "back") {
+      if (sel && waiting) { v = keysKind === "kb" ? "Appuie sur une touche…" : "Appuie sur un bouton…"; col = Math.floor(time * 3) % 2 ? "#fccc28" : "#ffffff"; }
+      else v = bindNames(r.k);
+    }
+    drawRow(rowRect(i, 20), sel, r.label, v, col);
+  });
+  const y = 44 + rows.length * 20 + 10;
+  let info = keysMsg;
+  if (!info) info = keysKind === "kb" ? "La souris marche toujours : clic pour trancher, clic droit pour le dash."
+    : (padIdx === null ? "Aucune manette : branche-la et appuie sur un de ses boutons." : "La croix et le stick servent toujours à se déplacer.");
+  text(info, VW / 2, y, 8, keysMsg ? "#fccc28" : "#e8dcff", "center");
+  const help = waiting
+    ? (keysKind === "kb" ? "Appuie sur la nouvelle touche    Échap pour annuler" : say("Appuie sur le nouveau bouton de la manette    Échap pour annuler", "Appuie sur le nouveau bouton de la manette", "Appuie sur le nouveau bouton    {START} pour annuler"))
+    : say("↑ ↓ pour choisir    Entrée pour changer    Échap pour revenir", "Touche une ligne pour la changer", "Croix pour choisir    {A} pour changer    {B} pour revenir");
+  text(help, VW / 2, 256, 8, "#b9a6e0", "center");
 }
 
 /* ---------------- Écrans de fin ---------------- */
@@ -1533,6 +1815,7 @@ function updateClear(rdt) {
   clearT -= rdt; updateParts(rdt);
   if (clearT <= 0 || hit("Enter", "Space", "Mouse0", "GA", "GStart")) {
     const r = ROOMS[lvlIdx], next = ROOMS[lvlIdx + 1];
+    if (!(next && next.w === r.w)) voice.say(r.w + 1 < WORLDS.length ? `Monde terminé ! ${WORLDS[r.w].name} est sauvé. Bravo !` : `Victoire ! ${ch().name} a vaincu Dr. Boulon. Bravo !`, true);
     if (next && next.w === r.w) loadLevel(lvlIdx + 1);
     else {
       setProgress(r.w + 1);
@@ -1584,7 +1867,7 @@ let last = performance.now();
 function frame(now) {
   const rdt = Math.min(1 / 30, (now - last) / 1000); last = now; time += rdt;
   readPads();
-  if (hit("KeyM")) audio.toggleMute();
+  if (hit("KeyM", "Semicolon")) audio.toggleMute();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = "#0d0820"; ctx.fillRect(0, 0, cv.width, cv.height);
   let ox = 0, oy = 0;
@@ -1601,7 +1884,10 @@ function frame(now) {
   else if (state === "worldclear") { updateWorldClear(); }
   else if (state === "win") { drawWin(); }
   else if (state === "pause") { updatePause(); if (state === "pause") drawPause(); }
-  if (state !== "loading" && audio.ready && audio.wanted !== musicKey()) audio.playMusic(musicKey());
+  else if (state === "options") { updateOptions(); if (state === "options") drawOptions(); }
+  else if (state === "keys") { updateKeys(); if (state === "keys") drawKeys(); }
+  const mk = OPT.music ? musicKey() : null;
+  if (state !== "loading" && audio.ready && audio.wanted !== mk) audio.playMusic(mk);
   syncTouchUI();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.drawImage(scanCanvas, 0, 0);
