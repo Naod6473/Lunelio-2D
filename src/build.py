@@ -7,6 +7,10 @@
 En version serveur, ajouter une musique ne demande pas de reconstruire le jeu :
 déposer backgroundhelio2.mp3, backgroundlune2.mp3… dans ../audio/ suffit.
 La version serveur écrit aussi ../sw.js (service worker de l'appli, à partir de sw.js).
+
+Nouvelle campagne : campagne.js est inséré dans le jeu, avec campagne.json (atlas et salles, écrit par
+preparer_pack.py). Ses images restent dans ../assets/ en version serveur (avec une empreinte ?v=… pour que
+le navigateur et l'appli prennent toujours la bonne version) ; la version autonome les intègre.
 """
 import base64, hashlib, json, os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -34,6 +38,17 @@ if embed:
 t = t.replace("__AUDIO_MODE__", "embed" if embed else "files")
 t = t.replace("__AUDIO_EMBED__", json.dumps(sounds))
 t = t.replace("__WORLDS__", open(os.path.join(HERE, "worlds.json"), encoding="utf-8").read())
+# nouvelle campagne : moteur (campagne.js), données (campagne.json) et images de ../assets/
+t = t.replace("/*__CAMPAGNE_JS__*/", open(os.path.join(HERE, "campagne.js"), encoding="utf-8").read())
+camp = json.load(open(os.path.join(HERE, "campagne.json"), encoding="utf-8"))
+asset_paths = sorted({a["src"] for a in camp["atlas"].values()} | {r["bg"] for w in camp["worlds"] for r in w["rooms"]})
+missing = [a for a in asset_paths if not os.path.exists(os.path.join(ROOT, a))]
+if missing: sys.exit(f"Images manquantes dans assets/ ({len(missing)}), relancer preparer_pack.py : {missing[:5]}")
+asset_ver = {a: hashlib.sha256(open(os.path.join(ROOT, a), "rb").read()).hexdigest()[:10] for a in asset_paths}
+mime = {".png": "image/png", ".webp": "image/webp"}
+asset_embed = {a: f"data:{mime[os.path.splitext(a)[1]]};base64," + b64(os.path.join(ROOT, a)) for a in asset_paths} if embed else {}
+t = t.replace("__CAMPAGNE__", json.dumps(camp, ensure_ascii=False, separators=(",", ":")))
+t = t.replace("__ASSET_EMBED__", json.dumps(asset_embed)).replace("__ASSET_VER__", json.dumps(asset_ver))
 # appli installable (PWA) : seulement en version serveur, la version autonome s'ouvre sans serveur
 PWA_HEAD = """<link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" href="icons/favicon-32.png">
@@ -45,9 +60,10 @@ if not embed:
     # le navigateur installe alors le nouveau service worker tout seul
     audio_files = sorted("audio/" + f for f in os.listdir(AUDIO) if f.endswith(".mp3"))
     sw = open(os.path.join(HERE, "sw.js"), encoding="utf-8").read()
+    asset_urls = [f"{a}?v={v}" for a, v in asset_ver.items()]
     h = hashlib.sha256((t + sw + "\n".join(audio_files)).encode())
     for f in ("manifest.json", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon-32.png"):
         h.update(open(os.path.join(ROOT, f), "rb").read())
-    sw = sw.replace("__VERSION__", h.hexdigest()[:12]).replace("__AUDIO__", json.dumps(audio_files))
+    sw = sw.replace("__VERSION__", h.hexdigest()[:12]).replace("__AUDIO__", json.dumps(audio_files)).replace("__ASSETS__", json.dumps(asset_urls))
     open(os.path.join(ROOT, "sw.js"), "w", encoding="utf-8", newline="\n").write(sw)
 print(f"{os.path.relpath(out, ROOT)} généré ({len(t) / 1e6:.1f} Mo, sons {'intégrés' if embed else 'dans audio/'})")

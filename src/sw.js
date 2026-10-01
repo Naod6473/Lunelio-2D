@@ -1,16 +1,20 @@
 // Service worker de Lunelio : permet de jouer hors ligne une fois le jeu installé.
-// Ce fichier est un modèle : build.py remplace __VERSION__ et __AUDIO__ et écrit ../sw.js.
+// Ce fichier est un modèle : build.py remplace __VERSION__, __AUDIO__ et __ASSETS__ et écrit ../sw.js.
 //
 // Le jeu (index.html) est toujours demandé au serveur d'abord ; le cache ne sert que
 // sans réseau. Une nouvelle version publiée sur main est donc prise dès le prochain
 // chargement, sans vider le cache à la main. Les sons, lourds et rarement modifiés,
-// sont lus dans le cache puis rafraîchis en arrière-plan.
+// sont lus dans le cache puis rafraîchis en arrière-plan. Les images de la campagne (assets/) ont une
+// empreinte dans leur adresse (?v=…) : on les lit dans le cache, et une nouvelle version a une autre adresse.
 const VERSION = "__VERSION__";
 const GAME_CACHE = "lunelio-jeu-" + VERSION;
 const AUDIO_CACHE = "lunelio-audio";
 const GAME_FILES = ["./", "index.html", "manifest.json", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon-32.png"];
 const AUDIO_FILES = __AUDIO__;
 const AUDIO_PATH = new URL("audio/", self.registration.scope).pathname;
+const IMAGE_CACHE = "lunelio-images";
+const ASSET_URLS = __ASSETS__;
+const ASSET_PATH = new URL("assets/", self.registration.scope).pathname;
 
 self.addEventListener("install", e => {
   e.waitUntil((async () => {
@@ -18,6 +22,8 @@ self.addEventListener("install", e => {
     // les sons déjà en cache ne sont pas retéléchargés ; un son manquant n'empêche pas l'installation
     const audio = await caches.open(AUDIO_CACHE);
     await Promise.all(AUDIO_FILES.map(async f => { if (!(await audio.match(f))) await audio.add(f).catch(() => {}); }));
+    const img = await caches.open(IMAGE_CACHE);
+    await Promise.all(ASSET_URLS.map(async f => { if (!(await img.match(f))) await img.add(f).catch(() => {}); }));
     await self.skipWaiting();
   })());
 });
@@ -25,6 +31,9 @@ self.addEventListener("install", e => {
 self.addEventListener("activate", e => {
   e.waitUntil((async () => {
     for (const k of await caches.keys()) if (k.startsWith("lunelio-jeu-") && k !== GAME_CACHE) await caches.delete(k);
+    // images d'anciennes versions : on ne garde que celles de la liste
+    const img = await caches.open(IMAGE_CACHE), keep = new Set(ASSET_URLS.map(f => new URL(f, self.registration.scope).href));
+    for (const r of await img.keys()) if (!keep.has(r.url)) await img.delete(r);
     await self.clients.claim();
   })());
 });
@@ -35,6 +44,7 @@ self.addEventListener("fetch", e => {
   if (req.method === "HEAD") e.respondWith(head(req));
   else if (req.method !== "GET") return;
   else if (url.pathname.startsWith(AUDIO_PATH)) e.respondWith(audioFile(req));
+  else if (url.pathname.startsWith(ASSET_PATH)) e.respondWith(imageFile(req));
   else e.respondWith(networkFirst(req));
 });
 
@@ -68,4 +78,14 @@ async function head(req) {
     const hit = await caches.match(req.url.split("?")[0]);
     return new Response(null, { status: hit ? 200 : 404 });
   }
+}
+
+// Images de la campagne : le cache d'abord (l'adresse contient l'empreinte du fichier), sinon le réseau.
+async function imageFile(req) {
+  const cache = await caches.open(IMAGE_CACHE);
+  const hit = await cache.match(req);
+  if (hit) return hit;
+  const res = await fetch(req);
+  if (res.status === 200) cache.put(req, res.clone());
+  return res;
 }

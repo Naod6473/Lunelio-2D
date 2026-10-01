@@ -102,7 +102,9 @@ const SPECIALS = {
     hint: ["Appuie deux fois sur Espace : double saut", "Appuie deux fois sur ▲ : double saut", "Appuie deux fois sur {JUMP} : double saut"],
     kbHint: () => `Appuie deux fois sur ${kbNames("jump")} : double saut` },
 };
-// Pouvoirs (bouton maintenu, jauge de chaque joueur p.gauge). timeFx : effet sur le temps du jeu (setTimeFx).
+// Pouvoirs (jauge de chaque joueur p.gauge). Sans burst : bouton maintenu, la jauge se vide pendant l'effet.
+// burst : coup unique qui coûte cette part de jauge (0,5 = la moitié). timeFx : effet sur le temps du jeu (setTimeFx) ;
+// shield, superjump, invisible : effets maintenus ; effect : effet d'un coup unique (stun, block, heal, dans burstPower()).
 const POWERS = {
   fast: { icon: "»", label: "vitesse", name: "Super vitesse", color: "#ffb43c", timeFx: "fast",
     hint: ["Maintiens Maj ou L : super vitesse !", "Maintiens » : super vitesse !", "Maintiens {POW} : super vitesse !"],
@@ -110,17 +112,63 @@ const POWERS = {
   slow: { icon: "⏳", label: "ralenti", name: "Ralenti", color: "#b07dff", timeFx: "slow",
     hint: ["Maintiens Maj ou L pour ralentir le temps", "Maintiens ⏳ pour ralentir le temps", "Maintiens {POW} pour ralentir le temps"],
     kbHint: () => `Maintiens ${kbNames("power")} pour ralentir le temps` },
+  shield: { icon: "◈", label: "bouclier", name: "Bouclier", color: "#5ef0ff", shield: true,
+    hint: ["Maintiens Maj ou L : bouclier, plus aucun coup !", "Maintiens ◈ : bouclier, plus aucun coup !", "Maintiens {POW} : bouclier, plus aucun coup !"],
+    kbHint: () => `Maintiens ${kbNames("power")} : bouclier, plus aucun coup !` },
+  superjump: { icon: "⇧", label: "super saut", name: "Super saut", color: "#ffc23c", superjump: true,
+    hint: ["Maintiens Maj ou L en sautant : super saut !", "Maintiens ⇧ en sautant : super saut !", "Maintiens {POW} en sautant : super saut !"],
+    kbHint: () => `Maintiens ${kbNames("power")} en sautant : super saut !` },
+  invisible: { icon: "◌", label: "invisible", name: "Invisible", color: "#9aa8ff", invisible: true,
+    hint: ["Maintiens Maj ou L : invisible, personne ne te voit", "Maintiens ◌ : invisible, personne ne te voit", "Maintiens {POW} : invisible, personne ne te voit"],
+    kbHint: () => `Maintiens ${kbNames("power")} : invisible, personne ne te voit` },
+  stun: { icon: "♪", label: "chant", name: "Chant magique", color: "#ff6ec7", burst: 0.5, effect: "stun",
+    hint: ["Maj ou L : un chant qui endort les ennemis", "Bouton ♪ : un chant qui endort les ennemis", "Bouton {POW} : un chant qui endort les ennemis"],
+    kbHint: () => `${kbNames("power")} : un chant qui endort les ennemis` },
+  block: { icon: "■", label: "bloc", name: "Bloc", color: "#7dffb0", burst: 0.34, effect: "block",
+    hint: ["Maj ou L : pose un bloc sous tes pieds", "Bouton ■ : pose un bloc sous tes pieds", "Bouton {POW} : pose un bloc sous tes pieds"],
+    kbHint: () => `${kbNames("power")} : pose un bloc sous tes pieds` },
+  heal: { icon: "♥", label: "pique-nique", name: "Pique-nique", color: "#ff8ab0", burst: 1, effect: "heal",
+    hint: ["Maj ou L, jauge pleine : pique-nique, +1 cœur", "Bouton ♥, jauge pleine : +1 cœur", "Bouton {POW}, jauge pleine : +1 cœur"],
+    kbHint: () => `${kbNames("power")}, jauge pleine : pique-nique, +1 cœur` },
 };
-// Personnages. Un nouveau personnage = une fiche ici + sa planche src/assets/images/<id>_spritesheet.png (+ logo_<id>.webp).
-// special / power : clés de SPECIALS / POWERS (ou null). music : nom de base de ses musiques dans audio/ (<music>.mp3, <music>2.mp3…).
-// unlock : null = disponible dès le début (prévu pour les personnages à débloquer).
+// Personnages. Un nouveau personnage = une fiche ici + sa planche (atlas perso_<id> préparé par src/preparer_pack.py ;
+// Hélio et Lune gardent leur planche d'origine src/assets/images/<id>_spritesheet.png) + son portrait (atlas portraits).
+// special / power : clés de SPECIALS / POWERS (ou null). music : nom de base de ses musiques dans audio/ (<music>.mp3, <music>2.mp3…),
+// utilisées pour l'écran de choix (la première), les salles (une par monde) ; theme : boucle WebAudio provisoire (SYNTH_THEMES)
+// jouée si aucun fichier n'existe. unlock : null = disponible dès le début. desc : phrase de l'écran de choix.
 const CHARS = [
-  { id: "helio", name: "Hélio", special: "dash", power: "fast", music: "backgroundhelio", unlock: null,
+  { id: "helio", name: "Hélio", special: "dash", power: "fast", music: "backgroundhelio", theme: null, unlock: null,
+    desc: "Rapide comme un rayon de soleil.",
     color: "#5ef0ff", glow: "94,240,255", ui: "#ffb43c", ui2: "#ff6a1a", atkW: 26,
     sky: ["#1c0a26", "#6e1e3c", "#e0602a"], moon: ["#fff1a8", "#ff9a2e"], stripe: "#6a1f3a", stars: "255,236,190", city: ["#2a0f2a", "#1c0a22"] },
-  { id: "lune", name: "Lune", special: "doublejump", power: "slow", music: "backgroundlune", unlock: null,
+  { id: "lune", name: "Lune", special: "doublejump", power: "slow", music: "backgroundlune", theme: null, unlock: null,
+    desc: "Légère comme la nuit, elle ralentit le temps.",
     color: "#de6eff", glow: "222,110,255", ui: "#de6eff", ui2: "#ff6ec7", atkW: 34,
     sky: ["#120828", "#2f0f4a", "#5a1650"], moon: ["#ffe8f6", "#c98cff"], stripe: "#3a1252", stars: "255,230,255", city: ["#1e0b38", "#160830"] },
+  { id: "robot", name: "Robot", special: "dash", power: "shield", music: "backgroundrobot", theme: "robot", unlock: null,
+    desc: "Un robot gentil avec un bouclier d'énergie.",
+    color: "#5ef0ff", glow: "94,240,255", ui: "#9fe8ff", ui2: "#4a7ad8", atkW: 28,
+    sky: ["#08121e", "#123a52", "#2a7a9a"], moon: ["#e8fbff", "#7ad8ff"], stripe: "#1a3a52", stars: "200,240,255", city: ["#0c1c2c", "#081420"] },
+  { id: "singe", name: "Singe", special: "dash", power: "superjump", music: "backgroundsinge", theme: "singe", unlock: null,
+    desc: "Il saute plus haut que tout le monde.",
+    color: "#ffc23c", glow: "255,194,60", ui: "#ffb46a", ui2: "#c8742a", atkW: 34,
+    sky: ["#140e06", "#3a2a0e", "#7a5a1a"], moon: ["#fff4c8", "#ffb43c"], stripe: "#4a3010", stars: "255,236,190", city: ["#1e160a", "#140e06"] },
+  { id: "ninja", name: "Ninja", special: "dash", power: "invisible", music: "backgroundninja", theme: "ninja", unlock: null,
+    desc: "Silencieux : il devient invisible.",
+    color: "#7ad8ff", glow: "122,216,255", ui: "#ff3b5c", ui2: "#8a1a3a", atkW: 26,
+    sky: ["#0c0610", "#2a0a1a", "#5a1028"], moon: ["#ffe0e6", "#ff6a7a"], stripe: "#3a0a1a", stars: "255,210,220", city: ["#16080e", "#0e0408"] },
+  { id: "rumi", name: "Rumi des Huntrix", special: "dash", power: "stun", music: "backgroundrumi", theme: "rumi", unlock: null,
+    desc: "Sa chanson endort les ennemis.",
+    color: "#de6eff", glow: "222,110,255", ui: "#c98cff", ui2: "#ffd23c", atkW: 30,
+    sky: ["#120620", "#3a0a4a", "#7a1a6a"], moon: ["#fff0fa", "#ff8ad8"], stripe: "#4a0a4a", stars: "255,220,250", city: ["#1e0a2a", "#14061e"] },
+  { id: "steve", name: "Steve", special: "dash", power: "block", music: "backgroundsteve", theme: "steve", unlock: null,
+    desc: "Il pose des blocs pour grimper.",
+    color: "#5ef0ff", glow: "94,240,255", ui: "#3fd0c0", ui2: "#2a4ac8", atkW: 28,
+    sky: ["#081410", "#0e3a2a", "#2a7a4a"], moon: ["#f0fff0", "#8aff9a"], stripe: "#103a20", stars: "220,255,230", city: ["#0c1e14", "#08140e"] },
+  { id: "homme", name: "Randonneur", special: "dash", power: "heal", music: "backgroundhomme", theme: "homme", unlock: null,
+    desc: "Toujours prêt : son pique-nique rend un cœur.",
+    color: "#cfd8ff", glow: "207,216,255", ui: "#ff8a3c", ui2: "#8a5a3a", atkW: 30,
+    sky: ["#100c08", "#3a2412", "#8a4a1e"], moon: ["#fff4e0", "#ffb46a"], stripe: "#4a2a12", stars: "255,236,210", city: ["#1e140c", "#140c06"] },
 ];
 const specialOf = C => SPECIALS[C.special] || null, powerOf = C => POWERS[C.power] || null;
 const abilityText = C => [specialOf(C), powerOf(C)].filter(Boolean).map(a => a.name).join(" · ");
@@ -158,8 +206,8 @@ const firstRoom = wi => ROOMS.findIndex(r => r.w === wi);
 // Réglages du joueur, sauvegardés dans localStorage (lunelio-options).
 // Touches du clavier : listes de codes physiques par action ; boutons de manette : indices de la disposition standard.
 const KB_ACTIONS = [["left", "Aller à gauche"], ["right", "Aller à droite"], ["jump", "Sauter"], ["drop", "Descendre"],
-  ["attack", "Coup de sabre"], ["special", "Dash d'Hélio"], ["power", "Pouvoir"]];
-const PAD_ACTIONS = [["jump", "Sauter"], ["attack", "Coup de sabre"], ["special", "Dash d'Hélio"], ["power", "Pouvoir"]];
+  ["attack", "Coup de sabre"], ["special", "Dash"], ["power", "Pouvoir"]];
+const PAD_ACTIONS = [["jump", "Sauter"], ["attack", "Coup de sabre"], ["special", "Dash"], ["power", "Pouvoir"]];
 const KB_DEFAULT = { left: ["ArrowLeft", "KeyA"], right: ["ArrowRight", "KeyD"], jump: ["Space", "ArrowUp", "KeyW"], drop: ["ArrowDown", "KeyS"],
   attack: ["KeyJ"], special: ["KeyK"], power: ["ShiftLeft", "ShiftRight", "KeyL"] };
 const PAD_DEFAULT = { jump: [0], attack: [2, 3], special: [1], power: [7, 6, 5, 4] };
@@ -441,8 +489,10 @@ const audio = {
     this.wanted = name;
     if (!this.ctx || (!force && this.curKey === name)) return;
     const c = this.ctx, t = c.currentTime;
-    if (this.cur) { const old = this.cur; old.g.gain.setTargetAtTime(0, t, 0.25); try { old.s.stop(t + 1.5); } catch (e) {} this.cur = null; this.curKey = null; }
+    if (this.cur) { const old = this.cur; old.g.gain.cancelScheduledValues(t); old.g.gain.setTargetAtTime(0, t, 0.25); try { old.s.stop(t + 1.5); } catch (e) {} this.cur = null; this.curKey = null; }
     if (!name) return;
+    // boucle composée en WebAudio (thème provisoire d'un personnage sans fichier de musique)
+    if (name.startsWith("synth:")) { const h = synthStart(name.slice(6)); if (h) { this.cur = h; this.curKey = name; } return; }
     const buf = this.buffers[name];
     if (!buf) { this.load(name).then(b => { if (b && this.wanted === name && this.curKey !== name) this.playMusic(name, true); }); return; }
     const s = c.createBufferSource(); s.buffer = buf; s.loop = true;
@@ -455,7 +505,7 @@ const audio = {
   setTimeFx(fx) {
     this.fx = fx; if (!this.ctx) return; const t = this.ctx.currentTime;
     this.filter.frequency.setTargetAtTime(fx === "slow" ? 900 : 18000, t, 0.08);
-    if (this.cur) this.cur.s.playbackRate.setTargetAtTime(this.rate(), t, 0.1);
+    if (this.cur && this.cur.s.playbackRate) this.cur.s.playbackRate.setTargetAtTime(this.rate(), t, 0.1);
     if (fx === "fast" && OPT.sfx) this.tone("sawtooth", 200, t, 0.25, 0.08, this.sfxG, 1200);
   },
   duck(sec) { if (!this.ctx) return; const t = this.ctx.currentTime, g = this.musicBus.gain; g.cancelScheduledValues(t); g.setTargetAtTime(0.12, t, 0.05); g.setTargetAtTime(0.5, t + sec, 0.4); },
@@ -497,32 +547,124 @@ const audio = {
       case "door": [0, 4, 7, 12].forEach((n, i) => this.tone("square", 440 * Math.pow(2, n / 12), t + i * 0.07, 0.15, 0.08, d)); break;
       case "select": this.tone("square", 880, t, 0.06, 0.07, d); break;
       case "start": [0, 7, 12, 19].forEach((n, i) => this.tone("square", 330 * Math.pow(2, n / 12), t + i * 0.06, 0.18, 0.08, d)); break;
+      // machine à laver : claquement, moteur qui peine puis repart
+      case "machine": this.noiseHit(t, 0.08, 0.5, "lowpass", 700, d); this.tone("sawtooth", 60, t + 0.1, 0.5, 0.12, d, 40); this.tone("sawtooth", 50, t + 0.65, 0.6, 0.14, d, 110); break;
+      case "spin": this.tone("sawtooth", 80, t, 0.9, 0.12, d, 420); this.noiseHit(t, 0.9, 0.25, "bandpass", 1200, d); break;
+      case "zap": this.noiseHit(t, 0.25, 0.4, "highpass", 3000, d); this.tone("square", 1800, t, 0.2, 0.06, d, 600); break;
+      case "stun": [0, 4, 7, 12, 7, 4].forEach((n, i) => this.tone("triangle", 523 * Math.pow(2, n / 12), t + i * 0.08, 0.2, 0.12, d)); break;
+      case "block": this.tone("square", 180, t, 0.08, 0.15, d, 120); this.noiseHit(t, 0.06, 0.3, "lowpass", 1200, d); break;
+      case "nope": this.tone("square", 200, t, 0.1, 0.08, d, 150); break;
     }
   },
+  // boucles WebAudio : notes programmées un peu à l'avance à chaque image (synthTick)
+  synths: [],
 };
+// Thèmes provisoires des nouveaux personnages, composés en WebAudio (remplacés par un fichier audio/<music>.mp3 dès qu'il existe).
+// prog : degré de l'accord de chaque mesure ; lead / bass : 16 pas par mesure, chiffre = degré de la gamme au-dessus de l'accord,
+// « - » : la note continue, « . » : silence ; drums : k grosse caisse, s caisse claire, h charleston.
+const SCALES = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10], dorian: [0, 2, 3, 5, 7, 9, 10], penta: [0, 2, 4, 7, 9, 12, 14] };
+const SYNTH_THEMES = {
+  // Robot : électro métallique, arpèges rapides
+  robot: { bpm: 122, root: 45, scale: "minor", prog: [0, 5, 3, 4], lead: "square", leadVol: 0.05, bass: "sawtooth",
+    leadPat: ["0.2.4.2.7.4.2.4.", "0.2.4.2.7.4.9.7.", "0.2.4.2.7.4.2.4.", "4.4.2.2.0.0.2.-."], bassPat: "0.0.....0.0..0..",
+    drums: { k: "x...x...x...x...", s: "....x.......x...", h: "..x...x...x...xx" } },
+  // Singe : percussions de jungle, marimba joyeux
+  singe: { bpm: 112, root: 50, scale: "penta", prog: [0, 0, 3, 4], lead: "triangle", leadVol: 0.09, bass: "triangle",
+    leadPat: ["0.2.4..2.4.5.4..", "2.4.5..4.2.0.2..", "0.2.4..2.4.5.6..", "5.4.2..0.2.0.-.."], bassPat: "0..0..0...0..0..",
+    drums: { k: "x..x..x...x..x..", s: "....x..x....x.x.", h: "x.x.x.x.x.x.x.x." } },
+  // Ninja : koto et taiko, gamme pentatonique
+  ninja: { bpm: 96, root: 47, scale: "penta", prog: [0, 0, 1, 0], lead: "triangle", leadVol: 0.1, bass: "sine",
+    leadPat: ["4---2-1-0-------", "1-2-4-5-4---2---", "4---5-4-2-1-0---", "2-1-0-----------"], bassPat: "0.......0...0...",
+    drums: { k: "x.......x..x....", s: "........x.......", h: "................" } },
+  // Rumi : pop énergique
+  rumi: { bpm: 128, root: 52, scale: "major", prog: [0, 4, 5, 3], lead: "square", leadVol: 0.05, bass: "sawtooth",
+    leadPat: ["4.4.4.2-4.5.4.2.", "4.4.4.2-0.2.-...", "4.4.4.2-4.5.7.5.", "4.2.0.2.4---...."], bassPat: "0.0.0.0.0.0.0.0.",
+    drums: { k: "x...x...x...x...", s: "....x.......x...", h: "xxxxxxxxxxxxxxxx" } },
+  // Steve : mélodie calme et douce, comme une promenade dans les cubes
+  steve: { bpm: 84, root: 48, scale: "major", prog: [0, 3, 5, 4], lead: "sine", leadVol: 0.11, bass: "triangle",
+    leadPat: ["4---2---0---2---", "4---5---4-------", "2---4---5---4---", "2---0-----------"], bassPat: "0-------0-------",
+    drums: { k: "................", s: "................", h: "..x...x...x...x." } },
+  // Randonneur : folk à la guitare
+  homme: { bpm: 100, root: 43, scale: "major", prog: [0, 4, 5, 3], lead: "triangle", leadVol: 0.1, bass: "triangle",
+    leadPat: ["0.2.4.2.0.2.4.2.", "0.2.4.5.4.2.0...", "2.4.5.4.2.4.5.7.", "4.2.0.2.0-------"], bassPat: "0...4...0...4...",
+    drums: { k: "x.......x.......", s: "....x.......x...", h: "x.x.x.x.x.x.x.x." } },
+  // Boss (si audio/bossbackground.mp3 manque)
+  boss: { bpm: 140, root: 40, scale: "minor", prog: [0, 0, 5, 4], lead: "sawtooth", leadVol: 0.04, bass: "square",
+    leadPat: ["0.0.3.0.5.0.4.3.", "0.0.3.0.6-5-4...", "0.0.3.0.5.0.4.3.", "7.6.5.4.3.2.1.0."], bassPat: "0000000000000000",
+    drums: { k: "x.x.x.x.x.x.x.x.", s: "....x.......x..x", h: "xxxxxxxxxxxxxxxx" } },
+};
+const midiHz = m => 440 * Math.pow(2, (m - 69) / 12);
+function synthStart(id) {
+  const th = SYNTH_THEMES[id], c = audio.ctx; if (!th || !c) return null;
+  const g = c.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(1, c.currentTime, 0.3); g.connect(audio.musicBus);
+  const h = { th, g, step: 0, next: c.currentTime + 0.06, stopAt: Infinity, s: { stop: t => { h.stopAt = t; } } };
+  audio.synths.push(h); return h;
+}
+function synthNote(h, deg, chord, oct, t, dur, type, vol) {
+  const sc = SCALES[h.th.scale], k = deg + chord, n = sc.length;
+  const semi = sc[((k % n) + n) % n] + 12 * Math.floor(k / n) + 12 * oct;
+  audio.tone(type, midiHz(h.th.root + semi), t, dur, vol, h.g);
+}
+function synthTick() {
+  const c = audio.ctx; if (!c || !audio.synths.length) return;
+  for (const h of audio.synths) {
+    const th = h.th, sd = 60 / th.bpm / 4 / (audio.fx === "slow" ? 0.8 : audio.fx === "fast" ? 1.12 : 1);
+    while (h.next < c.currentTime + 0.2 && h.next < h.stopAt) {
+      const i = h.step % 64, bar = Math.floor(i / 16), s = i % 16, chord = th.prog[bar];
+      const play = (pat, oct, type, vol) => {
+        const ch0 = pat[s]; if (!/\d/.test(ch0)) return;
+        let len = 1; while (s + len < 16 && pat[s + len] === "-") len++;
+        synthNote(h, +ch0, chord, oct, h.next, sd * len * 0.95, type, vol);
+      };
+      play(th.leadPat[bar % th.leadPat.length], 1, th.lead, th.leadVol);
+      play(th.bassPat, -1, th.bass, 0.09);
+      const D = th.drums, t = h.next;
+      if (D.k[s] === "x") audio.tone("sine", 140, t, 0.16, 0.35, h.g, 40);
+      if (D.s[s] === "x") audio.noiseHit(t, 0.12, 0.18, "bandpass", 1800, h.g);
+      if (D.h[s] === "x") audio.noiseHit(t, 0.04, 0.06, "highpass", 7000, h.g);
+      h.next += sd; h.step++;
+    }
+  }
+  audio.synths = audio.synths.filter(h => c.currentTime < h.stopAt + 0.5);
+}
 audio.discover();
-// Choix de la musique. En salle : musique du monde (WORLDS[].music / bossMusic) si elle existe ; sinon Doom, bossbackground en salle
-// de boss, puis la liste du personnage, une piste différente par monde. Une liste vide ou absente ne plante jamais : on passe à la suivante.
+// Choix de la musique. Chaque personnage a son thème : la première piste de sa liste (CHARS[].music), sinon sa boucle WebAudio
+// provisoire (theme). Écran de choix des personnages : thème du personnage mis en avant. Ancienne aventure : musique du monde
+// (WORLDS[].music / bossMusic) si elle existe ; sinon Doom, bossbackground en salle de boss, puis la liste du personnage.
+// Une liste vide ou absente ne plante jamais : on passe à la suivante.
+function charMusic(C, i = 0) {
+  const list = audio.playlists["char:" + C.id] || [];
+  return list.length ? list[i % list.length] : C.theme ? "synth:" + C.theme : null;
+}
 function musicKey() {
   const P = audio.playlists, L = k => P[k] || [];
   const pick = (list, i) => list.length ? list[i % list.length] : null;
-  const charList = L("char:" + ch().id), doom = df().id === "doom";
+  const doom = df().id === "doom";
+  if (state === "chars") return charMusic(CHARS[charSel]);
   const inRoom = ["play", "clear", "worldclear", "pause"].includes(state) || (optFrom === "pause" && (state === "options" || state === "keys"));
+  if (inRoom && lvl && lvl.json) {
+    const bossTime = lvl.bossSpawn && enemies.some(e => e.type === "bigboss" && e.alive && !e.dying);
+    if (bossTime) return pick(L("boss"), camp.wi) || "synth:boss";
+    if (doom && L("doom").length) return pick(L("doom"), camp.wi);
+    return charMusic(ch(), camp.wi);
+  }
   if (inRoom && lvl) {
     const room = ROOMS[lvlIdx], W = WORLDS[room.w], bossTime = room.boss && state !== "worldclear";
     if (bossTime && W.bossMusic && L(W.bossMusic).length) return pick(L(W.bossMusic), 0);
     if (!doom && W.music && L(W.music).length) return pick(L(W.music), room.ri);
     if (bossTime && L("boss").length) return pick(L("boss"), room.w);
-    return pick(doom && L("doom").length ? L("doom") : charList, room.w);
+    return doom && L("doom").length ? pick(L("doom"), room.w) : charMusic(ch(), room.w);
   }
-  return pick(doom && L("doom").length ? L("doom") : charList, state === "worlds" ? worldSel : 0);
+  if (state === "campwin") return charMusic(ch());
+  return doom && L("doom").length ? pick(L("doom"), 0) : charMusic(ch(), state === "worlds" ? worldSel : 0);
 }
 
 /* ---------------- Voix ---------------- */
 // Lecture des consignes à voix haute (synthèse vocale du navigateur, voix française si elle existe)
 const SPEAK = { "▲": "saut", "⚔": "épée", "➤": "dash", "»": "vitesse", "⏳": "sablier", "✕": "croix", "○": "rond", "□": "carré", "△": "triangle",
-  "←": "flèche gauche", "→": "flèche droite", "↑": "flèche du haut", "↓": "flèche du bas", "☠": "", "…": "." };
-const speakable = s => s.replace(/[▲⚔➤»⏳✕○□△←→↑↓☠…]/g, c => SPEAK[c]).replace(/\bZQSD\b/g, "Z Q S D").replace(/\bMaj\b/g, "majuscule").replace(/\s+/g, " ").trim();
+  "←": "flèche gauche", "→": "flèche droite", "↑": "flèche du haut", "↓": "flèche du bas", "☠": "", "…": ".",
+  "◈": "bouclier", "⇧": "super saut", "◌": "invisible", "♪": "note", "■": "bloc", "♥": "cœur" };
+const speakable = s => s.replace(/[▲⚔➤»⏳✕○□△←→↑↓☠…◈⇧◌♪■♥]/g, c => SPEAK[c]).replace(/\bZQSD\b/g, "Z Q S D").replace(/\bMaj\b/g, "majuscule").replace(/\s+/g, " ").trim();
 const voice = {
   v: null,
   ok() { return "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined"; },
@@ -867,11 +1009,13 @@ function tileAt(px, py) {
   if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return 1;
   return lvl.grid[r][c];
 }
-const solidAt = (x, y) => tileAt(x, y) === 1;
+// lvl.json : salle de la nouvelle campagne (rectangles) ; sinon grille de l'ancienne aventure
+const solidAt = (x, y) => lvl.json ? rectSolidAt(x, y) : tileAt(x, y) === 1;
 const ov = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 function moveBody(e, dt) {
+  if (lvl.json) { moveBodyJ(e, dt); return; }
   e.blockedX = false;
   e.x += e.vx * dt;
   const ys = [e.y + 1, e.y + e.h / 2, e.y + e.h - 1];
@@ -889,6 +1033,7 @@ function moveBody(e, dt) {
       const t = tileAt(x, b), top = Math.floor(b / T) * T;
       if (t === 1 || (t === 2 && prevBottom <= top + 0.5 && !(e.dropT > 0))) { e.y = top - e.h; e.vy = 0; e.onGround = true; break; }
     }
+    if (!e.onGround) landOnBlocks(e, prevBottom);
   } else {
     for (const x of xs) if (solidAt(x, e.y)) { e.y = (Math.floor(e.y / T) + 1) * T; e.vy = 0; break; }
   }
@@ -937,19 +1082,19 @@ function makePlayer(C, input, idx) {
   const s = lvl.start;
   return { idx, C, input, x: s.x + idx * 14, y: s.y, w: 10, h: 32, vx: 0, vy: 0, face: 1, onGround: false, airJumps: 1, coyote: 0, jumpBuf: 0,
     atkT: -1, atkCd: 0, dashT: 0, dashCd: 0, dashAir: true, djT: 0, hp: df().hp, inv: 0.6, dead: false, runT: 0, dropT: 0,
-    hitList: new Set(), dashHits: new Set(), ghostT: 0, gauge: 1, powerOn: false };
+    hitList: new Set(), dashHits: new Set(), ghostT: 0, gauge: 1, powerOn: false, hidden: false, fade: 1 };
 }
 const player1 = () => players[0];
 const allDead = () => players.every(p => p.dead);
 const usingPower = (p, fx) => p.powerOn && powerOf(p.C) && powerOf(p.C).timeFx === fx;
-// Joueur visé par un ennemi : le plus proche encore en vie
+// Joueur visé par un ennemi : le plus proche encore en vie (et visible : pouvoir d'invisibilité)
 function targetOf(e) {
   let best = null, bd = Infinity; const cx = e.x + e.w / 2, cy = e.y + e.h / 2;
-  for (const p of players) { if (p.dead) continue; const d = Math.hypot(p.x + 5 - cx, p.y + 16 - cy); if (d < bd) { bd = d; best = p; } }
+  for (const p of players) { if (p.dead) continue; const d = Math.hypot(p.x + 5 - cx, p.y + 16 - cy) + (hidden(p) ? 1e4 : 0); if (d < bd) { bd = d; best = p; } }
   return best || players[0];
 }
-// Contact d'un ennemi avec les joueurs
-function touchPlayers(e, srcX) { for (const p of players) if (!p.dead && ov(e, p)) hurtPlayer(p, srcX); }
+// Contact d'un ennemi avec les joueurs (un joueur invisible ou caché dans une cinématique n'est pas touché)
+function touchPlayers(e, srcX) { for (const p of players) if (!p.dead && !p.hidden && !hidden(p) && ov(e, p)) hurtPlayer(p, srcX); }
 let spokenRoom = -1;
 function roomHints() {
   const L = ROOMS[lvlIdx];
@@ -1001,13 +1146,25 @@ function damageBoss(e, dmg) {
   }
 }
 function hitEnemy(e, src, p) {
+  if (e.type === "foe" || e.type === "bigboss") {
+    // nouvelle campagne : un coup de sabre ou un dash ne touche qu'une fois ; un tir renvoyé fait 2 dégâts
+    if (src === "atk") { if (p.hitList.has(e)) return; p.hitList.add(e); }
+    else if (src === "dash") { if (p.dashHits.has(e)) return; p.dashHits.add(e); }
+    if (e.type === "foe") damageFoe(e, src === "laser" ? 2 : 1); else damageBig(e, src === "laser" ? 2 : 1);
+    return;
+  }
   if (e.type !== "boss") { killEnemy(e); return; }
   if (src === "atk") { if (p.hitList.has(e)) return; p.hitList.add(e); damageBoss(e, 1); }
   else if (src === "dash") { if (p.dashHits.has(e)) return; p.dashHits.add(e); damageBoss(e, 1); }
   else damageBoss(e, 2);
 }
 function hurtPlayer(p, srcX) {
-  if (p.dead || p.inv > 0 || p.dashT > 0) return;
+  if (p.dead || p.inv > 0 || p.dashT > 0 || p.hidden) return;
+  const pw = powerOf(p.C);
+  if (p.powerOn && pw && pw.shield) {
+    // bouclier : le coup est absorbé
+    p.inv = 0.35; audio.sfx("deflect"); burst(p.x + 5, p.y + 16, 12, ["#5ef0ff", "#ffffff"], 140, 0.3, 0, 1); return;
+  }
   p.hp--;
   shake = 6; hitstop = 0.08; audio.sfx("hurt");
   burst(p.x + 5, p.y + 14, 14, ["#ff3b5c", "#ffffff", p.C.color], 180, 0.5, 300, 2);
@@ -1022,7 +1179,7 @@ function hurtPlayer(p, srcX) {
     burst(p.x + 5, p.y + 16, 40, [p.C.color, "#ffffff", "#ff4fd8"], 260, 0.9, 250, 2);
     if (allDead()) {
       deathT = 1.4; voice.say("Raté ! On recommence.", true);
-      doomReset = df().id === "doom" && ROOMS[lvlIdx].ri > 0;
+      doomReset = df().id === "doom" && (lvl.json ? camp.ri > camp.ckpt : ROOMS[lvlIdx].ri > 0);
       setTimeFx(false, false);
     }
   } else {
@@ -1054,20 +1211,24 @@ function updatePlayer(p, dt) {
     p.dashT -= dt; p.vx = p.face * 430; p.vy = 0;
     if (Math.random() < 0.8) parts.push({ x: p.x + 5, y: p.y + 6 + Math.random() * 24, vx: -p.face * 30, vy: 0, life: 0.25, max: 0.25, color: C.color, size: 2, grav: 0 });
     for (const e of enemies) if (e.alive && ov(p, e)) hitEnemy(e, "dash", p);
+    if (lvl.json) campAttack(p, p, "dash");
   } else {
     const target = dir * RUN, acc = (p.onGround ? 1400 : 900) * boost;
     if (p.inv > 1.0) { /* recul après un coup */ }
     else if (p.vx < target) p.vx = Math.min(target, p.vx + acc * dt);
     else if (p.vx > target) p.vx = Math.max(target, p.vx - acc * dt);
     if (dir && p.atkT < 0) p.face = dir;
+    // nouvelle campagne : haut devant une porte ou la machine = entrer (pas de saut)
+    if (lvl.json && campTryInteract(p)) p.jumpBuf = 0;
     if (p.jumpBuf > 0) {
-      if (p.coyote > 0) { p.vy = -450; p.coyote = 0; p.jumpBuf = 0; audio.sfx("jump"); }
+      const sj = p.powerOn && powerOf(C) && powerOf(C).superjump;
+      if (p.coyote > 0) { p.vy = sj ? -570 : -450; p.coyote = 0; p.jumpBuf = 0; audio.sfx(sj ? "dj" : "jump"); if (sj) burst(p.x + 5, p.y + 30, 10, [C.color, "#ffffff"], 100, 0.4, 0, 1); }
       else if (C.special === "doublejump" && p.airJumps > 0) {
         p.vy = -400; p.airJumps--; p.jumpBuf = 0; p.djT = 0.32; audio.sfx("dj");
         burst(p.x + 5, p.y + 30, 12, [C.color, "#ffffff"], 120, 0.4, 0, 1);
       }
     }
-    if (hit(...I.drop) && p.onGround && tileAt(p.x + 5, p.y + p.h + 1) === 2) { p.dropT = 0.25; p.y += 2; }
+    if (hit(...I.drop) && p.onGround && onOneWay(p)) { p.dropT = 0.25; p.y += 2; }
     p.vy += G * dt;
     if (p.vy < 0 && !down(...I.jump)) p.vy += G * 1.4 * dt;
     p.vy = Math.min(p.vy, 600);
@@ -1088,8 +1249,9 @@ function updatePlayer(p, dt) {
     if (p.atkT > 0.03 && p.atkT < 0.2) {
       const box = attackBox(p);
       for (const e of enemies) if (e.alive && ov(box, e)) hitEnemy(e, "atk", p);
-      for (const l of lasers) if (l.alive && l.owner === "enemy" && l.kind !== "wave" && ov(box, l)) {
-        l.owner = "player"; l.color = C.color; l.vx = -l.vx * 1.6; l.y = Math.round(l.y);
+      if (lvl.json) campAttack(p, box, "atk");
+      for (const l of lasers) if (l.alive && l.owner === "enemy" && l.kind !== "wave" && !l.noReflect && ov(box, l)) {
+        l.owner = "player"; l.color = C.color; l.vx = -l.vx * 1.6; l.vy = -(l.vy || 0) * 1.6; l.g = 0; l.y = Math.round(l.y);
         audio.sfx("deflect"); hitstop = 0.05; shake = Math.max(shake, 3);
         burst(l.x + 5, l.y, 12, ["#ffffff", C.color], 160, 0.3, 0, 1);
       }
@@ -1106,11 +1268,12 @@ function updatePlayer(p, dt) {
     msg = { text: "+1 cœur", t: 1.2 };
   }
   if (Math.abs(p.vx) > 20 && p.onGround) p.runT += dt * boost;
+  if (lvl.json) { if (p.y > VH + 8) campFall(p); return; }
   if (p.y > VH + 40) { if (buddyOn()) { p.x = lvl.start.x; p.y = lvl.start.y; p.vy = 0; p.inv = 0; } hurtPlayer(p, p.x); }
   if (doorOpen && ov(p, lvl.door)) { state = "clear"; clearT = 1.6; audio.sfx("start"); setTimeFx(false, false); }
 }
 function canSee(e) {
-  const p = targetOf(e); if (p.dead) return false;
+  const p = targetOf(e); if (p.dead || hidden(p)) return false;
   const ly = e.y + 13, pcy = p.y + p.h / 2, dx = p.x + 5 - (e.x + 8);
   if (Math.abs(pcy - ly) > 30 || Math.abs(dx) > 330) return false;
   const step = Math.sign(dx) * 8;
@@ -1262,7 +1425,7 @@ function updateDrone(e, p, dt) {
   const d = df();
   e.t += dt; e.walkT += dt;
   const dx = p.x + 5 - (e.x + 7), dy = p.y + 12 - (e.y + 5), dist = Math.hypot(dx, dy) || 1;
-  e.charging = !p.dead && dist < 170;
+  e.charging = !p.dead && !hidden(p) && dist < 170;
   if (e.charging) { const sp = 46 * d.eSpeed; e.x += dx / dist * sp * dt; e.y += dy / dist * sp * dt; }
   else { e.x += (e.homeX - e.x) * Math.min(1, dt * 0.8); e.y += (e.homeY + Math.sin(e.t * 2) * 6 - e.y) * Math.min(1, dt * 2); }
   e.x = clamp(e.x, 16, VW - 30); e.y = clamp(e.y, 16, VH - 44);
@@ -1273,7 +1436,7 @@ function updateWalker(e, p, dt) {
   const d = df();
   e.vy = Math.min(e.vy + 1500 * dt, 600);
   const dy = Math.abs(p.y + p.h - (e.y + e.h)), dx = p.x + 5 - (e.x + 8);
-  e.charging = !p.dead && dy < 28 && Math.abs(dx) < 140;
+  e.charging = !p.dead && !hidden(p) && dy < 28 && Math.abs(dx) < 140;
   if (e.charging) e.face = Math.sign(dx) || e.face;
   else if (e.face === 0) e.face = -1;
   const speed = (e.charging ? 105 : 35) * d.eSpeed;
@@ -1301,6 +1464,7 @@ function updateShooter(e, p, dt) {
 function updateEnemies(dt) {
   for (const e of enemies) {
     if (!e.alive) continue;
+    if (e.stunT > 0) { e.stunT -= dt; continue; }   // endormi par le chant de Rumi
     if (e.type === "boss") updateBoss(e, dt);
     else ENEMIES[e.type].update(e, targetOf(e), dt);
   }
@@ -1309,12 +1473,19 @@ function updateLasers(dt) {
   for (const l of lasers) {
     if (!l.alive) continue;
     l.x += l.vx * dt;
+    if (l.g) l.vy += l.g * dt;
+    if (l.vy) l.y += l.vy * dt;
+    if (l.y < -40 || l.y > VH + 20) { l.alive = false; continue; }
+    if ((l.kind === "rock" || l.kind === "coco") && lvl.json && supportAt(l.x + l.w / 2, l.y + l.h) && l.vy > 0) {
+      l.alive = false; addFx("fx_poussiere", l.x + l.w / 2, l.y + l.h); burst(l.x + l.w / 2, l.y + l.h / 2, 8, [l.color, "#ffffff"], 100, 0.4, 300, 2); continue;
+    }
     if (l.kind === "wave") {
-      if (solidAt(l.x + (l.vx > 0 ? l.w : 0), l.y + 4) || tileAt(l.x + l.w / 2, l.y + l.h + 2) === 0) { l.alive = false; burst(l.x + 7, l.y + 6, 6, ["#c0c8e0", "#ffffff"], 80, 0.3, 300, 2); continue; }
+      if (solidAt(l.x + (l.vx > 0 ? l.w : 0), l.y + 4) || !supportAt(l.x + l.w / 2, l.y + l.h + 2)) { l.alive = false; burst(l.x + 7, l.y + 6, 6, ["#c0c8e0", "#ffffff"], 80, 0.3, 300, 2); continue; }
       if (Math.random() < 0.5) parts.push({ x: l.x + Math.random() * l.w, y: l.y + l.h, vx: 0, vy: -60 - Math.random() * 60, life: 0.3, max: 0.3, color: "#c0c8e0", size: 2, grav: 300 });
-    } else if (solidAt(l.x + 5, l.y) || l.x < -20 || l.x > VW + 20) { l.alive = false; burst(l.x + 5, l.y, 6, ["#ff8ab0", "#ffffff"], 90, 0.25, 0, 1); continue; }
+    } else if (l.x < -20 || l.x > VW + 20) { l.alive = false; continue; }
+    else if (solidAt(l.x + l.w / 2, l.y + l.h / 2)) { l.alive = false; burst(l.x + 5, l.y, 6, ["#ff8ab0", "#ffffff"], 90, 0.25, 0, 1); continue; }
     if (l.owner === "enemy") {
-      for (const p of players) if (!p.dead && ov(l, p) && p.inv <= 0 && p.dashT <= 0) { l.alive = false; hurtPlayer(p, l.x); break; }
+      for (const p of players) if (!p.dead && !p.hidden && ov(l, p) && p.inv <= 0 && p.dashT <= 0) { l.alive = false; hurtPlayer(p, l.x); break; }
     } else if (l.owner === "player") {
       for (const e of enemies) if (e.alive && ov(l, e)) { hitEnemy(e, "laser"); l.alive = false; break; }
     }
@@ -1331,25 +1502,66 @@ function updateParts(dt) {
 function updatePlay(rdt) {
   const d = df();
   if (hit("Escape", "KeyP", "TPause", "GStart")) { pauseGame(); return; }
-  if (hit("KeyR", "GSelect")) { loadLevel(lvlIdx); return; }
-  // pouvoirs : chaque joueur a sa jauge ; le ralenti d'un joueur ralentit tout le jeu
+  if (hit("KeyR", "GSelect") && !(lvl.json && campLocked(players[0]))) { if (lvl.json) loadCampRoom(camp.wi, camp.ri, { restart: true }); else loadLevel(lvlIdx); return; }
+  // pouvoirs : chaque joueur a sa jauge ; le ralenti d'un joueur ralentit tout le jeu.
+  // Pouvoir maintenu : la jauge se vide pendant l'effet. Coup unique (burst) : il coûte une part de la jauge.
   for (const p of players) {
-    p.powerOn = !!(d.power && powerOf(p.C) && down(...p.input.power) && p.gauge > 0 && !p.dead);
-    p.gauge = p.powerOn ? Math.max(0, p.gauge - d.drain * rdt) : Math.min(1, p.gauge + d.regen * rdt);
+    const pw = powerOf(p.C), locked = lvl.json && campLocked(p);
+    if (pw && pw.burst) {
+      p.powerOn = false;
+      if (d.power && hit(...p.input.power) && !p.dead && !locked) burstPower(p, pw);
+      p.gauge = Math.min(1, p.gauge + d.regen * rdt);
+    } else {
+      p.powerOn = !!(d.power && pw && down(...p.input.power) && p.gauge > 0 && !p.dead && !locked);
+      p.gauge = p.powerOn ? Math.max(0, p.gauge - d.drain * rdt) : Math.min(1, p.gauge + d.regen * rdt);
+    }
   }
   setTimeFx(players.some(p => usingPower(p, "slow")), players.some(p => usingPower(p, "fast")));
   runTime += rdt; roomTime += rdt; hintT += rdt;
   if (hitstop > 0) { hitstop -= rdt; return; }
   const dt = rdt * (slowOn ? 0.35 : 1);
-  for (const p of players) updatePlayer(p, dt);
-  updateEnemies(dt); updateLasers(dt); updateParts(dt);
+  for (const p of players) if (!(lvl.json && campLocked(p))) updatePlayer(p, dt);
+  if (lvl.json) updateCamp(dt); else updateEnemies(dt);
+  updateLasers(dt); updateParts(dt);
   if (allDead()) {
     deathT -= rdt;
     if (deathT <= 0) {
-      if (doomReset) { loadLevel(firstRoom(ROOMS[lvlIdx].w)); msg = { text: "Mode Doom : retour au début du monde !", t: 2.5 }; }
+      if (lvl.json) {
+        if (doomReset) { loadCampRoom(camp.wi, camp.ckpt, { restart: camp.ckpt === camp.ri }); msg = { text: camp.ckpt ? "Mode Doom : retour au drapeau !" : "Mode Doom : retour au début du monde !", t: 2.5 }; }
+        else loadCampRoom(camp.wi, camp.ri, { restart: true });
+      }
+      else if (doomReset) { loadLevel(firstRoom(ROOMS[lvlIdx].w)); msg = { text: "Mode Doom : retour au début du monde !", t: 2.5 }; }
       else loadLevel(lvlIdx);
     }
   }
+}
+// Pouvoirs à coup unique : renvoie sans rien dépenser si la jauge ne suffit pas ou si l'effet est inutile
+function burstPower(p, pw) {
+  if (p.gauge < pw.burst - 1e-6) { audio.sfx("nope"); return; }
+  const cx = p.x + 5, cy = p.y + 16;
+  if (pw.effect === "stun") {
+    for (const e of enemies) {
+      if (!e.alive || e.state === "intro" || e.st === "intro" || e.dying) continue;
+      e.stunT = e.type === "boss" || e.type === "bigboss" ? 1.2 : 2.5;
+      if (e.st === "windup" || e.st === "active") { e.st = "recover"; e.t = 0.3; }
+    }
+    for (let i = 0; i < 10; i++) parts.push({ x: cx, y: cy, vx: Math.cos(i * 0.63) * 120, vy: Math.sin(i * 0.63) * 80 - 40, life: 0.8, max: 0.8, color: i % 2 ? "#ff6ec7" : "#ffffff", size: 3, grav: 0 });
+    flash = 0.06; audio.sfx("stun");
+  } else if (pw.effect === "block") {
+    if (!lvl.blocks) lvl.blocks = [];
+    const bx = Math.round(cx - 8), by = p.onGround ? p.y + p.h - 16 : Math.round(p.y + p.h);
+    const free = [bx + 1, bx + 15].every(x => [by + 1, by + 15].every(y => !solidAt(x, y)));
+    if (!free || by > VH - 8) { audio.sfx("nope"); return; }
+    lvl.blocks.push({ x: bx, y: by, w: 16, h: 16, t: 5 });
+    if (lvl.blocks.length > 3) lvl.blocks.shift();
+    if (p.onGround) p.y = by - p.h; else { p.y = by - p.h; p.vy = 0; }
+    p.onGround = true; burst(cx, by + 8, 10, ["#4fbf3a", "#8a5a2a", "#ffffff"], 90, 0.4, 300, 2); audio.sfx("block");
+  } else if (pw.effect === "heal") {
+    if (p.hp >= df().hp) { msg = { text: "Tous tes cœurs sont déjà là !", t: 1.4 }; audio.sfx("nope"); return; }
+    p.hp++; audio.sfx("heal"); msg = { text: "Pique-nique : +1 cœur", t: 1.4 };
+    burst(cx, cy, 18, ["#ff4f8a", "#ffffff", "#ffb0d0"], 120, 0.6, 0, 1);
+  }
+  p.gauge = Math.max(0, p.gauge - pw.burst);
 }
 let pauseSel = 0;
 const PUI = { resume: { x: 170, y: 104, w: 140, h: 24 }, options: { x: 170, y: 134, w: 140, h: 24 }, quit: { x: 170, y: 164, w: 140, h: 24 } };
@@ -1381,20 +1593,21 @@ function playerFrame(p) {
   if (Math.abs(p.vx) > 20) return 6 + Math.floor(p.runT * 12) % 6;
   return Math.floor(time * 5) % 4;
 }
+// Les personnages sont dessinés depuis leur atlas (perso_<id>), ancrés au milieu des pieds
 function drawGhosts() {
   for (const g of ghosts) {
-    const gx = g.face > 0 ? Math.round(g.x + 5 - 23) : Math.round(g.x + 5 - 24);
-    ctx.save(); ctx.globalAlpha = g.life / 0.22 * 0.45; ctx.filter = "sepia(1) saturate(4) hue-rotate(-15deg) brightness(1.2)";
-    drawSprite(g.id, g.frame, gx, Math.round(g.y + 32 - 45), g.face, 1, g.life / 0.22 * 0.45); ctx.restore();
+    const C = CHARS.find(c => c.id === g.id) || ch();
+    ctx.save(); ctx.filter = "sepia(1) saturate(4) hue-rotate(-15deg) brightness(1.2)";
+    drawChar(C, g.frame, g.x + 5, g.y + 32, g.face, 1, g.life / 0.22 * 0.45); ctx.restore();
   }
 }
 function drawPlayer(p) {
   if (p.dead) return;
   if (p.inv > 0 && Math.floor(time * 20) % 2 && p.inv < 1.25) return;
-  const fx = p.face > 0 ? Math.round(p.x + 5 - 23) : Math.round(p.x + 5 - 24);
-  const fy = Math.round(p.y + 32 - 45);
-  if (p.dashT > 0) for (let i = 1; i <= 3; i++) drawSprite(p.C.id, playerFrame(p), fx - p.face * i * 9, fy, p.face, 1, 0.18 * (4 - i));
-  drawSprite(p.C.id, playerFrame(p), fx, fy, p.face);
+  const fr = playerFrame(p), x = p.x + 5, y = p.y + p.h, a = hidden(p) ? 0.35 + 0.1 * Math.sin(time * 12) : 1;
+  if (p.dashT > 0) for (let i = 1; i <= 3; i++) drawChar(p.C, fr, x - p.face * i * 9, y, p.face, 1, 0.18 * (4 - i) * a);
+  drawChar(p.C, fr, x, y, p.face, 1, a);
+  if (p.powerOn && powerOf(p.C) && powerOf(p.C).shield) drawFrame("fx_bouclier", animFrame("fx_bouclier", "play", time, 8), x, p.y + 16, 1, 0.8, 0.9);
 }
 function drawDrone(e) {
   const x = Math.round(e.x), y = Math.round(e.y + Math.sin(time * 9) * 1);
@@ -1535,6 +1748,8 @@ function drawWorld() {
     ctx.globalAlpha = 0.35; R(l.x - 2, l.y - 2, l.w + 4, l.h + 4, col); ctx.globalAlpha = 1;
     R(l.x, l.y, l.w, l.h, col); R(l.x + 2, l.y, l.w - 4, 1, "#ffffff");
   }
+  if (lvl.blocks) for (const b of lvl.blocks) { if (b.t < 1 && Math.floor(time * 10) % 2) continue; R(b.x, b.y, b.w, b.h, "#0e0a1a"); R(b.x + 1, b.y + 1, b.w - 2, b.h - 2, "#8a5a2a"); R(b.x + 1, b.y + 1, b.w - 2, 4, "#4fbf3a"); }
+  for (const e of enemies) if (e.alive && e.stunT > 0) stunStars(e);
   drawGhosts(); for (const p of players) drawPlayer(p);
   for (const q of parts) { ctx.globalAlpha = Math.min(1, q.life / q.max * 1.5); R(Math.round(q.x), Math.round(q.y), q.size, q.size, q.color); }
   ctx.globalAlpha = 1;
@@ -1600,7 +1815,7 @@ function drawHUD() {
   }
 }
 function drawPause() {
-  drawWorld(); drawHUD();
+  if (lvl.json) { drawCampWorld(); drawCampHUD(); } else { drawWorld(); drawHUD(); }
   R(0, 0, VW, VH, "rgba(10,6,24,0.65)");
   text("Pause", VW / 2, 78, 26, ch().ui, "center", ch().ui);
   [["resume", "Reprendre", ch().ui], ["options", "Options", "#e8dcff"], ["quit", "Quitter le monde", "#b9a6e0"]].forEach(([k, label, col], i) => {
@@ -1622,18 +1837,17 @@ function drawOverlays() {
   if (flash > 0) { ctx.globalAlpha = flash * 3; R(0, 0, VW, VH, "#ffffff"); ctx.globalAlpha = 1; }
 }
 
+/*__CAMPAGNE_JS__*/
 /* ---------------- Menu ---------------- */
+// Écran titre : difficulté, Options, Jouer (→ choix du héros → choix des mondes)
 const UI = {
-  // une carte par personnage, centrées (140 px de large pour 2 personnages, plus étroites s'il y en a plus)
-  cards: CHARS.map((C, i, a) => { const w = Math.min(140, Math.floor((VW - 40) / a.length) - 16), gap = 16, x0 = (VW - (a.length * w + (a.length - 1) * gap)) / 2;
-    return { x: Math.round(x0 + i * (w + gap)), y: 98, w, h: 100 }; }),
   diffs: [{ x: 110, y: 206, w: 80, h: 18 }, { x: 200, y: 206, w: 80, h: 18 }, { x: 290, y: 206, w: 80, h: 18 }],
   play: { x: 185, y: 232, w: 110, h: 22 },
   opts: { x: 408, y: 6, w: 66, h: 18 },
 };
 const inside = (r) => mouse.x >= r.x && mouse.x <= r.x + r.w && mouse.y >= r.y && mouse.y <= r.y + r.h;
 function goMenu() { state = "menu"; setTimeFx(false, false); }
-function startGame() { audio.sfx("start"); openWorlds(); }
+function startGame() { audio.sfx("start"); openChars(); }
 function getProgress() { try { return Math.min(WORLDS.length, +localStorage.getItem(`lunelio-progress-${ch().id}`) || 0); } catch (e) { return 0; } }
 function setProgress(n) { try { if (n > getProgress()) localStorage.setItem(`lunelio-progress-${ch().id}`, String(n)); } catch (e) {} }
 const bestKey = wi => `lunelio-best-${ch().id}-${df().id}-${wi}`;
@@ -1641,26 +1855,27 @@ function getBest(wi) { try { return JSON.parse(localStorage.getItem(bestKey(wi))
 let worldSel = 0, thumbs = null, thumbsFor = null, curWorld = 0;
 // Choix des mondes : pages de 4 × 2 ; au-delà de 8 mondes, d'autres pages apparaissent (← → passent d'une page à l'autre)
 const WCOLS = 4, WPAGE = 8;
-const WUI = WORLDS.map((w, i) => ({ x: 16 + (i % WCOLS) * 114, y: 36 + Math.floor((i % WPAGE) / WCOLS) * 102, w: 106, h: 92 }));
+const WUI = Array.from({ length: Math.max(WORLDS.length, CWORLDS.length + 1) }, (w, i) => ({ x: 16 + (i % WCOLS) * 114, y: 36 + Math.floor((i % WPAGE) / WCOLS) * 102, w: 106, h: 92 }));
 const worldPage = () => Math.floor(worldSel / WPAGE), onPage = i => Math.floor(i / WPAGE) === worldPage();
+function oldThumb(i) {
+  const room = ROOMS[firstRoom(i)], L = parseLevel(room), w = WORLDS[i];
+  const [c, x] = mkCanvas(VW, VH);
+  x.drawImage(makeWorldBg(room, L, ch()), 0, 0); x.drawImage(makeTiles(L, WORLD_STYLE[w.id], w.id), 0, 0);
+  return c;
+}
 function openWorlds() {
   state = "worlds"; if (lvl) setTimeFx(false, false);
   if (lvl) voice.stop();
+  if (mode === "camp") { worldSel = Math.min(campProgress(), CWORLDS.length - 1); return; }
   worldSel = Math.min(getProgress(), WORLDS.length - 1);
-  if (thumbsFor !== ch().id) {
-    thumbsFor = ch().id;
-    thumbs = WORLDS.map((w, i) => {
-      const room = ROOMS[firstRoom(i)], L = parseLevel(room);
-      const [c, x] = mkCanvas(VW, VH);
-      x.drawImage(makeWorldBg(room, L, ch()), 0, 0); x.drawImage(makeTiles(L, WORLD_STYLE[w.id], w.id), 0, 0);
-      return c;
-    });
-  }
+  if (thumbsFor !== ch().id) { thumbsFor = ch().id; thumbs = WORLDS.map((w, i) => oldThumb(i)); }
 }
 function startWorld(wi) { curWorld = wi; runTime = 0; deaths = 0; msg = null; spokenRoom = -1; audio.sfx("start"); loadLevel(firstRoom(wi)); }
+// Ancienne aventure (monde bonus) : ses 8 mondes, sa progression et ses records d'origine
 function updateWorlds() {
+  if (mode === "camp") { updateCampWorlds(); return; }
   const prog = getProgress(), n = WORLDS.length;
-  if (hit("Escape", "GB") || (hit("Mouse0") && inside({ x: 8, y: 6, w: 50, h: 20 }))) { goMenu(); return; }
+  if (hit("Escape", "GB") || (hit("Mouse0") && inside({ x: 8, y: 6, w: 50, h: 20 }))) { mode = "camp"; openWorlds(); worldSel = CWORLDS.length; audio.sfx("select"); return; }
   if ((keys.ShiftLeft || keys.ShiftRight) && hit("KeyD")) { setProgress(n); msg = { text: "Tous les mondes sont débloqués", t: 2 }; audio.sfx("door"); }
   if (hit(...K.left)) { worldSel = (worldSel + n - 1) % n; audio.sfx("select"); }
   if (hit(...K.right)) { worldSel = (worldSel + 1) % n; audio.sfx("select"); }
@@ -1668,13 +1883,19 @@ function updateWorlds() {
     const base = worldPage() * WPAGE, cnt = Math.min(WPAGE, n - base);
     worldSel = base + ((worldSel - base + WCOLS) % cnt); audio.sfx("select");
   }
-  if (hit("Mouse0")) WUI.forEach((r, i) => { if (onPage(i) && inside(r)) { if (i === worldSel && i <= prog) startWorld(i); else { worldSel = i; audio.sfx("select"); } } });
+  if (hit("Mouse0")) WUI.forEach((r, i) => { if (i < n && onPage(i) && inside(r)) { if (i === worldSel && i <= prog) startWorld(i); else { worldSel = i; audio.sfx("select"); } } });
   if (state === "worlds" && hit(...K.ok) && worldSel <= prog) startWorld(worldSel);
 }
+function drawBackBtn(label) {
+  if (!(TOUCH && !PAD) && !inside({ x: 8, y: 6, w: 50, h: 20 })) return;
+  R(8, 6, 50, 20, "rgba(20,12,40,0.9)"); ctx.strokeStyle = "#b9a6e0"; ctx.lineWidth = 1; ctx.strokeRect(8.5, 6.5, 49, 19); text(label, 33, 16, 8, "#e8dcff", "center");
+}
 function drawWorlds() {
+  if (mode === "camp") { drawCampWorlds(); return; }
   const C = ch(), prog = getProgress();
+  if (!menuBgs) menuBgs = CHARS.map(C2 => makeBackground(C2.ui, C2));
   ctx.drawImage(menuBgs[charIdx], 0, 0); R(0, 0, VW, VH, "rgba(13,8,32,0.55)");
-  text("Choisis un monde", VW / 2, 20, 16, C.ui, "center", C.ui);
+  text("Monde bonus — Ancienne aventure", VW / 2, 20, 14, C.ui, "center", C.ui);
   const pages = Math.ceil(WORLDS.length / WPAGE);
   if (pages > 1) text(`Page ${worldPage() + 1}/${pages}`, VW - 10, 20, 8, "#b9a6e0", "right");
   WORLDS.forEach((w, i) => {
@@ -1693,55 +1914,103 @@ function drawWorlds() {
   });
   const lockedSel = worldSel > prog;
   text(lockedSel ? "Termine le monde précédent pour débloquer celui-ci" : say("Flèches pour choisir, Entrée pour jouer, Échap pour revenir", "Touche un monde, puis touche-le encore pour jouer", "Croix pour choisir, {A} pour jouer, {B} pour revenir"), VW / 2, 254, 8, lockedSel ? "#ff8ab0" : "#b9a6e0", "center");
-  if (TOUCH && !PAD) { R(8, 6, 50, 20, "rgba(20,12,40,0.9)"); ctx.strokeStyle = "#b9a6e0"; ctx.strokeRect(8.5, 6.5, 49, 19); text("◀ Menu", 33, 16, 8, "#e8dcff", "center"); }
+  drawBackBtn("◀ Retour");
   if (msg && msg.t > 0) text(msg.text, VW / 2, 246, 9, "#7dffb0", "center");
 }
+// Nouvelle campagne : 6 mondes, puis la carte du monde bonus (ancienne aventure, toujours ouverte)
+let bonusThumb = null, bonusThumbFor = null;
+function updateCampWorlds() {
+  const prog = campProgress(), n = CWORLDS.length + 1;
+  const open = i => i === CWORLDS.length || i <= prog;
+  const go = i => { if (i === CWORLDS.length) { mode = "bonus"; audio.sfx("select"); openWorlds(); } else startCampWorld(i); };
+  if (hit("Escape", "GB") || (hit("Mouse0") && inside({ x: 8, y: 6, w: 50, h: 20 }))) { openChars(); return; }
+  if ((keys.ShiftLeft || keys.ShiftRight) && hit("KeyD")) { setCampProgress(CWORLDS.length); msg = { text: "Tous les mondes sont débloqués", t: 2 }; audio.sfx("door"); }
+  if (hit(...K.left)) { worldSel = (worldSel + n - 1) % n; audio.sfx("select"); }
+  if (hit(...K.right)) { worldSel = (worldSel + 1) % n; audio.sfx("select"); }
+  if (hit(...K.up, ...K.down)) { worldSel = worldSel + WCOLS < n ? worldSel + WCOLS : worldSel >= WCOLS ? worldSel - WCOLS : worldSel; audio.sfx("select"); }
+  if (hit("Mouse0")) for (let i = 0; i < n; i++) if (inside(WUI[i])) { if (i === worldSel && open(i)) { go(i); return; } worldSel = i; audio.sfx("select"); }
+  if (state === "worlds" && hit(...K.ok) && open(worldSel)) go(worldSel);
+}
+function drawCampWorlds() {
+  const C = ch(), prog = campProgress();
+  if (!menuBgs) menuBgs = CHARS.map(C2 => makeBackground(C2.ui, C2));
+  ctx.drawImage(menuBgs[charIdx], 0, 0); R(0, 0, VW, VH, "rgba(13,8,32,0.55)");
+  text("Choisis un monde", VW / 2, 18, 16, C.ui, "center", C.ui);
+  text(`${C.name}  ·  ${df().label}`, VW - 10, 18, 8, "#e8dcff", "right");
+  const n = CWORLDS.length + 1;
+  for (let i = 0; i < n; i++) {
+    const r = WUI[i], sel = i === worldSel, bonus = i === CWORLDS.length, locked = !bonus && i > prog;
+    const tw = r.w - 8, th = Math.round(tw * VH / VW);
+    R(r.x, r.y, r.w, r.h, "rgba(14,8,30,0.9)");
+    ctx.imageSmoothingEnabled = true;
+    if (bonus) { if (bonusThumbFor !== C.id) { bonusThumb = oldThumb(0); bonusThumbFor = C.id; } ctx.drawImage(bonusThumb, r.x + 4, r.y + 4, tw, th); }
+    else { const im = getImg(CWORLDS[i].rooms[0].bg); if (im.ok) ctx.drawImage(im.img, r.x + 4, r.y + 4, tw, th); else R(r.x + 4, r.y + 4, tw, th, "#1a1030"); }
+    ctx.imageSmoothingEnabled = false;
+    if (locked) { R(r.x + 4, r.y + 4, tw, th, "rgba(10,6,24,0.75)"); text("Verrouillé", r.x + r.w / 2, r.y + 30, 8, "#8a7aa8", "center"); }
+    if (bonus) {
+      text("★ Monde bonus", r.x + 5, r.y + r.h - 22, 8, "#fccc28");
+      text("Ancienne aventure (8 mondes)", r.x + 5, r.y + r.h - 10, 6, "#b9a6e0");
+    } else {
+      const W = CWORLDS[i], accent = MACHINE_FX[W.id][0];
+      text(`${i + 1}. ${W.name}`, r.x + 5, r.y + r.h - 22, 8, locked ? "#6a5a88" : accent);
+      text(`Boss : ${BIG[W.boss].name}`, r.x + 5, r.y + r.h - 10, 6, locked ? "#4a3a68" : "#b9a6e0");
+      const b = campBest(i), res = campResume(i);
+      if (i < prog) text(b ? fmtTime(b.time) : "✓", r.x + r.w - 5, r.y + r.h - 22, 7, "#7dffb0", "right");
+      else if (!locked && res > 0) text(`salle ${res + 1}`, r.x + r.w - 5, r.y + r.h - 22, 7, "#fccc28", "right");
+      if (!locked) { const pi = Object.keys(BIG).indexOf(W.boss); ctx.save(); ctx.beginPath(); ctx.rect(r.x + r.w - 26, r.y + 6, 20, 20); ctx.clip(); drawFrame("portraits_boss", pi, r.x + r.w - 16, r.y + 30, 1, 1, 0.5); ctx.restore(); }
+    }
+    ctx.strokeStyle = sel ? C.ui : "#3a2a5c"; ctx.lineWidth = sel ? 2 : 1;
+    if (sel) { ctx.shadowColor = C.ui; ctx.shadowBlur = 10; }
+    ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1); ctx.shadowBlur = 0;
+  }
+  const lockedSel = worldSel < CWORLDS.length && worldSel > prog;
+  text(lockedSel ? "Termine le monde précédent pour débloquer celui-ci" : say("Flèches pour choisir, Entrée pour jouer, Échap : changer de héros", "Touche un monde, puis touche-le encore pour jouer", "Croix pour choisir, {A} pour jouer, {B} : changer de héros"), VW / 2, 254, 8, lockedSel ? "#ff8ab0" : "#b9a6e0", "center");
+  drawBackBtn("◀ Héros");
+  if (msg && msg.t > 0) text(msg.text, VW / 2, 244, 9, "#7dffb0", "center");
+}
 function updateMenu() {
-  if (hit(...K.left) && charIdx > 0) { charIdx--; audio.sfx("select"); }
-  if (hit(...K.right) && charIdx < CHARS.length - 1) { charIdx++; audio.sfx("select"); }
-  if (hit(...K.up)) { diffIdx = Math.max(0, diffIdx - 1); audio.sfx("select"); }
-  if (hit(...K.down)) { diffIdx = Math.min(2, diffIdx + 1); audio.sfx("select"); }
+  if (hit(...K.up, ...K.left)) { diffIdx = Math.max(0, diffIdx - 1); audio.sfx("select"); }
+  if (hit(...K.down, ...K.right)) { diffIdx = Math.min(2, diffIdx + 1); audio.sfx("select"); }
   if (hit("KeyO", "GY") || (hit("Mouse0") && inside(UI.opts))) { openOptions("menu"); return; }
   if (hit("Mouse0")) {
-    UI.cards.forEach((r, i) => { if (inside(r)) { charIdx = i; audio.sfx("select"); } });
     UI.diffs.forEach((r, i) => { if (inside(r)) { diffIdx = i; audio.sfx("select"); } });
     if (inside(UI.play)) { startGame(); return; }
   }
   if (hit(...K.ok)) startGame();
 }
 let menuFade = CHARS.map((C, i) => i === 0 ? 1 : 0), menuBgs = null;   // fondu du décor et du logo vers le personnage choisi
-function drawMenu() {
+function drawLogo(C, a, cx, cy, bw, bh) {
+  const img = IMG["logo_" + C.id];
+  ctx.globalAlpha = a;
+  if (img) {
+    const sc = Math.min(bw / img.width, bh / img.height), w = img.width * sc, h = img.height * sc;
+    ctx.imageSmoothingEnabled = true; ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h); ctx.imageSmoothingEnabled = false;
+  } else {
+    text("LUNELIO", cx, cy - 4, 40, C.ui, "center", C.ui);
+    text(C.name, cx, cy + 26, 12, "#ffffff", "center", C.ui2);
+  }
+  ctx.globalAlpha = 1;
+}
+function drawMenuBg() {
   if (!menuBgs) menuBgs = CHARS.map(C => makeBackground(C.ui, C));
-  menuFade = menuFade.map((f, i) => f + ((i === charIdx ? 1 : 0) - f) * 0.12);
-  const C0 = ch();
+  const target = state === "chars" ? charSel : charIdx;
+  menuFade = menuFade.map((f, i) => f + ((i === target ? 1 : 0) - f) * 0.12);
   ctx.drawImage(menuBgs[0], 0, 0);
   for (let i = 1; i < CHARS.length; i++) if (menuFade[i] > 0.01) { ctx.globalAlpha = menuFade[i]; ctx.drawImage(menuBgs[i], 0, 0); }
   ctx.globalAlpha = 1;
+}
+function drawMenu() {
+  drawMenuBg();
+  const C0 = ch();
   R(0, 0, VW, VH, "rgba(13,8,32,0.28)");
   // logos en fondu selon le personnage choisi
   const bob = Math.sin(time * 2) * 1.5;
-  CHARS.forEach((C, i) => {
-    const img = IMG["logo_" + C.id], a = menuFade[i];
-    if (!img || a < 0.01) return;
-    const bw = 262, bh = 92, sc = Math.min(bw / img.width, bh / img.height);
-    const w = img.width * sc, h = img.height * sc;
-    ctx.globalAlpha = a; ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(img, VW / 2 - w / 2, 4 + (bh - h) / 2 + bob, w, h);
-    ctx.imageSmoothingEnabled = false; ctx.globalAlpha = 1;
-  });
-  CHARS.forEach((C, i) => {
-    const r = UI.cards[i], sel = i === charIdx;
-    R(r.x, r.y, r.w, r.h, sel ? "rgba(30,14,50,0.85)" : "rgba(20,12,40,0.6)");
-    ctx.strokeStyle = sel ? C.ui : (inside(r) ? "#6a4f9a" : "#3a2a5c"); ctx.lineWidth = sel ? 2 : 1;
-    if (sel) { ctx.shadowColor = C.ui; ctx.shadowBlur = 10; }
-    ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1); ctx.shadowBlur = 0;
-    const frame = sel ? 6 + Math.floor(time * 12) % 6 : Math.floor(time * 4) % 4;
-    ctx.globalAlpha = sel ? 1 : 0.6;
-    drawSprite(C.id, frame, r.x + r.w / 2 - 42, r.y - 10, 1, 1.75);
-    ctx.globalAlpha = 1;
-    text(C.name, r.x + r.w / 2, r.y + 80, 14, sel ? C.ui : "#b9a6e0", "center", sel ? C.ui : null);
-    text(abilityText(C), r.x + r.w / 2, r.y + 93, 8, "#e8dcff", "center");
-  });
+  CHARS.forEach((C, i) => { if (menuFade[i] > 0.01) drawLogo(C, menuFade[i], VW / 2, 50 + bob, 262, 92); });
+  // héros choisi : il court sur place
+  R(VW / 2 - 70, 104, 140, 94, "rgba(20,12,40,0.6)"); ctx.strokeStyle = C0.ui; ctx.lineWidth = 1; ctx.strokeRect(VW / 2 - 69.5, 104.5, 139, 93);
+  drawChar(C0, 6 + Math.floor(time * 12) % 6, VW / 2, 170, 1, 1.5);
+  text(C0.name, VW / 2, 180, 11, C0.ui, "center", C0.ui);
+  text(abilityText(C0), VW / 2, 191, 7, "#e8dcff", "center");
   DIFFS.forEach((D, i) => {
     const r = UI.diffs[i], sel = i === diffIdx;
     R(r.x, r.y, r.w, r.h, sel ? D.color : "rgba(20,12,40,0.8)");
@@ -1758,8 +2027,91 @@ function drawMenu() {
   text(PAD ? padText("Options {Y}") : "Options", o.x + o.w / 2, o.y + o.h / 2 + 1, 8, oh ? "#120828" : "#e8dcff", "center");
   if (buddyOn()) text("♥ Mode copain", o.x + o.w, o.y + o.h + 9, 7, "#7dffb0", "right");
   const mute = audio.ctx && audio.ctx.state === "running" ? "" : "    Clic : activer le son";
-  text(say("← → personnage    ↑ ↓ difficulté    Entrée pour jouer    O : options    M : son", "Touche un personnage et une difficulté, puis Jouer",
-    "← → personnage    ↑ ↓ difficulté    {A} pour jouer" + mute), VW / 2, 264, 7, "#b9a6e0", "center");
+  text(say("← → difficulté    Entrée pour jouer    O : options    M : son", "Choisis une difficulté, puis Jouer",
+    "Croix : difficulté    {A} pour jouer" + mute), VW / 2, 264, 7, "#b9a6e0", "center");
+}
+
+/* ---------------- Choix du héros ---------------- */
+// Grille de portraits (4 × 2), aperçu animé, capacités et commandes du héros mis en avant.
+// Le thème musical suit le héros mis en avant ; le choix est confirmé par Entrée, {A}, un clic sur le héros déjà choisi ou « Choisir ».
+let charSel = 0, charSelT = 0;
+const CUI = {
+  cards: CHARS.map((C, i) => ({ x: 12 + (i % 4) * 58, y: 34 + Math.floor(i / 4) * 66, w: 52, h: 60 })),
+  back: { x: 12, y: 214, w: 74, h: 20 }, ok: { x: 160, y: 214, w: 74, h: 20 },
+};
+(function loadLastChar() {
+  try { const id = localStorage.getItem("lunelio-perso"); const i = CHARS.findIndex(C => C.id === id); if (i >= 0) charIdx = i; } catch (e) {}
+  charSel = charIdx;
+})();
+function openChars() { state = "chars"; charSel = charIdx; charSelT = 0; audio.sfx("select"); }
+function confirmChar() {
+  charIdx = charSel; try { localStorage.setItem("lunelio-perso", CHARS[charIdx].id); } catch (e) {}
+  audio.sfx("start"); mode = "camp"; openWorlds();
+}
+function moveCharSel(i) { if (i !== charSel) { charSel = i; charSelT = 0; audio.sfx("select"); } }
+function updateChars(rdt) {
+  charSelT += rdt;
+  const n = CHARS.length, cols = 4;
+  if (hit("Escape", "GB", "Backspace") || (hit("Mouse0") && inside(CUI.back))) { goMenu(); audio.sfx("select"); return; }
+  if (hit(...K.left)) moveCharSel((charSel + n - 1) % n);
+  if (hit(...K.right)) moveCharSel((charSel + 1) % n);
+  if (hit(...K.up, ...K.down)) moveCharSel((charSel + cols) % n);
+  if (hit("Mouse0")) {
+    if (inside(CUI.ok)) { confirmChar(); return; }
+    for (let i = 0; i < n; i++) if (inside(CUI.cards[i])) { if (i === charSel) { confirmChar(); return; } moveCharSel(i); }
+  }
+  if (hit(...K.ok)) confirmChar();
+}
+// Ligne de commande d'une capacité pour l'écran de choix
+function abilityLine(icon, label, kb, touch, pad) { return `${icon} ${label} : ${say(kb, touch, pad)}`; }
+function drawChars() {
+  drawMenuBg();
+  R(0, 0, VW, VH, "rgba(13,8,32,0.5)");
+  const C = CHARS[charSel];
+  text("Choisis ton héros", VW / 2, 16, 16, C.ui, "center", C.ui);
+  CHARS.forEach((C2, i) => {
+    const r = CUI.cards[i], sel = i === charSel;
+    R(r.x, r.y, r.w, r.h, sel ? "rgba(40,20,64,0.92)" : "rgba(20,12,40,0.8)");
+    ctx.save(); ctx.beginPath(); ctx.rect(r.x + 2, r.y + 2, r.w - 4, 44); ctx.clip();
+    drawFrame("portraits", ATL.portraits.anims[C2.id] ? ATL.portraits.anims[C2.id][0] : i, r.x + r.w / 2, r.y + 46, 1, sel ? 1 : 0.75);
+    ctx.restore();
+    text(C2.name.split(" ")[0], r.x + r.w / 2, r.y + r.h - 7, 7, sel ? C2.ui : "#b9a6e0", "center");
+    ctx.strokeStyle = sel ? C2.ui : inside(r) ? "#6a4f9a" : "#3a2a5c"; ctx.lineWidth = sel ? 2 : 1;
+    if (sel) { ctx.shadowColor = C2.ui; ctx.shadowBlur = 10; }
+    ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1); ctx.shadowBlur = 0;
+    if (i === charIdx) text("✓", r.x + r.w - 6, r.y + 8, 8, "#7dffb0", "center");
+  });
+  // panneau du héros mis en avant
+  const px = 248, pw = 222;
+  R(px, 30, pw, 206, "rgba(14,8,30,0.88)"); ctx.strokeStyle = C.ui; ctx.lineWidth = 1; ctx.strokeRect(px + 0.5, 30.5, pw - 1, 205);
+  const g = ctx.createLinearGradient(0, 40, 0, 120); g.addColorStop(0, hexA(C.ui, 0.18)); g.addColorStop(1, "rgba(0,0,0,0)"); ctx.fillStyle = g; ctx.fillRect(px + 1, 31, pw - 2, 90);
+  // aperçu animé : repos, course, attaque, coup spécial, en boucle
+  const cyc = charSelT % 4.4, A = ATL[charAtlas(C)];
+  let fr;
+  if (cyc < 1.0) fr = Math.floor(cyc * 5) % 4;
+  else if (cyc < 2.4) fr = 6 + Math.floor(cyc * 12) % 6;
+  else if (cyc < 3.2) fr = 12 + Math.min(4, Math.floor((cyc - 2.4) / 0.12));
+  else fr = A && A.anims.special ? A.anims.special[0] + Math.floor(cyc * (A.anims.special[1] > 2 ? 10 : 8)) % A.anims.special[1] : 24;
+  R(px + 50, 118, pw - 100, 2, hexA(C.ui, 0.6));
+  drawChar(C, fr, px + pw / 2, 118, 1, 2);
+  text(C.name, px + pw / 2, 132, 14, C.ui, "center", C.ui);
+  text(abilityText(C), px + pw / 2, 146, 8, "#ffffff", "center");
+  text(C.desc || "", px + pw / 2, 158, 7, "#d8c8f0", "center");
+  const sp = specialOf(C), pwr = powerOf(C), lines = [abilityLine("⚔", "trancher", kbNames("attack"), "bouton ⚔", padText("bouton {ATK}"))];
+  if (sp) lines.push(sp.button ? abilityLine(sp.icon, sp.name.toLowerCase(), kbNames("special"), `bouton ${sp.icon}`, padText("bouton {SPEC}"))
+    : abilityLine("▲▲", sp.name.toLowerCase(), `deux fois ${kbNames("jump")}`, "deux fois ▲", padText("deux fois {JUMP}")));
+  if (pwr) lines.push(abilityLine(pwr.icon, pwr.name.toLowerCase(), (pwr.burst ? "" : "maintenir ") + kbNames("power"), (pwr.burst ? "" : "maintenir ") + `bouton ${pwr.icon}`, padText((pwr.burst ? "" : "maintenir ") + "bouton {POW}")));
+  if (df().id === "doom" && pwr) lines[lines.length - 1] += "  (pas en Doom)";
+  lines.forEach((l, i) => text(l, px + 10, 176 + i * 12, 7, i ? "#e8dcff" : "#b9a6e0"));
+  const prog = campProgress(C);
+  text(`Mondes terminés : ${prog}/${CWORLDS.length}`, px + pw / 2, 226, 7, "#7dffb0", "center");
+  // boutons
+  for (const [r, label, col] of [[CUI.back, "◀ Retour", "#b9a6e0"], [CUI.ok, "Choisir ▶", C.ui]]) {
+    const hov = inside(r) && !TOUCH;
+    R(r.x, r.y, r.w, r.h, hov ? "#ffffff" : "rgba(20,12,40,0.9)"); ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+    text(label, r.x + r.w / 2, r.y + r.h / 2 + 1, 9, hov ? "#120828" : col, "center");
+  }
+  text(say("Flèches pour choisir, Entrée pour confirmer, Échap pour revenir", "Touche un héros, puis touche-le encore ou « Choisir »", "Croix pour choisir, {A} pour confirmer, {B} pour revenir"), VW / 2, 252, 8, "#b9a6e0", "center");
 }
 
 /* ---------------- Écran des options ---------------- */
@@ -1802,7 +2154,7 @@ function updateOptions() {
   if (hit("Mouse0")) for (let i = 0; i < n; i++) if (inside(rowRect(i, 21))) { optActivate(i); return; }
 }
 function drawOptBg() {
-  if (optFrom === "pause" && lvl) { drawWorld(); R(0, 0, VW, VH, "rgba(10,6,24,0.82)"); }
+  if (optFrom === "pause" && lvl) { if (lvl.json) drawCampWorld(); else drawWorld(); R(0, 0, VW, VH, "rgba(10,6,24,0.82)"); }
   else { if (!menuBgs) menuBgs = CHARS.map(C => makeBackground(C.ui, C)); ctx.drawImage(menuBgs[charIdx], 0, 0); R(0, 0, VW, VH, "rgba(13,8,32,0.72)"); }
 }
 function drawRow(b, sel, label, value, valueCol) {
@@ -1933,7 +2285,7 @@ function drawResult(title, sub) {
   ctx.drawImage(bgCanvas, 0, 0); R(0, 0, VW, VH, "rgba(13,8,32,0.65)");
   text(title, VW / 2, 42, 24, C.ui, "center", C.ui);
   text(sub, VW / 2, 66, 10, "#e8dcff", "center");
-  drawSprite(C.id, Math.floor(time * 5) % 4, VW / 2 - 48, 70, 1, 2);
+  drawChar(C, Math.floor(time * 5) % 4, VW / 2, 166, 1, 2);
   text(`Temps : ${fmtTime(runTime)}     Chutes : ${deaths}     Mode ${df().label}`, VW / 2, 176, 10, "#ffffff", "center");
   if (best) text(best.isNew ? "Nouveau record !" : "", VW / 2, 194, 10, "#fccc28", "center");
 }
@@ -1961,7 +2313,7 @@ function drawWin() {
 /* ---------------- Boucle ---------------- */
 let last = performance.now();
 function frame(now) {
-  const rdt = Math.min(1 / 30, (now - last) / 1000); last = now; time += rdt;
+  const rdt = Math.max(0, Math.min(1 / 30, (now - last) / 1000)); last = now; time += rdt;
   readPads();
   if (hit("KeyM", "Semicolon")) audio.toggleMute();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1974,7 +2326,9 @@ function frame(now) {
   ctx.imageSmoothingEnabled = false;
   if (state === "loading") { text("Chargement…", VW / 2, VH / 2, 12, "#e8dcff", "center"); }
   else if (state === "menu") { updateMenu(); if (state === "menu") drawMenu(); }
-  else if (state === "play") { updatePlay(rdt); if (state === "play") { drawWorld(); drawOverlays(); drawHUD(); } }
+  else if (state === "play") { updatePlay(rdt); if (state === "play") { if (lvl.json) { drawCampWorld(); drawOverlays(); drawCampHUD(); } else { drawWorld(); drawOverlays(); drawHUD(); } } }
+  else if (state === "chars") { updateChars(rdt); if (state === "chars") drawChars(); }
+  else if (state === "campwin") { drawCampWin(rdt); }
   else if (state === "clear") { updateClear(rdt); if (state === "clear") drawClear(); }
   else if (state === "worlds") { updateWorlds(); if (state === "worlds") drawWorlds(); }
   else if (state === "worldclear") { updateWorldClear(); }
@@ -1984,13 +2338,15 @@ function frame(now) {
   else if (state === "keys") { updateKeys(); if (state === "keys") drawKeys(); }
   const mk = OPT.music ? musicKey() : null;
   if (state !== "loading" && audio.ready && audio.wanted !== mk) audio.playMusic(mk);
+  synthTick();
   syncTouchUI();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.drawImage(scanCanvas, 0, 0);
   for (const k in pressed) delete pressed[k];
   requestAnimationFrame(frame);
 }
-Promise.all(Object.entries(SPRITES).map(([k, src]) => new Promise(res => { const i = new Image(); i.onload = () => { IMG[k] = i; res(); }; i.src = src; })))
+Promise.all(Object.entries(SPRITES).map(([k, src]) => new Promise(res => { const i = new Image(); i.onload = () => { IMG[k] = i; res(); }; i.onerror = res; i.src = src; })))
+  .then(() => preloadAtlases())
   .then(() => (document.fonts && document.fonts.load ? Promise.race([document.fonts.load(`700 12px "Pixelify Sans"`), new Promise(r => setTimeout(r, 1500))]) : null))
   .catch(() => {})
   .then(() => { goMenu(); cv.focus(); });
