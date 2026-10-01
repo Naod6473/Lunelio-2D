@@ -6,8 +6,9 @@
 
 En version serveur, ajouter une musique ne demande pas de reconstruire le jeu :
 déposer backgroundhelio2.mp3, backgroundlune2.mp3… dans ../audio/ suffit.
+La version serveur écrit aussi ../sw.js (service worker de l'appli, à partir de sw.js).
 """
-import base64, json, os, re, sys
+import base64, hashlib, json, os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, "..")
 IMGS = os.path.join(HERE, "assets", "images")
@@ -28,5 +29,20 @@ if embed:
 t = t.replace("__AUDIO_MODE__", "embed" if embed else "files")
 t = t.replace("__AUDIO_EMBED__", json.dumps(sounds))
 t = t.replace("__WORLDS__", open(os.path.join(HERE, "worlds.json"), encoding="utf-8").read())
-open(out, "w", encoding="utf-8").write(t)
+# appli installable (PWA) : seulement en version serveur, la version autonome s'ouvre sans serveur
+PWA_HEAD = """<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">"""
+t = t.replace("__PWA_HEAD__", "" if embed else PWA_HEAD)
+open(out, "w", encoding="utf-8", newline="\n").write(t)
+if not embed:
+    # la version du service worker change dès que le jeu, ses icônes ou la liste des sons changent :
+    # le navigateur installe alors le nouveau service worker tout seul
+    audio_files = sorted("audio/" + f for f in os.listdir(AUDIO) if f.endswith(".mp3"))
+    sw = open(os.path.join(HERE, "sw.js"), encoding="utf-8").read()
+    h = hashlib.sha256((t + sw + "\n".join(audio_files)).encode())
+    for f in ("manifest.json", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon-32.png"):
+        h.update(open(os.path.join(ROOT, f), "rb").read())
+    sw = sw.replace("__VERSION__", h.hexdigest()[:12]).replace("__AUDIO__", json.dumps(audio_files))
+    open(os.path.join(ROOT, "sw.js"), "w", encoding="utf-8", newline="\n").write(sw)
 print(f"{os.path.relpath(out, ROOT)} généré ({len(t) / 1e6:.1f} Mo, sons {'intégrés' if embed else 'dans audio/'})")

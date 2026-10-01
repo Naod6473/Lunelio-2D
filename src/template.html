@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0d0820">
 <title>Lunelio</title>
+__PWA_HEAD__
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;700&display=swap" rel="stylesheet">
@@ -1610,6 +1611,8 @@ Promise.all(Object.entries(SPRITES).map(([k, src]) => new Promise(res => { const
   .catch(() => {})
   .then(() => { goMenu(); cv.focus(); });
 requestAnimationFrame(frame);
+// Appli installable : le service worker garde le jeu et les sons pour jouer hors ligne (HTTPS ou localhost seulement)
+if (AUDIO_MODE === "files" && "serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 </script>
 </body>
 </html>
