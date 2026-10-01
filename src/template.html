@@ -34,6 +34,7 @@
   body.touch canvas { width: min(100vw, calc(100dvh * 480 / 272)); box-shadow: none; }
   #touch { position: fixed; inset: 0; pointer-events: none; display: none; z-index: 5; }
   body.touch #touch { display: block; }
+  body.touch.pad #touch { display: none; }   /* manette branchée sur une tablette : pas de boutons à l'écran */
   #touch .ctl { pointer-events: auto; position: absolute; border-radius: 50%; display: none; flex-direction: column; align-items: center; justify-content: center;
     color: #fff; font: 700 24px "Pixelify Sans", "Courier New", monospace; line-height: 1; text-align: center;
     background: rgba(40,24,70,.55); border: 2px solid rgba(255,255,255,.45); box-shadow: 0 0 14px rgba(0,0,0,.35); }
@@ -96,14 +97,14 @@ const CHARS = [
   { id: "lune", name: "Lune", ability: "Double saut · Ralenti", color: "#de6eff", glow: "222,110,255", ui: "#de6eff", ui2: "#ff6ec7",
     sky: ["#120828", "#2f0f4a", "#5a1650"], moon: ["#ffe8f6", "#c98cff"], stripe: "#3a1252", stars: "255,230,255", city: ["#1e0b38", "#160830"], atkW: 34, specialFrames: 4 },
 ];
-// Consignes : [clavier, tactile] ; certaines dépendent du personnage
+// Consignes : [clavier, tactile, manette] ; certaines dépendent du personnage. {A}, {X}… : nom du bouton de la manette
 const HINTS = {
-  MOVE: ["Flèches ou ZQSD pour bouger, Espace pour sauter", "Croix pour bouger, ▲ pour sauter"],
-  ATTACK: ["J ou clic pour trancher les robots", "Bouton ⚔ pour trancher les robots"],
-  SPECIAL: { helio: ["K ou clic droit : dash éclair à travers les robots", "Bouton ➤ : dash éclair à travers les robots"],
-             lune: ["Appuie deux fois sur Espace : double saut", "Appuie deux fois sur ▲ : double saut"] },
-  POWER: { helio: ["Maintiens Maj ou L : super vitesse !", "Maintiens » : super vitesse !"],
-           lune: ["Maintiens Maj ou L pour ralentir le temps", "Maintiens ⏳ pour ralentir le temps"] },
+  MOVE: ["Flèches ou ZQSD pour bouger, Espace pour sauter", "Croix pour bouger, ▲ pour sauter", "Stick ou croix pour bouger, {A} pour sauter"],
+  ATTACK: ["J ou clic pour trancher les robots", "Bouton ⚔ pour trancher les robots", "Bouton {X} pour trancher les robots"],
+  SPECIAL: { helio: ["K ou clic droit : dash éclair à travers les robots", "Bouton ➤ : dash éclair à travers les robots", "Bouton {B} : dash éclair à travers les robots"],
+             lune: ["Appuie deux fois sur Espace : double saut", "Appuie deux fois sur ▲ : double saut", "Appuie deux fois sur {A} : double saut"] },
+  POWER: { helio: ["Maintiens Maj ou L : super vitesse !", "Maintiens » : super vitesse !", "Maintiens {RT} : super vitesse !"],
+           lune: ["Maintiens Maj ou L pour ralentir le temps", "Maintiens ⏳ pour ralentir le temps", "Maintiens {RT} pour ralentir le temps"] },
 };
 const BOSSES = {
   bar:      { kind: "brute",  name: "Le Videur",          hp: 8,  body: "#8a3a4a", accent: "#ffb43c" },
@@ -138,7 +139,7 @@ addEventListener("keydown", e => {
   if (GAME_KEYS.includes(e.code)) e.preventDefault();
   if (!keys[e.code]) pressed[e.code] = true;
   keys[e.code] = true;
-  audio.init();
+  setPad(false); audio.init();
 });
 addEventListener("keyup", e => { keys[e.code] = false; });
 addEventListener("blur", () => { for (const k in keys) keys[k] = false; if (state === "play") pauseGame(); });
@@ -149,7 +150,7 @@ function toWorld(e) {
 }
 cv.addEventListener("pointermove", toWorld);
 cv.addEventListener("pointerdown", e => {
-  toWorld(e); audio.init();
+  toWorld(e); audio.init(); setPad(false);
   if (e.pointerType === "touch") setTouch(true); else cv.focus();
   if (e.pointerType === "touch" && state === "play") return;   // en jeu, le tactile passe par les boutons
   const k = "Mouse" + e.button;
@@ -161,9 +162,11 @@ cv.addEventListener("contextmenu", e => e.preventDefault());
 const down = (...c) => c.some(k => keys[k]);
 const hit = (...c) => c.some(k => pressed[k]);
 const K = {
-  left: ["ArrowLeft", "KeyA", "TLeft"], right: ["ArrowRight", "KeyD", "TRight"], jump: ["Space", "ArrowUp", "KeyW", "TJump"],
-  drop: ["ArrowDown", "KeyS", "TDown"], attack: ["KeyJ", "Mouse0", "TAtk"], special: ["KeyK", "Mouse2", "TSpec"],
-  power: ["ShiftLeft", "ShiftRight", "KeyL", "TPow"],
+  left: ["ArrowLeft", "KeyA", "TLeft", "GLeft"], right: ["ArrowRight", "KeyD", "TRight", "GRight"], jump: ["Space", "ArrowUp", "KeyW", "TJump", "GA"],
+  drop: ["ArrowDown", "KeyS", "TDown", "GDown"], attack: ["KeyJ", "Mouse0", "TAtk", "GX", "GY"], special: ["KeyK", "Mouse2", "TSpec", "GB"],
+  power: ["ShiftLeft", "ShiftRight", "KeyL", "TPow", "GPow"],
+  // menus
+  up: ["ArrowUp", "KeyW", "GUp"], down: ["ArrowDown", "KeyS", "GDown"], ok: ["Enter", "Space", "NumpadEnter", "GA", "GStart"],
 };
 
 /* ---- Commandes tactiles (affichées seulement sur mobile et tablette) ---- */
@@ -171,11 +174,11 @@ let TOUCH = false;
 function setTouch(on) { if (TOUCH === on) return; TOUCH = on; document.body.classList.toggle("touch", on); }
 const mm = q => window.matchMedia && matchMedia(q).matches;
 setTouch(mm("(pointer: coarse)") || (navigator.maxTouchPoints > 0 && !mm("(pointer: fine)")));
-addEventListener("touchstart", () => setTouch(true), { passive: true });
+addEventListener("touchstart", () => { setTouch(true); setPad(false); }, { passive: true });
 function vkey(code, v) { if (v && !keys[code]) pressed[code] = true; keys[code] = v; }
 function bindBtn(id, code) {
   const el = document.getElementById(id);
-  const on = e => { e.preventDefault(); audio.init(); try { el.setPointerCapture(e.pointerId); } catch (_) {} vkey(code, true); el.classList.add("on"); };
+  const on = e => { e.preventDefault(); audio.init(); setPad(false); try { el.setPointerCapture(e.pointerId); } catch (_) {} vkey(code, true); el.classList.add("on"); };
   const off = () => { vkey(code, false); el.classList.remove("on"); };
   el.addEventListener("pointerdown", on);
   for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) el.addEventListener(ev, off);
@@ -191,7 +194,7 @@ bindBtn("bJump", "TJump"); bindBtn("bAtk", "TAtk"); bindBtn("bSpec", "TSpec"); b
     pad.classList.toggle("left", L); pad.classList.toggle("right", Rt); pad.classList.toggle("down", D);
   };
   const end = () => { pid = null; vkey("TLeft", false); vkey("TRight", false); vkey("TDown", false); pad.className = "ctl game"; };
-  pad.addEventListener("pointerdown", e => { e.preventDefault(); audio.init(); pid = e.pointerId; try { pad.setPointerCapture(pid); } catch (_) {} set(e); });
+  pad.addEventListener("pointerdown", e => { e.preventDefault(); audio.init(); setPad(false); pid = e.pointerId; try { pad.setPointerCapture(pid); } catch (_) {} set(e); });
   pad.addEventListener("pointermove", e => { if (e.pointerId === pid) set(e); });
   for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) pad.addEventListener(ev, end);
 })();
@@ -206,7 +209,7 @@ bindBtn("bJump", "TJump"); bindBtn("bAtk", "TAtk"); bindBtn("bSpec", "TSpec"); b
 })();
 let uiShown = "";
 function syncTouchUI() {
-  const key = state + ch().id + df().id;
+  const key = state + ch().id + df().id + PAD;
   if (key === uiShown) return; uiShown = key;
   document.body.classList.toggle("playing", state === "play");
   document.getElementById("bSpec").style.display = state === "play" && ch().id === "helio" ? "" : "none";
@@ -216,10 +219,53 @@ function syncTouchUI() {
   document.getElementById("powLbl").textContent = ch().id === "helio" ? "vitesse" : "ralenti";
   if (state !== "play") for (const k of ["TLeft", "TRight", "TDown", "TJump", "TAtk", "TSpec", "TPow"]) keys[k] = false;
 }
+/* ---- Manettes (Gamepad API) ---- */
+// Disposition « standard » : 0 A/✕, 1 B/○, 2 X/□, 3 Y/△, 4-7 gâchettes, 8 Select/Share, 9 Start/Options, 12-15 croix.
+// Les manettes produisent des touches virtuelles (GLeft, GA…), lues à chaque image par readPads().
+// La première manette sur laquelle on appuie pilote le jeu ; les autres sont ignorées (réservées à la future coop).
+let PAD = false, padIdx = null, padStyle = "xbox";
+const PAD_KEYS = ["GLeft", "GRight", "GUp", "GDown", "GA", "GB", "GX", "GY", "GPow", "GStart", "GSelect"];
+const PAD_LABELS = {
+  xbox: { A: "A", B: "B", X: "X", RT: "RT", START: "Menu", SELECT: "Vue" },
+  ps: { A: "✕", B: "○", X: "□", RT: "R2", START: "Options", SELECT: "Share" },
+};
+function setPad(on) { if (PAD === on) return; PAD = on; document.body.classList.toggle("pad", on); }
+const padStyleOf = id => /054c|sony|playstation|dualshock|dualsense/i.test(id) ? "ps" : "xbox";
+const padBtn = (g, i) => { const b = g.buttons[i]; return !!b && (b.pressed || b.value > 0.5); };
+function readPads() {
+  const list = navigator.getGamepads ? navigator.getGamepads() : [];
+  let g = padIdx !== null ? list[padIdx] : null;
+  if (!g || !g.connected) {
+    g = null; padIdx = null;
+    for (const p of list) if (p && p.connected && (p.buttons.some(b => b.pressed) || Math.abs(p.axes[0] || 0) > 0.6 || Math.abs(p.axes[1] || 0) > 0.6)) {
+      g = p; padIdx = p.index; padStyle = padStyleOf(p.id); break;
+    }
+  }
+  const s = {};
+  if (g) {
+    const ax = g.axes[0] || 0, ay = g.axes[1] || 0, vert = Math.abs(ay) > Math.abs(ax);
+    s.GLeft = padBtn(g, 14) || ax < -0.45; s.GRight = padBtn(g, 15) || ax > 0.45;
+    s.GUp = padBtn(g, 12) || (ay < -0.6 && vert); s.GDown = padBtn(g, 13) || (ay > 0.6 && vert);
+    s.GA = padBtn(g, 0); s.GB = padBtn(g, 1); s.GX = padBtn(g, 2); s.GY = padBtn(g, 3);
+    s.GPow = padBtn(g, 4) || padBtn(g, 5) || padBtn(g, 6) || padBtn(g, 7);
+    s.GSelect = padBtn(g, 8); s.GStart = padBtn(g, 9);
+  }
+  let used = false;
+  for (const k of PAD_KEYS) { if (s[k] && !keys[k]) used = true; vkey(k, !!s[k]); }
+  if (used) {
+    setPad(true);
+    // le son ne peut démarrer qu'après un clic, un toucher ou une touche : on évite l'avertissement du navigateur
+    if (audio.ctx || !navigator.userActivation || navigator.userActivation.hasBeenActive) audio.init();
+  }
+}
+addEventListener("gamepaddisconnected", e => { if (e.gamepad.index === padIdx) { padIdx = null; if (state === "play") pauseGame(); } });
+const padText = s => s.replace(/\{(\w+)\}/g, (_, k) => PAD_LABELS[padStyle][k] || k);
+// Consigne adaptée à la commande utilisée : clavier, tactile ou manette ({A}, {B}… donnent le nom du bouton)
+const say = (kb, touch, pad) => PAD ? padText(pad) : TOUCH ? touch : kb;
 function hintText(tok) {
   const H = HINTS[tok]; if (!H) return tok;
-  const pair = Array.isArray(H) ? H : H[ch().id];
-  return pair[TOUCH ? 1 : 0];
+  const v = Array.isArray(H) ? H : H[ch().id];
+  return say(v[0], v[1], v[2]);
 }
 
 /* ---------------- Audio ---------------- */
@@ -1073,8 +1119,8 @@ function updateParts(dt) {
 
 function updatePlay(rdt) {
   const d = df(), C = ch();
-  if (hit("Escape", "KeyP", "TPause")) { pauseGame(); return; }
-  if (hit("KeyR")) { loadLevel(lvlIdx); return; }
+  if (hit("Escape", "KeyP", "TPause", "GStart")) { pauseGame(); return; }
+  if (hit("KeyR", "GSelect")) { loadLevel(lvlIdx); return; }
   const want = d.power && down(...K.power) && powerGauge > 0 && !player.dead;
   if (want) powerGauge = Math.max(0, powerGauge - d.drain * rdt);
   else powerGauge = Math.min(1, powerGauge + d.regen * rdt);
@@ -1091,11 +1137,13 @@ function updatePlay(rdt) {
     }
   }
 }
-let pausedFrom = null;
+let pausedFrom = null, pauseSel = 0;
 const PUI = { resume: { x: 170, y: 120, w: 140, h: 24 }, quit: { x: 170, y: 152, w: 140, h: 24 } };
-function pauseGame() { state = "pause"; setTimeFx(false, false); audio.sfx("select"); }
+function pauseGame() { state = "pause"; pauseSel = 0; setTimeFx(false, false); audio.sfx("select"); }
 function updatePause() {
-  if (hit("Escape", "KeyP", "TPause", "Enter", "Space") || (hit("Mouse0") && inside(PUI.resume))) { state = "play"; return; }
+  if (hit("GUp", "GDown")) { pauseSel = 1 - pauseSel; audio.sfx("select"); }
+  if (hit("GA")) { if (pauseSel) openWorlds(); else state = "play"; return; }
+  if (hit("Escape", "KeyP", "TPause", "Enter", "Space", "GStart", "GB") || (hit("Mouse0") && inside(PUI.resume))) { state = "play"; return; }
   if (hit("Backspace") || (hit("Mouse0") && inside(PUI.quit))) openWorlds();
 }
 
@@ -1282,7 +1330,7 @@ function drawHUD() {
   ctx.font = `700 9px ${FONT}`; const nw = ctx.measureText(tag).width;
   text(L.name, 14 + nw, 8, 9, "#e8dcff");
   text(fmtTime(runTime), VW / 2, 8, 9, ch().ui, "center");
-  let hx = VW - (TOUCH ? 52 : 8);
+  let hx = VW - (TOUCH && !PAD ? 52 : 8);
   if (d.id === "doom") { ctx.globalAlpha = 0.6 + 0.4 * Math.sin(time * 8); text("☠ DOOM", hx, 8, 9, d.color, "right", d.color); ctx.globalAlpha = 1; }
   else {
     for (let i = d.hp - 1; i >= 0; i--) { const c = i < player.hp ? "#ff4f8a" : "#3a2c52"; hx -= 10; R(hx, 4, 3, 2, c); R(hx + 4, 4, 3, 2, c); R(hx - 1, 5, 9, 3, c); R(hx, 8, 7, 2, c); R(hx + 2, 10, 3, 2, c); }
@@ -1293,7 +1341,7 @@ function drawHUD() {
   }
   const left = enemies.filter(e => e.alive).length;
   text(left ? `Robots : ${left}` : "Sortie ouverte", 6, VH - 8, 8, left ? "#b9a6e0" : "#7dffb0");
-  if (C.id === "helio" && !TOUCH) { const ready = player.dashCd <= 0; text(ready ? "Dash prêt" : "Dash…", VW - 6, VH - 8, 8, ready ? C.color : "#5a4a80", "right"); }
+  if (C.id === "helio" && (!TOUCH || PAD)) { const ready = player.dashCd <= 0; text(ready ? "Dash prêt" : "Dash…", VW - 6, VH - 8, 8, ready ? C.color : "#5a4a80", "right"); }
   const bs = boss();
   if (bs && bs.alive) {
     if (bs.state === "intro") {
@@ -1336,12 +1384,12 @@ function drawPause() {
   drawWorld(); drawHUD();
   R(0, 0, VW, VH, "rgba(10,6,24,0.65)");
   text("Pause", VW / 2, 90, 26, ch().ui, "center", ch().ui);
-  for (const [k, label, col] of [["resume", "Reprendre", ch().ui], ["quit", "Quitter le monde", "#b9a6e0"]]) {
-    const r = PUI[k], hov = inside(r);
+  [["resume", "Reprendre", ch().ui], ["quit", "Quitter le monde", "#b9a6e0"]].forEach(([k, label, col], i) => {
+    const r = PUI[k], hov = PAD ? pauseSel === i : inside(r);
     R(r.x, r.y, r.w, r.h, hov ? "#ffffff" : "rgba(20,12,40,0.9)"); ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
     text(label, r.x + r.w / 2, r.y + r.h / 2 + 1, 10, hov ? "#120828" : col, "center");
-  }
-  if (!TOUCH) text("Échap : reprendre    Retour arrière : quitter", VW / 2, 200, 8, "#b9a6e0", "center");
+  });
+  if (!TOUCH || PAD) text(say("Échap : reprendre    Retour arrière : quitter", "", "Croix et {A} pour choisir    {B} : reprendre"), VW / 2, 200, 8, "#b9a6e0", "center");
 }
 function drawOverlays() {
   if (slowOn) { R(0, 0, VW, VH, "rgba(120,60,255,0.16)"); }
@@ -1387,13 +1435,13 @@ function openWorlds() {
 function startWorld(wi) { curWorld = wi; runTime = 0; deaths = 0; msg = null; audio.sfx("start"); loadLevel(firstRoom(wi)); }
 function updateWorlds() {
   const prog = getProgress(), n = WORLDS.length;
-  if (hit("Escape") || (hit("Mouse0") && inside({ x: 8, y: 6, w: 50, h: 20 }))) { goMenu(); return; }
+  if (hit("Escape", "GB") || (hit("Mouse0") && inside({ x: 8, y: 6, w: 50, h: 20 }))) { goMenu(); return; }
   if ((keys.ShiftLeft || keys.ShiftRight) && hit("KeyD")) { setProgress(n); msg = { text: "Tous les mondes sont débloqués", t: 2 }; audio.sfx("door"); }
   if (hit(...K.left)) { worldSel = (worldSel + n - 1) % n; audio.sfx("select"); }
   if (hit(...K.right)) { worldSel = (worldSel + 1) % n; audio.sfx("select"); }
-  if (hit("ArrowUp", "KeyW", "ArrowDown", "KeyS")) { worldSel = (worldSel + WCOLS) % n; audio.sfx("select"); }
+  if (hit(...K.up, ...K.down)) { worldSel = (worldSel + WCOLS) % n; audio.sfx("select"); }
   if (hit("Mouse0")) WUI.forEach((r, i) => { if (inside(r)) { if (i === worldSel && i <= prog) startWorld(i); else { worldSel = i; audio.sfx("select"); } } });
-  if (state === "worlds" && hit("Enter", "Space", "NumpadEnter") && worldSel <= prog) startWorld(worldSel);
+  if (state === "worlds" && hit(...K.ok) && worldSel <= prog) startWorld(worldSel);
 }
 function drawWorlds() {
   const C = ch(), prog = getProgress();
@@ -1413,21 +1461,21 @@ function drawWorlds() {
     ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1); ctx.shadowBlur = 0;
   });
   const lockedSel = worldSel > prog;
-  text(lockedSel ? "Termine le monde précédent pour débloquer celui-ci" : TOUCH ? "Touche un monde, puis touche-le encore pour jouer" : "Flèches pour choisir, Entrée pour jouer, Échap pour revenir", VW / 2, 254, 8, lockedSel ? "#ff8ab0" : "#b9a6e0", "center");
-  if (TOUCH) { R(8, 6, 50, 20, "rgba(20,12,40,0.9)"); ctx.strokeStyle = "#b9a6e0"; ctx.strokeRect(8.5, 6.5, 49, 19); text("◀ Menu", 33, 16, 8, "#e8dcff", "center"); }
+  text(lockedSel ? "Termine le monde précédent pour débloquer celui-ci" : say("Flèches pour choisir, Entrée pour jouer, Échap pour revenir", "Touche un monde, puis touche-le encore pour jouer", "Croix pour choisir, {A} pour jouer, {B} pour revenir"), VW / 2, 254, 8, lockedSel ? "#ff8ab0" : "#b9a6e0", "center");
+  if (TOUCH && !PAD) { R(8, 6, 50, 20, "rgba(20,12,40,0.9)"); ctx.strokeStyle = "#b9a6e0"; ctx.strokeRect(8.5, 6.5, 49, 19); text("◀ Menu", 33, 16, 8, "#e8dcff", "center"); }
   if (msg && msg.t > 0) text(msg.text, VW / 2, 246, 9, "#7dffb0", "center");
 }
 function updateMenu() {
   if (hit(...K.left)) { charIdx = 0; audio.sfx("select"); }
   if (hit(...K.right)) { charIdx = 1; audio.sfx("select"); }
-  if (hit("ArrowUp", "KeyW")) { diffIdx = Math.max(0, diffIdx - 1); audio.sfx("select"); }
-  if (hit("ArrowDown", "KeyS")) { diffIdx = Math.min(2, diffIdx + 1); audio.sfx("select"); }
+  if (hit(...K.up)) { diffIdx = Math.max(0, diffIdx - 1); audio.sfx("select"); }
+  if (hit(...K.down)) { diffIdx = Math.min(2, diffIdx + 1); audio.sfx("select"); }
   if (hit("Mouse0")) {
     UI.cards.forEach((r, i) => { if (inside(r)) { charIdx = i; audio.sfx("select"); } });
     UI.diffs.forEach((r, i) => { if (inside(r)) { diffIdx = i; audio.sfx("select"); } });
     if (inside(UI.play)) { startGame(); return; }
   }
-  if (hit("Enter", "Space", "NumpadEnter")) startGame();
+  if (hit(...K.ok)) startGame();
 }
 let menuMix = 0, menuBgs = null;
 function drawMenu() {
@@ -1472,13 +1520,15 @@ function drawMenu() {
   R(p.x, p.y, p.w, p.h, inside(p) ? "#ffffff" : pg);
   ctx.shadowColor = C0.ui; ctx.shadowBlur = 6 + pulse * 8; ctx.strokeStyle = "#ffffff"; ctx.strokeRect(p.x + 0.5, p.y + 0.5, p.w - 1, p.h - 1); ctx.shadowBlur = 0;
   text("Jouer", p.x + p.w / 2, p.y + p.h / 2 + 1, 12, "#120828", "center");
-  text(TOUCH ? "Touche un personnage et une difficulté, puis Jouer" : "← → personnage    ↑ ↓ difficulté    Entrée pour jouer    M : son", VW / 2, 264, 7, "#b9a6e0", "center");
+  const mute = audio.ctx && audio.ctx.state === "running" ? "" : "    Clic : activer le son";
+  text(say("← → personnage    ↑ ↓ difficulté    Entrée pour jouer    M : son", "Touche un personnage et une difficulté, puis Jouer",
+    "← → personnage    ↑ ↓ difficulté    {A} pour jouer" + mute), VW / 2, 264, 7, "#b9a6e0", "center");
 }
 
 /* ---------------- Écrans de fin ---------------- */
 function updateClear(rdt) {
   clearT -= rdt; updateParts(rdt);
-  if (clearT <= 0 || hit("Enter", "Space", "Mouse0")) {
+  if (clearT <= 0 || hit("Enter", "Space", "Mouse0", "GA", "GStart")) {
     const r = ROOMS[lvlIdx], next = ROOMS[lvlIdx + 1];
     if (next && next.w === r.w) loadLevel(lvlIdx + 1);
     else {
@@ -1486,7 +1536,7 @@ function updateClear(rdt) {
       const prev = getBest(r.w);
       best = { time: runTime, deaths, isNew: !prev || runTime < prev.time };
       if (best.isNew) try { localStorage.setItem(bestKey(r.w), JSON.stringify({ time: runTime, deaths })); } catch (e) {}
-      state = r.w + 1 < WORLDS.length ? "worldclear" : "win";
+      state = r.w + 1 < WORLDS.length ? "worldclear" : "win"; wcSel = 0;
     }
   }
 }
@@ -1506,27 +1556,31 @@ function drawResult(title, sub) {
   if (best) text(best.isNew ? "Nouveau record !" : "", VW / 2, 194, 10, "#fccc28", "center");
 }
 const WCUI = { next: { x: 150, y: 208, w: 180, h: 22 }, list: { x: 175, y: 236, w: 130, h: 18 } };
+let wcSel = 0;
 function updateWorldClear() {
   const r = ROOMS[lvlIdx];
   drawResult("Monde terminé !", `${BOSSES[WORLDS[r.w].id].name} est vaincu, ${WORLDS[r.w].name} est sauvé`);
-  for (const [k, label, col] of [["next", `Monde suivant : ${WORLDS[r.w + 1].name}`, "#7dffb0"], ["list", "Choisir un monde", "#b9a6e0"]]) {
-    const b = WCUI[k], hov = inside(b) && !TOUCH;
+  [["next", `Monde suivant : ${WORLDS[r.w + 1].name}`, "#7dffb0"], ["list", "Choisir un monde", "#b9a6e0"]].forEach(([k, label, col], i) => {
+    const b = WCUI[k], hov = PAD ? wcSel === i : inside(b) && !TOUCH;
     R(b.x, b.y, b.w, b.h, hov ? "#ffffff" : "rgba(20,12,40,0.9)"); ctx.strokeStyle = col; ctx.strokeRect(b.x + 0.5, b.y + 0.5, b.w - 1, b.h - 1);
     text(label, b.x + b.w / 2, b.y + b.h / 2 + 1, k === "next" ? 9 : 8, hov ? "#120828" : col, "center");
-  }
-  if (hit("Enter", "Space") || (hit("Mouse0") && inside(WCUI.next))) startWorld(r.w + 1);
-  else if (hit("Escape") || (hit("Mouse0") && inside(WCUI.list))) openWorlds();
+  });
+  if (hit("GUp", "GDown")) { wcSel = 1 - wcSel; audio.sfx("select"); }
+  if (hit("GA")) { if (wcSel) openWorlds(); else startWorld(r.w + 1); }
+  else if (hit("Enter", "Space", "GStart") || (hit("Mouse0") && inside(WCUI.next))) startWorld(r.w + 1);
+  else if (hit("Escape", "GB") || (hit("Mouse0") && inside(WCUI.list))) openWorlds();
 }
 function drawWin() {
   drawResult("Victoire !", `${ch().name} a vaincu Dr. Boulon et sauvé les huit mondes !`);
-  text(TOUCH ? "Touche l'écran pour revenir au choix des mondes" : "Entrée ou clic pour revenir au choix des mondes", VW / 2, 230, 9, "#b9a6e0", "center");
-  if (hit("Enter", "Space", "Mouse0", "Escape")) openWorlds();
+  text(say("Entrée ou clic pour revenir au choix des mondes", "Touche l'écran pour revenir au choix des mondes", "{A} pour revenir au choix des mondes"), VW / 2, 230, 9, "#b9a6e0", "center");
+  if (hit("Enter", "Space", "Mouse0", "Escape", "GA", "GB", "GStart")) openWorlds();
 }
 
 /* ---------------- Boucle ---------------- */
 let last = performance.now();
 function frame(now) {
   const rdt = Math.min(1 / 30, (now - last) / 1000); last = now; time += rdt;
+  readPads();
   if (hit("KeyM")) audio.toggleMute();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = "#0d0820"; ctx.fillRect(0, 0, cv.width, cv.height);
