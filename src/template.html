@@ -77,8 +77,8 @@ __PWA_HEAD__
 <div id="rotate"><b>📱</b>Tourne ton appareil<br>pour jouer à Lunelio</div>
 <script>
 "use strict";
-const SPRITES = { helio: "data:image/png;base64,__HELIO__", lune: "data:image/png;base64,__LUNE__",
-  logo_helio: "data:image/webp;base64,__LOGO_HELIO__", logo_lune: "data:image/webp;base64,__LOGO_LUNE__" };
+// Planches de sprites (src/assets/images/<id>_spritesheet.png) et logos (logo_<id>.webp), ajoutées par build.py
+const SPRITES = __SPRITES__;
 const VW = 480, VH = 272, T = 16, COLS = 30, ROWS = 17, SC = 3;
 const FONT = '"Pixelify Sans", "Courier New", monospace';
 const cv = document.getElementById("game");
@@ -92,20 +92,42 @@ const DIFFS = [
   { id: "normal", label: "Normal", hp: 3, eSpeed: 1.0, laser: 1.0, cd: 1.6, tele: 0.6, power: true, drain: 0.4, regen: 0.15, bossHp: 1, color: "#5ef0ff" },
   { id: "doom", label: "☠ Doom", hp: 1, eSpeed: 1.4, laser: 1.45, cd: 0.95, tele: 0.38, power: false, drain: 0, regen: 0, bossHp: 1.3, color: "#ff3b5c" },
 ];
+// Capacités spéciales. button : la capacité a son propre bouton (touche K, bouton ➤ en tactile) ; sinon elle passe par le saut.
+// hint : consigne [clavier, tactile, manette] ; kbHint : consigne clavier quand les touches ont été changées.
+const SPECIALS = {
+  dash: { button: true, icon: "➤", label: "dash", name: "Dash éclair",
+    hint: ["K ou clic droit : dash éclair à travers les robots", "Bouton ➤ : dash éclair à travers les robots", "Bouton {SPEC} : dash éclair à travers les robots"],
+    kbHint: () => `${kbNames("special")} ou clic droit : dash éclair à travers les robots` },
+  doublejump: { button: false, name: "Double saut",
+    hint: ["Appuie deux fois sur Espace : double saut", "Appuie deux fois sur ▲ : double saut", "Appuie deux fois sur {JUMP} : double saut"],
+    kbHint: () => `Appuie deux fois sur ${kbNames("jump")} : double saut` },
+};
+// Pouvoirs (bouton maintenu, jauge de chaque joueur p.gauge). timeFx : effet sur le temps du jeu (setTimeFx).
+const POWERS = {
+  fast: { icon: "»", label: "vitesse", name: "Super vitesse", color: "#ffb43c", timeFx: "fast",
+    hint: ["Maintiens Maj ou L : super vitesse !", "Maintiens » : super vitesse !", "Maintiens {POW} : super vitesse !"],
+    kbHint: () => `Maintiens ${kbNames("power")} : super vitesse !` },
+  slow: { icon: "⏳", label: "ralenti", name: "Ralenti", color: "#b07dff", timeFx: "slow",
+    hint: ["Maintiens Maj ou L pour ralentir le temps", "Maintiens ⏳ pour ralentir le temps", "Maintiens {POW} pour ralentir le temps"],
+    kbHint: () => `Maintiens ${kbNames("power")} pour ralentir le temps` },
+};
+// Personnages. Un nouveau personnage = une fiche ici + sa planche src/assets/images/<id>_spritesheet.png (+ logo_<id>.webp).
+// special / power : clés de SPECIALS / POWERS (ou null). music : nom de base de ses musiques dans audio/ (<music>.mp3, <music>2.mp3…).
+// unlock : null = disponible dès le début (prévu pour les personnages à débloquer).
 const CHARS = [
-  { id: "helio", name: "Hélio", ability: "Dash éclair · Super vitesse", color: "#5ef0ff", glow: "94,240,255", ui: "#ffb43c", ui2: "#ff6a1a",
-    sky: ["#1c0a26", "#6e1e3c", "#e0602a"], moon: ["#fff1a8", "#ff9a2e"], stripe: "#6a1f3a", stars: "255,236,190", city: ["#2a0f2a", "#1c0a22"], atkW: 26, specialFrames: 2 },
-  { id: "lune", name: "Lune", ability: "Double saut · Ralenti", color: "#de6eff", glow: "222,110,255", ui: "#de6eff", ui2: "#ff6ec7",
-    sky: ["#120828", "#2f0f4a", "#5a1650"], moon: ["#ffe8f6", "#c98cff"], stripe: "#3a1252", stars: "255,230,255", city: ["#1e0b38", "#160830"], atkW: 34, specialFrames: 4 },
+  { id: "helio", name: "Hélio", special: "dash", power: "fast", music: "backgroundhelio", unlock: null,
+    color: "#5ef0ff", glow: "94,240,255", ui: "#ffb43c", ui2: "#ff6a1a", atkW: 26,
+    sky: ["#1c0a26", "#6e1e3c", "#e0602a"], moon: ["#fff1a8", "#ff9a2e"], stripe: "#6a1f3a", stars: "255,236,190", city: ["#2a0f2a", "#1c0a22"] },
+  { id: "lune", name: "Lune", special: "doublejump", power: "slow", music: "backgroundlune", unlock: null,
+    color: "#de6eff", glow: "222,110,255", ui: "#de6eff", ui2: "#ff6ec7", atkW: 34,
+    sky: ["#120828", "#2f0f4a", "#5a1650"], moon: ["#ffe8f6", "#c98cff"], stripe: "#3a1252", stars: "255,230,255", city: ["#1e0b38", "#160830"] },
 ];
-// Consignes : [clavier, tactile, manette] ; certaines dépendent du personnage. {JUMP}, {ATK}… : bouton choisi pour l'action
+const specialOf = C => SPECIALS[C.special] || null, powerOf = C => POWERS[C.power] || null;
+const abilityText = C => [specialOf(C), powerOf(C)].filter(Boolean).map(a => a.name).join(" · ");
+// Consignes : [clavier, tactile, manette]. SPECIAL et POWER viennent de la capacité du personnage. {JUMP}, {ATK}… : bouton choisi
 const HINTS = {
   MOVE: ["Flèches ou ZQSD pour bouger, Espace pour sauter", "Croix pour bouger, ▲ pour sauter", "Stick ou croix pour bouger, {JUMP} pour sauter"],
   ATTACK: ["J ou clic pour trancher les robots", "Bouton ⚔ pour trancher les robots", "Bouton {ATK} pour trancher les robots"],
-  SPECIAL: { helio: ["K ou clic droit : dash éclair à travers les robots", "Bouton ➤ : dash éclair à travers les robots", "Bouton {SPEC} : dash éclair à travers les robots"],
-             lune: ["Appuie deux fois sur Espace : double saut", "Appuie deux fois sur ▲ : double saut", "Appuie deux fois sur {JUMP} : double saut"] },
-  POWER: { helio: ["Maintiens Maj ou L : super vitesse !", "Maintiens » : super vitesse !", "Maintiens {POW} : super vitesse !"],
-           lune: ["Maintiens Maj ou L pour ralentir le temps", "Maintiens ⏳ pour ralentir le temps", "Maintiens {POW} pour ralentir le temps"] },
 };
 const BOSSES = {
   bar:      { kind: "brute",  name: "Le Videur",          hp: 8,  body: "#8a3a4a", accent: "#ffb43c" },
@@ -268,11 +290,13 @@ function syncTouchUI() {
   const key = state + ch().id + df().id + PAD;
   if (key === uiShown) return; uiShown = key;
   document.body.classList.toggle("playing", state === "play");
-  document.getElementById("bSpec").style.display = state === "play" && ch().id === "helio" ? "" : "none";
+  const sp = specialOf(ch()), pw = powerOf(ch());
+  const bs = document.getElementById("bSpec");
+  bs.style.display = state === "play" && sp && sp.button ? "" : "none";
+  if (sp && sp.button) bs.innerHTML = `${sp.icon}<small>${sp.label}</small>`;
   const pow = document.getElementById("bPow");
-  pow.style.display = state === "play" && df().power ? "" : "none";
-  document.getElementById("powIcon").textContent = ch().id === "helio" ? "»" : "⏳";
-  document.getElementById("powLbl").textContent = ch().id === "helio" ? "vitesse" : "ralenti";
+  pow.style.display = state === "play" && df().power && pw ? "" : "none";
+  if (pw) { document.getElementById("powIcon").textContent = pw.icon; document.getElementById("powLbl").textContent = pw.label; }
   if (state !== "play") for (const k of ["TLeft", "TRight", "TDown", "TJump", "TAtk", "TSpec", "TPow"]) keys[k] = false;
 }
 /* ---- Manettes (Gamepad API) ---- */
@@ -343,14 +367,20 @@ const kbNames = a => OPT.kb[a].map(keyName).join(" ou ");
 const KB_HINTS = {
   MOVE: [["left", "right", "jump"], () => `${kbNames("left")} et ${kbNames("right")} pour bouger, ${kbNames("jump")} pour sauter`],
   ATTACK: [["attack"], () => `${kbNames("attack")} ou clic pour trancher les robots`],
-  SPECIAL: [["special", "jump"], () => ch().id === "helio" ? `${kbNames("special")} ou clic droit : dash éclair à travers les robots` : `Appuie deux fois sur ${kbNames("jump")} : double saut`],
-  POWER: [["power"], () => ch().id === "helio" ? `Maintiens ${kbNames("power")} : super vitesse !` : `Maintiens ${kbNames("power")} pour ralentir le temps`],
 };
+// Consigne à afficher pour un jeton (MOVE, ATTACK, SPECIAL, POWER) ou un texte libre ; "" si le personnage n'a pas la capacité
 function hintText(tok) {
-  const H = HINTS[tok]; if (!H) return tok;
-  const v = Array.isArray(H) ? H : H[ch().id], kh = KB_HINTS[tok];
-  const custom = kh && kh[0].some(a => OPT.kb[a].join() !== KB_DEFAULT[a].join());
-  return say(custom ? kh[1]() : v[0], v[1], v[2]);
+  let v, kb = null;
+  if (tok === "SPECIAL" || tok === "POWER") {
+    const a = tok === "SPECIAL" ? specialOf(ch()) : powerOf(ch()); if (!a) return "";
+    const act = tok === "POWER" ? "power" : a.button ? "special" : "jump";
+    v = a.hint; if (OPT.kb[act].join() !== KB_DEFAULT[act].join()) kb = a.kbHint();
+  } else {
+    v = HINTS[tok]; if (!v) return tok;
+    const kh = KB_HINTS[tok];
+    if (kh && kh[0].some(a => OPT.kb[a].join() !== KB_DEFAULT[a].join())) kb = kh[1]();
+  }
+  return say(kb || v[0], v[1], v[2]);
 }
 
 /* ---------------- Audio ---------------- */
@@ -359,11 +389,14 @@ function hintText(tok) {
 const AUDIO_MODE = "__AUDIO_MODE__";
 const AUDIO_EMBED = __AUDIO_EMBED__;
 const AUDIO_DIR = "audio/";
-const MUSIC_BASES = { helio: "backgroundhelio", lune: "backgroundlune", doom: "doombackground", boss: "bossbackground" };
+// Listes de musiques : une par personnage (CHARS[].music), Doom, boss, et celles que les mondes déclarent (WORLDS[].music, bossMusic)
+const MUSIC_BASES = { doom: "doombackground", boss: "bossbackground" };
+for (const C of CHARS) if (C.music) MUSIC_BASES["char:" + C.id] = C.music;
+for (const W of WORLDS) for (const b of [W.music, W.bossMusic]) if (b) MUSIC_BASES[b] = b;
 function b64ToBuf(dataUrl) { const b = atob(dataUrl.split(",")[1]); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u.buffer; }
 const audio = {
   ctx: null, muted: false, buffers: {}, loading: {}, cur: null, curKey: null, wanted: null, fx: null,
-  playlists: { helio: [], lune: [], doom: [], boss: [] }, ready: false,
+  playlists: {}, ready: false,
   init() {
     if (this.ctx) { if (this.ctx.state === "suspended") this.ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
@@ -468,18 +501,21 @@ const audio = {
   },
 };
 audio.discover();
-// Choix de la musique : une piste par monde, en tournant dans la liste du personnage
+// Choix de la musique. En salle : musique du monde (WORLDS[].music / bossMusic) si elle existe ; sinon Doom, bossbackground en salle
+// de boss, puis la liste du personnage, une piste différente par monde. Une liste vide ou absente ne plante jamais : on passe à la suivante.
 function musicKey() {
-  const P = audio.playlists, doom = df().id === "doom";
-  let list = doom ? P.doom : P[ch().id], idx = 0;
+  const P = audio.playlists, L = k => P[k] || [];
+  const pick = (list, i) => list.length ? list[i % list.length] : null;
+  const charList = L("char:" + ch().id), doom = df().id === "doom";
   const inRoom = ["play", "clear", "worldclear", "pause"].includes(state) || (optFrom === "pause" && (state === "options" || state === "keys"));
   if (inRoom && lvl) {
-    const room = ROOMS[lvlIdx];
-    if (room.boss && P.boss.length && state !== "worldclear") return P.boss[room.w % P.boss.length];
-    idx = room.w;
-  } else if (state === "worlds") idx = worldSel;
-  if (!list.length) list = P[ch().id];
-  return list.length ? list[idx % list.length] : null;
+    const room = ROOMS[lvlIdx], W = WORLDS[room.w], bossTime = room.boss && state !== "worldclear";
+    if (bossTime && W.bossMusic && L(W.bossMusic).length) return pick(L(W.bossMusic), 0);
+    if (!doom && W.music && L(W.music).length) return pick(L(W.music), room.ri);
+    if (bossTime && L("boss").length) return pick(L("boss"), room.w);
+    return pick(doom && L("doom").length ? L("doom") : charList, room.w);
+  }
+  return pick(doom && L("doom").length ? L("doom") : charList, state === "worlds" ? worldSel : 0);
 }
 
 /* ---------------- Voix ---------------- */
@@ -800,8 +836,8 @@ const IMG = {};
 let state = "loading", time = 0;
 let charIdx = 0, diffIdx = 0;
 let lvlIdx = 0, lvl = null, bgCanvas = null, tileCanvas = null;
-let player, enemies, lasers, parts, pickups, ghosts, msg;
-let shake = 0, hitstop = 0, powerGauge = 1, slowOn = false, fastOn = false, flash = 0;
+let players = [], enemies, lasers, parts, pickups, ghosts, msg;
+let shake = 0, hitstop = 0, slowOn = false, fastOn = false, flash = 0;
 let runTime = 0, roomTime = 0, deaths = 0, clearT = 0, hintT = 0, doorOpen = false;
 let deathT = 0, doomReset = false, best = null;
 const ch = () => CHARS[charIdx], df = () => DIFFS[diffIdx];
@@ -875,16 +911,33 @@ function loadLevel(i) {
   lvl = parseLevel(L);
   bgCanvas = makeWorldBg(L, lvl, ch()); tileCanvas = makeTiles(lvl, WORLD_STYLE[wid], wid);
   const d = df();
-  player = { x: lvl.start.x, y: lvl.start.y, w: 10, h: 32, vx: 0, vy: 0, face: 1, onGround: false, airJumps: 1, coyote: 0, jumpBuf: 0,
-    atkT: -1, atkCd: 0, dashT: 0, dashCd: 0, dashAir: true, djT: 0, hp: d.hp, inv: 0.6, dead: false, runT: 0, dropT: 0,
-    hitList: new Set(), dashHits: new Set(), ghostT: 0 };
+  players = [makePlayer(ch(), K, 0)];
   enemies = lvl.ents.map(e => e.type === "boss" ? makeBoss(e, wid) : ({ ...e, w: e.type === "drone" ? 14 : 16, h: e.type === "drone" ? 10 : 22, homeX: e.x, homeY: e.y, vx: 0, vy: 0, face: -1, state: "idle", t: 0.4 + Math.random() * 0.5, alive: true, walkT: 0, charging: false }));
   pickups = d.id === "doom" ? [] : lvl.items.map(it => ({ ...it, alive: true }));
-  lasers = []; parts = []; ghosts = []; roomTime = 0; hintT = 0; doorOpen = false; deathT = 0; powerGauge = 1;
+  lasers = []; parts = []; ghosts = []; roomTime = 0; hintT = 0; doorOpen = false; deathT = 0;
   setTimeFx(false, false);
   state = "play";
   if (i !== spokenRoom) { spokenRoom = i; speakRoom(); }   // pas de répétition quand on recommence la même salle
 }
+// Joueurs : chacun a son personnage (C), ses commandes (input, au format de K), ses cœurs et sa jauge de pouvoir.
+// players[0] est le joueur principal (menus, HUD) ; la coop ajoutera un deuxième joueur avec ses propres commandes.
+function makePlayer(C, input, idx) {
+  const s = lvl.start;
+  return { idx, C, input, x: s.x + idx * 14, y: s.y, w: 10, h: 32, vx: 0, vy: 0, face: 1, onGround: false, airJumps: 1, coyote: 0, jumpBuf: 0,
+    atkT: -1, atkCd: 0, dashT: 0, dashCd: 0, dashAir: true, djT: 0, hp: df().hp, inv: 0.6, dead: false, runT: 0, dropT: 0,
+    hitList: new Set(), dashHits: new Set(), ghostT: 0, gauge: 1, powerOn: false };
+}
+const player1 = () => players[0];
+const allDead = () => players.every(p => p.dead);
+const usingPower = (p, fx) => p.powerOn && powerOf(p.C) && powerOf(p.C).timeFx === fx;
+// Joueur visé par un ennemi : le plus proche encore en vie
+function targetOf(e) {
+  let best = null, bd = Infinity; const cx = e.x + e.w / 2, cy = e.y + e.h / 2;
+  for (const p of players) { if (p.dead) continue; const d = Math.hypot(p.x + 5 - cx, p.y + 16 - cy); if (d < bd) { bd = d; best = p; } }
+  return best || players[0];
+}
+// Contact d'un ennemi avec les joueurs
+function touchPlayers(e, srcX) { for (const p of players) if (!p.dead && ov(e, p)) hurtPlayer(p, srcX); }
 let spokenRoom = -1;
 function roomHints() {
   const L = ROOMS[lvlIdx];
@@ -935,30 +988,31 @@ function damageBoss(e, dmg) {
     checkDoor();
   }
 }
-function hitEnemy(e, src) {
-  const p = player;
+function hitEnemy(e, src, p) {
   if (e.type !== "boss") { killEnemy(e); return; }
   if (src === "atk") { if (p.hitList.has(e)) return; p.hitList.add(e); damageBoss(e, 1); }
   else if (src === "dash") { if (p.dashHits.has(e)) return; p.dashHits.add(e); damageBoss(e, 1); }
   else damageBoss(e, 2);
 }
-function hurtPlayer(srcX) {
-  const p = player;
+function hurtPlayer(p, srcX) {
   if (p.dead || p.inv > 0 || p.dashT > 0) return;
   p.hp--;
   shake = 6; hitstop = 0.08; audio.sfx("hurt");
-  burst(p.x + 5, p.y + 14, 14, ["#ff3b5c", "#ffffff", ch().color], 180, 0.5, 300, 2);
+  burst(p.x + 5, p.y + 14, 14, ["#ff3b5c", "#ffffff", p.C.color], 180, 0.5, 300, 2);
   if (p.hp <= 0 && buddyOn()) {
     // mode copain : on repart sur place avec tous ses cœurs, les robots détruits le restent
     deaths++; p.hp = df().hp; p.inv = 2; p.vx = Math.sign(p.x + 5 - srcX || 1) * 120; p.vy = -260;
-    burst(p.x + 5, p.y + 16, 30, ["#7dffb0", "#ffffff", "#ff4f8a", ch().color], 200, 0.7, 100, 2);
+    burst(p.x + 5, p.y + 16, 30, ["#7dffb0", "#ffffff", "#ff4f8a", p.C.color], 200, 0.7, 100, 2);
     audio.sfx("heal"); rumble(250, 0.5, 0.5);
     msg = { text: "Mode copain : on repart !", t: 2 }; voice.say("On repart !", true);
   } else if (p.hp <= 0) {
-    p.dead = true; deaths++; deathT = 1.4; audio.sfx("gameover"); rumble(500, 1, 0.8); voice.say("Raté ! On recommence.", true);
-    burst(p.x + 5, p.y + 16, 40, [ch().color, "#ffffff", "#ff4fd8"], 260, 0.9, 250, 2);
-    doomReset = df().id === "doom" && ROOMS[lvlIdx].ri > 0;
-    setTimeFx(false, false);
+    p.dead = true; p.powerOn = false; deaths++; audio.sfx("gameover"); rumble(500, 1, 0.8);
+    burst(p.x + 5, p.y + 16, 40, [p.C.color, "#ffffff", "#ff4fd8"], 260, 0.9, 250, 2);
+    if (allDead()) {
+      deathT = 1.4; voice.say("Raté ! On recommence.", true);
+      doomReset = df().id === "doom" && ROOMS[lvlIdx].ri > 0;
+      setTimeFx(false, false);
+    }
   } else {
     p.inv = 1.3; p.vx = Math.sign(p.x + 5 - srcX || 1) * 170; p.vy = -220; rumble(250, 0.6, 0.5);
   }
@@ -970,24 +1024,24 @@ function setTimeFx(slow, fast) {
 
 /* ---------------- Mise à jour ---------------- */
 function attackBox(p) {
-  const w = ch().atkW;
+  const w = p.C.atkW;
   return { x: p.face > 0 ? p.x + p.w - 2 : p.x - w + 2, y: p.y - 4, w, h: p.h + 8 };
 }
-function updatePlayer(dt) {
-  const p = player, C = ch();
+function updatePlayer(p, dt) {
+  const C = p.C, I = p.input, fast = usingPower(p, "fast");
   if (p.dead) return;
-  const boost = fastOn ? 1.75 : 1;
+  const boost = fast ? 1.75 : 1;
   const RUN = 132 * boost, G = 1500;
   p.inv = Math.max(0, p.inv - dt); p.atkCd -= dt * boost; p.dashCd -= dt * boost; p.djT = Math.max(0, p.djT - dt); p.dropT -= dt;
   p.coyote = p.onGround ? 0.09 : p.coyote - dt;
-  p.jumpBuf = hit(...K.jump) ? 0.12 : p.jumpBuf - dt;
+  p.jumpBuf = hit(...I.jump) ? 0.12 : p.jumpBuf - dt;
   if (p.onGround) { p.airJumps = 1; p.dashAir = true; }
-  const dir = (down(...K.right) ? 1 : 0) - (down(...K.left) ? 1 : 0);
+  const dir = (down(...I.right) ? 1 : 0) - (down(...I.left) ? 1 : 0);
 
   if (p.dashT > 0) {
     p.dashT -= dt; p.vx = p.face * 430; p.vy = 0;
     if (Math.random() < 0.8) parts.push({ x: p.x + 5, y: p.y + 6 + Math.random() * 24, vx: -p.face * 30, vy: 0, life: 0.25, max: 0.25, color: C.color, size: 2, grav: 0 });
-    for (const e of enemies) if (e.alive && ov(p, e)) hitEnemy(e, "dash");
+    for (const e of enemies) if (e.alive && ov(p, e)) hitEnemy(e, "dash", p);
   } else {
     const target = dir * RUN, acc = (p.onGround ? 1400 : 900) * boost;
     if (p.inv > 1.0) { /* recul après un coup */ }
@@ -996,22 +1050,22 @@ function updatePlayer(dt) {
     if (dir && p.atkT < 0) p.face = dir;
     if (p.jumpBuf > 0) {
       if (p.coyote > 0) { p.vy = -450; p.coyote = 0; p.jumpBuf = 0; audio.sfx("jump"); }
-      else if (C.id === "lune" && p.airJumps > 0) {
+      else if (C.special === "doublejump" && p.airJumps > 0) {
         p.vy = -400; p.airJumps--; p.jumpBuf = 0; p.djT = 0.32; audio.sfx("dj");
-        burst(p.x + 5, p.y + 30, 12, ["#de6eff", "#ffffff"], 120, 0.4, 0, 1);
+        burst(p.x + 5, p.y + 30, 12, [C.color, "#ffffff"], 120, 0.4, 0, 1);
       }
     }
-    if (hit(...K.drop) && p.onGround && tileAt(p.x + 5, p.y + p.h + 1) === 2) { p.dropT = 0.25; p.y += 2; }
+    if (hit(...I.drop) && p.onGround && tileAt(p.x + 5, p.y + p.h + 1) === 2) { p.dropT = 0.25; p.y += 2; }
     p.vy += G * dt;
-    if (p.vy < 0 && !down(...K.jump)) p.vy += G * 1.4 * dt;
+    if (p.vy < 0 && !down(...I.jump)) p.vy += G * 1.4 * dt;
     p.vy = Math.min(p.vy, 600);
-    if (C.id === "helio" && hit(...K.special) && p.dashCd <= 0 && (p.onGround || p.dashAir)) {
+    if (C.special === "dash" && hit(...I.special) && p.dashCd <= 0 && (p.onGround || p.dashAir)) {
       if (dir) p.face = dir;
       p.dashT = 0.17; p.dashCd = 0.65; p.dashHits = new Set(); if (!p.onGround) p.dashAir = false; p.atkT = -1;
       audio.sfx("dash"); shake = Math.max(shake, 2);
     }
   }
-  if (hit(...K.attack) && p.atkCd <= 0 && p.dashT <= 0) {
+  if (hit(...I.attack) && p.atkCd <= 0 && p.dashT <= 0) {
     p.atkT = 0; p.atkCd = 0.34; p.hitList = new Set(); audio.sfx("slash");
     if (dir) p.face = dir;
     if (p.onGround) p.vx += p.face * 90;
@@ -1021,18 +1075,18 @@ function updatePlayer(dt) {
     p.atkT += dt * boost;
     if (p.atkT > 0.03 && p.atkT < 0.2) {
       const box = attackBox(p);
-      for (const e of enemies) if (e.alive && ov(box, e)) hitEnemy(e, "atk");
+      for (const e of enemies) if (e.alive && ov(box, e)) hitEnemy(e, "atk", p);
       for (const l of lasers) if (l.alive && l.owner === "enemy" && l.kind !== "wave" && ov(box, l)) {
-        l.owner = "player"; l.vx = -l.vx * 1.6; l.y = Math.round(l.y);
+        l.owner = "player"; l.color = C.color; l.vx = -l.vx * 1.6; l.y = Math.round(l.y);
         audio.sfx("deflect"); hitstop = 0.05; shake = Math.max(shake, 3);
         burst(l.x + 5, l.y, 12, ["#ffffff", C.color], 160, 0.3, 0, 1);
       }
     }
     if (p.atkT > 0.3) p.atkT = -1;
   }
-  if (fastOn) {
+  if (fast) {
     p.ghostT -= dt;
-    if (p.ghostT <= 0) { p.ghostT = 0.045; ghosts.push({ x: p.x, y: p.y, face: p.face, frame: playerFrame(p), life: 0.22 }); }
+    if (p.ghostT <= 0) { p.ghostT = 0.045; ghosts.push({ id: C.id, x: p.x, y: p.y, face: p.face, frame: playerFrame(p), life: 0.22 }); }
   }
   for (const it of pickups) if (it.alive && ov(p, it) && p.hp < df().hp) {
     it.alive = false; p.hp++; audio.sfx("heal");
@@ -1040,11 +1094,11 @@ function updatePlayer(dt) {
     msg = { text: "+1 cœur", t: 1.2 };
   }
   if (Math.abs(p.vx) > 20 && p.onGround) p.runT += dt * boost;
-  if (p.y > VH + 40) { if (buddyOn()) { p.x = lvl.start.x; p.y = lvl.start.y; p.vy = 0; p.inv = 0; } hurtPlayer(p.x); }
+  if (p.y > VH + 40) { if (buddyOn()) { p.x = lvl.start.x; p.y = lvl.start.y; p.vy = 0; p.inv = 0; } hurtPlayer(p, p.x); }
   if (doorOpen && ov(p, lvl.door)) { state = "clear"; clearT = 1.6; audio.sfx("start"); setTimeFx(false, false); }
 }
 function canSee(e) {
-  const p = player; if (p.dead) return false;
+  const p = targetOf(e); if (p.dead) return false;
   const ly = e.y + 13, pcy = p.y + p.h / 2, dx = p.x + 5 - (e.x + 8);
   if (Math.abs(pcy - ly) > 30 || Math.abs(dx) > 330) return false;
   const step = Math.sign(dx) * 8;
@@ -1063,7 +1117,7 @@ function spawnMinion(x, y) {
 /* ---- Boss ---- */
 function bossSpeed(e) { return df().eSpeed * (e.cfg.fast ? 1.2 : 1) * (e.hp <= e.maxHp / 2 ? 1.2 : 1); }
 function bossBrute(e, dt) {
-  const p = player, sp = bossSpeed(e), pcx = p.x + 5, ecx = e.x + e.w / 2;
+  const p = targetOf(e), sp = bossSpeed(e), pcx = p.x + 5, ecx = e.x + e.w / 2;
   e.vy = Math.min(e.vy + 1500 * dt, 700);
   if (e.state === "fall") { e.vx = 0; if (e.onGround) { e.state = "idle"; e.t = 0.6; } }
   else if (e.state === "idle") {
@@ -1101,7 +1155,7 @@ function canonSpots() {
   return s;
 }
 function bossCanon(e, dt) {
-  const p = player, sp = bossSpeed(e);
+  const p = targetOf(e), sp = bossSpeed(e);
   e.vx = 0; e.vy = 0;
   if (!e.target) e.target = canonSpots()[1];
   if (e.state === "move") {
@@ -1130,7 +1184,7 @@ function bossCanon(e, dt) {
   e.walkT += dt;
 }
 function bossMother(e, dt) {
-  const p = player, sp = bossSpeed(e);
+  const p = targetOf(e), sp = bossSpeed(e);
   e.vx = 0; e.vy = 0; e.walkT += dt;
   if (e.state === "rise" || e.state === "hover") {
     const tx = VW / 2 - e.w / 2 + Math.sin(time * 0.7 * sp) * 150, ty = e.homeY + Math.sin(time * 1.4 * sp) * 14;
@@ -1178,12 +1232,13 @@ function updateBoss(e, dt) {
     msg = { text: e.mode === "brute" ? "Dr. Boulon passe à l'attaque !" : e.mode === "canon" ? "Dr. Boulon sort son canon !" : "Dr. Boulon appelle ses drones !", t: 1.6 };
   }
   e.x = clamp(e.x, 16, VW - 16 - e.w);
-  if (ov(e, player) && e.state !== "stun") hurtPlayer(e.x + e.w / 2);
+  if (e.state !== "stun") touchPlayers(e, e.x + e.w / 2);
 }
 
 function updateEnemies(dt) {
-  const d = df(), p = player;
+  const d = df();
   for (const e of enemies) {
+    const p = targetOf(e);
     if (!e.alive) continue;
     if (e.type === "boss") { updateBoss(e, dt); continue; }
     if (e.type === "drone") {
@@ -1194,7 +1249,7 @@ function updateEnemies(dt) {
       else { e.x += (e.homeX - e.x) * Math.min(1, dt * 0.8); e.y += (e.homeY + Math.sin(e.t * 2) * 6 - e.y) * Math.min(1, dt * 2); }
       e.x = clamp(e.x, 16, VW - 30); e.y = clamp(e.y, 16, VH - 44);
       e.face = dx > 0 ? 1 : -1;
-      if (ov(e, p)) hurtPlayer(e.x + 7);
+      touchPlayers(e, e.x + 7);
       continue;
     }
     e.vy = Math.min(e.vy + 1500 * dt, 600);
@@ -1211,7 +1266,7 @@ function updateEnemies(dt) {
       moveBody(e, dt);
       if (e.blockedX && !e.charging) e.face *= -1;
       if (Math.abs(e.vx) > 1) e.walkT += dt * (e.charging ? 2 : 1);
-      if (ov(e, p)) hurtPlayer(e.x + 8);
+      touchPlayers(e, e.x + 8);
     } else {
       e.vx = 0; moveBody(e, dt);
       e.t -= dt;
@@ -1220,7 +1275,7 @@ function updateEnemies(dt) {
       } else if (e.state === "aim") {
         if (e.t <= 0) { fireLaser(e.face > 0 ? e.x + e.w + 2 : e.x - 2, e.y + 13, e.face); audio.sfx("laser"); e.state = "cool"; e.t = d.cd; }
       } else if (e.t <= 0) e.state = "idle";
-      if (ov(e, p)) hurtPlayer(e.x + 8);
+      touchPlayers(e, e.x + 8);
     }
   }
 }
@@ -1232,8 +1287,8 @@ function updateLasers(dt) {
       if (solidAt(l.x + (l.vx > 0 ? l.w : 0), l.y + 4) || tileAt(l.x + l.w / 2, l.y + l.h + 2) === 0) { l.alive = false; burst(l.x + 7, l.y + 6, 6, ["#c0c8e0", "#ffffff"], 80, 0.3, 300, 2); continue; }
       if (Math.random() < 0.5) parts.push({ x: l.x + Math.random() * l.w, y: l.y + l.h, vx: 0, vy: -60 - Math.random() * 60, life: 0.3, max: 0.3, color: "#c0c8e0", size: 2, grav: 300 });
     } else if (solidAt(l.x + 5, l.y) || l.x < -20 || l.x > VW + 20) { l.alive = false; burst(l.x + 5, l.y, 6, ["#ff8ab0", "#ffffff"], 90, 0.25, 0, 1); continue; }
-    if (l.owner === "enemy" && ov(l, player) && !player.dead) {
-      if (player.inv <= 0 && player.dashT <= 0) { l.alive = false; hurtPlayer(l.x); }
+    if (l.owner === "enemy") {
+      for (const p of players) if (!p.dead && ov(l, p) && p.inv <= 0 && p.dashT <= 0) { l.alive = false; hurtPlayer(p, l.x); break; }
     } else if (l.owner === "player") {
       for (const e of enemies) if (e.alive && ov(l, e)) { hitEnemy(e, "laser"); l.alive = false; break; }
     }
@@ -1248,18 +1303,21 @@ function updateParts(dt) {
 }
 
 function updatePlay(rdt) {
-  const d = df(), C = ch();
+  const d = df();
   if (hit("Escape", "KeyP", "TPause", "GStart")) { pauseGame(); return; }
   if (hit("KeyR", "GSelect")) { loadLevel(lvlIdx); return; }
-  const want = d.power && down(...K.power) && powerGauge > 0 && !player.dead;
-  if (want) powerGauge = Math.max(0, powerGauge - d.drain * rdt);
-  else powerGauge = Math.min(1, powerGauge + d.regen * rdt);
-  setTimeFx(want && C.id === "lune", want && C.id === "helio");
+  // pouvoirs : chaque joueur a sa jauge ; le ralenti d'un joueur ralentit tout le jeu
+  for (const p of players) {
+    p.powerOn = !!(d.power && powerOf(p.C) && down(...p.input.power) && p.gauge > 0 && !p.dead);
+    p.gauge = p.powerOn ? Math.max(0, p.gauge - d.drain * rdt) : Math.min(1, p.gauge + d.regen * rdt);
+  }
+  setTimeFx(players.some(p => usingPower(p, "slow")), players.some(p => usingPower(p, "fast")));
   runTime += rdt; roomTime += rdt; hintT += rdt;
   if (hitstop > 0) { hitstop -= rdt; return; }
   const dt = rdt * (slowOn ? 0.35 : 1);
-  updatePlayer(dt); updateEnemies(dt); updateLasers(dt); updateParts(dt);
-  if (player.dead) {
+  for (const p of players) updatePlayer(p, dt);
+  updateEnemies(dt); updateLasers(dt); updateParts(dt);
+  if (allDead()) {
     deathT -= rdt;
     if (deathT <= 0) {
       if (doomReset) { loadLevel(firstRoom(ROOMS[lvlIdx].w)); msg = { text: "Mode Doom : retour au début du monde !", t: 2.5 }; }
@@ -1297,18 +1355,20 @@ function playerFrame(p) {
   if (Math.abs(p.vx) > 20) return 6 + Math.floor(p.runT * 12) % 6;
   return Math.floor(time * 5) % 4;
 }
-function drawPlayer() {
-  const p = player; if (p.dead) return;
+function drawGhosts() {
   for (const g of ghosts) {
     const gx = g.face > 0 ? Math.round(g.x + 5 - 23) : Math.round(g.x + 5 - 24);
     ctx.save(); ctx.globalAlpha = g.life / 0.22 * 0.45; ctx.filter = "sepia(1) saturate(4) hue-rotate(-15deg) brightness(1.2)";
-    drawSprite(ch().id, g.frame, gx, Math.round(g.y + 32 - 45), g.face, 1, g.life / 0.22 * 0.45); ctx.restore();
+    drawSprite(g.id, g.frame, gx, Math.round(g.y + 32 - 45), g.face, 1, g.life / 0.22 * 0.45); ctx.restore();
   }
+}
+function drawPlayer(p) {
+  if (p.dead) return;
   if (p.inv > 0 && Math.floor(time * 20) % 2 && p.inv < 1.25) return;
   const fx = p.face > 0 ? Math.round(p.x + 5 - 23) : Math.round(p.x + 5 - 24);
   const fy = Math.round(p.y + 32 - 45);
-  if (p.dashT > 0) for (let i = 1; i <= 3; i++) drawSprite(ch().id, playerFrame(p), fx - p.face * i * 9, fy, p.face, 1, 0.18 * (4 - i));
-  drawSprite(ch().id, playerFrame(p), fx, fy, p.face);
+  if (p.dashT > 0) for (let i = 1; i <= 3; i++) drawSprite(p.C.id, playerFrame(p), fx - p.face * i * 9, fy, p.face, 1, 0.18 * (4 - i));
+  drawSprite(p.C.id, playerFrame(p), fx, fy, p.face);
 }
 function drawDrone(e) {
   const x = Math.round(e.x), y = Math.round(e.y + Math.sin(time * 9) * 1);
@@ -1376,7 +1436,7 @@ function drawBoss(e) {
     for (const o of offs) for (let i = 0; i < 480; i += 6) { const lx = e.face > 0 ? sx0 + i : sx0 - i; if (lx < 0 || lx > VW) break; R(lx, ly + o, 3, 1, "#ff2d6a"); }
     ctx.globalAlpha = 1;
   }
-  if (e.state === "diveTele") { ctx.globalAlpha = 0.5; R(Math.round(player.x - 4), Math.round(player.y - 8), 18, 2, "#ff2d6a"); ctx.globalAlpha = 1; }
+  if (e.state === "diveTele") { ctx.globalAlpha = 0.5; const t = targetOf(e); R(Math.round(t.x - 4), Math.round(t.y - 8), 18, 2, "#ff2d6a"); ctx.globalAlpha = 1; }
 }
 function drawPickups() {
   for (const it of pickups) {
@@ -1446,11 +1506,11 @@ function drawWorld() {
       for (let i = 0; i < l.w; i += 2) R(x + i, y + l.h - 2 - Math.abs(Math.sin(time * 30 + i)) * (l.h - 2), 2, 2 + Math.abs(Math.sin(time * 30 + i)) * (l.h - 2), i % 4 ? "#ffffff" : "#9fb0d8");
       continue;
     }
-    const col = l.owner === "player" ? ch().color : "#ff2d6a";
+    const col = l.owner === "player" ? (l.color || ch().color) : "#ff2d6a";
     ctx.globalAlpha = 0.35; R(l.x - 2, l.y - 2, l.w + 4, l.h + 4, col); ctx.globalAlpha = 1;
     R(l.x, l.y, l.w, l.h, col); R(l.x + 2, l.y, l.w - 4, 1, "#ffffff");
   }
-  drawPlayer();
+  drawGhosts(); for (const p of players) drawPlayer(p);
   for (const q of parts) { ctx.globalAlpha = Math.min(1, q.life / q.max * 1.5); R(Math.round(q.x), Math.round(q.y), q.size, q.size, q.color); }
   ctx.globalAlpha = 1;
 }
@@ -1465,15 +1525,17 @@ function drawHUD() {
   let hx = VW - (TOUCH && !PAD ? 52 : 8);
   if (d.id === "doom") { ctx.globalAlpha = 0.6 + 0.4 * Math.sin(time * 8); text("☠ DOOM", hx, 8, 9, d.color, "right", d.color); ctx.globalAlpha = 1; }
   else {
-    for (let i = d.hp - 1; i >= 0; i--) { const c = i < player.hp ? "#ff4f8a" : "#3a2c52"; hx -= 10; R(hx, 4, 3, 2, c); R(hx + 4, 4, 3, 2, c); R(hx - 1, 5, 9, 3, c); R(hx, 8, 7, 2, c); R(hx + 2, 10, 3, 2, c); }
+    const P1 = player1(), pw = powerOf(P1.C);
+    for (let i = d.hp - 1; i >= 0; i--) { const c = i < P1.hp ? "#ff4f8a" : "#3a2c52"; hx -= 10; R(hx, 4, 3, 2, c); R(hx + 4, 4, 3, 2, c); R(hx - 1, 5, 9, 3, c); R(hx, 8, 7, 2, c); R(hx + 2, 10, 3, 2, c); }
     hx -= 8;
-    const on = slowOn || fastOn, gc = C.id === "helio" ? "#ffb43c" : "#b07dff";
-    R(hx - 44, 5, 44, 6, "#2a1a44"); R(hx - 44, 5, Math.round(44 * powerGauge), 6, on ? "#ffffff" : gc);
-    text(C.id === "helio" ? "vitesse" : "ralenti", hx - 48, 8, 7, "#b9a6e0", "right");
+    if (pw) {
+      R(hx - 44, 5, 44, 6, "#2a1a44"); R(hx - 44, 5, Math.round(44 * P1.gauge), 6, P1.powerOn ? "#ffffff" : pw.color);
+      text(pw.label, hx - 48, 8, 7, "#b9a6e0", "right");
+    }
   }
   const left = enemies.filter(e => e.alive).length;
   text(left ? `Robots : ${left}` : "Sortie ouverte", 6, VH - 8, 8, left ? "#b9a6e0" : "#7dffb0");
-  if (C.id === "helio" && (!TOUCH || PAD)) { const ready = player.dashCd <= 0; text(ready ? "Dash prêt" : "Dash…", VW - 6, VH - 8, 8, ready ? C.color : "#5a4a80", "right"); }
+  if (specialOf(C) && specialOf(C).button && (!TOUCH || PAD)) { const ready = player1().dashCd <= 0; text(ready ? "Dash prêt" : "Dash…", VW - 6, VH - 8, 8, ready ? C.color : "#5a4a80", "right"); }
   const bs = boss();
   if (bs && bs.alive) {
     if (bs.state === "intro") {
@@ -1489,7 +1551,7 @@ function drawHUD() {
       R(bx, 30, Math.round(bw * bs.hp / bs.maxHp), 5, bs.hp <= bs.maxHp / 2 ? "#ff3b5c" : bs.cfg.accent); R(bx, 30, Math.round(bw * bs.hp / bs.maxHp), 1, "#ffffff88");
     }
   }
-  if (L.ri === 0 && hintT < 2.6 && !player.dead) {
+  if (L.ri === 0 && hintT < 2.6 && !player1().dead) {
     ctx.globalAlpha = Math.min(1, (2.6 - hintT) / 0.6, hintT / 0.3);
     R(0, VH / 2 - 34, VW, 52, "rgba(10,6,24,0.7)");
     text(`Monde ${L.w + 1}`, VW / 2, VH / 2 - 20, 10, "#e8dcff", "center");
@@ -1506,7 +1568,7 @@ function drawHUD() {
     ctx.restore(); ctx.globalAlpha = 1;
   }
   if (msg && msg.t > 0) { ctx.globalAlpha = Math.min(1, msg.t); text(msg.text, VW / 2, 66, 11, "#7dffb0", "center", "#7dffb0"); ctx.globalAlpha = 1; }
-  if (player.dead) {
+  if (allDead()) {
     R(0, VH / 2 - 22, VW, 44, "rgba(10,6,24,0.75)");
     text("Raté ! On recommence…", VW / 2, VH / 2 - 4, 16, "#ff4f8a", "center", "#ff4f8a");
     text("La salle redémarre", VW / 2, VH / 2 + 12, 8, "#b9a6e0", "center");
@@ -1537,7 +1599,9 @@ function drawOverlays() {
 
 /* ---------------- Menu ---------------- */
 const UI = {
-  cards: [{ x: 92, y: 98, w: 140, h: 100 }, { x: 248, y: 98, w: 140, h: 100 }],
+  // une carte par personnage, centrées (140 px de large pour 2 personnages, plus étroites s'il y en a plus)
+  cards: CHARS.map((C, i, a) => { const w = Math.min(140, Math.floor((VW - 40) / a.length) - 16), gap = 16, x0 = (VW - (a.length * w + (a.length - 1) * gap)) / 2;
+    return { x: Math.round(x0 + i * (w + gap)), y: 98, w, h: 100 }; }),
   diffs: [{ x: 110, y: 206, w: 80, h: 18 }, { x: 200, y: 206, w: 80, h: 18 }, { x: 290, y: 206, w: 80, h: 18 }],
   play: { x: 185, y: 232, w: 110, h: 22 },
   opts: { x: 408, y: 6, w: 66, h: 18 },
@@ -1600,8 +1664,8 @@ function drawWorlds() {
   if (msg && msg.t > 0) text(msg.text, VW / 2, 246, 9, "#7dffb0", "center");
 }
 function updateMenu() {
-  if (hit(...K.left)) { charIdx = 0; audio.sfx("select"); }
-  if (hit(...K.right)) { charIdx = 1; audio.sfx("select"); }
+  if (hit(...K.left) && charIdx > 0) { charIdx--; audio.sfx("select"); }
+  if (hit(...K.right) && charIdx < CHARS.length - 1) { charIdx++; audio.sfx("select"); }
   if (hit(...K.up)) { diffIdx = Math.max(0, diffIdx - 1); audio.sfx("select"); }
   if (hit(...K.down)) { diffIdx = Math.min(2, diffIdx + 1); audio.sfx("select"); }
   if (hit("KeyO", "GY") || (hit("Mouse0") && inside(UI.opts))) { openOptions("menu"); return; }
@@ -1612,18 +1676,19 @@ function updateMenu() {
   }
   if (hit(...K.ok)) startGame();
 }
-let menuMix = 0, menuBgs = null;
+let menuFade = CHARS.map((C, i) => i === 0 ? 1 : 0), menuBgs = null;   // fondu du décor et du logo vers le personnage choisi
 function drawMenu() {
   if (!menuBgs) menuBgs = CHARS.map(C => makeBackground(C.ui, C));
-  menuMix += ((charIdx) - menuMix) * Math.min(1, 0.12);
+  menuFade = menuFade.map((f, i) => f + ((i === charIdx ? 1 : 0) - f) * 0.12);
   const C0 = ch();
   ctx.drawImage(menuBgs[0], 0, 0);
-  ctx.globalAlpha = menuMix; ctx.drawImage(menuBgs[1], 0, 0); ctx.globalAlpha = 1;
+  for (let i = 1; i < CHARS.length; i++) if (menuFade[i] > 0.01) { ctx.globalAlpha = menuFade[i]; ctx.drawImage(menuBgs[i], 0, 0); }
+  ctx.globalAlpha = 1;
   R(0, 0, VW, VH, "rgba(13,8,32,0.28)");
   // logos en fondu selon le personnage choisi
   const bob = Math.sin(time * 2) * 1.5;
   CHARS.forEach((C, i) => {
-    const img = IMG["logo_" + C.id], a = i === 0 ? 1 - menuMix : menuMix;
+    const img = IMG["logo_" + C.id], a = menuFade[i];
     if (!img || a < 0.01) return;
     const bw = 262, bh = 92, sc = Math.min(bw / img.width, bh / img.height);
     const w = img.width * sc, h = img.height * sc;
@@ -1642,7 +1707,7 @@ function drawMenu() {
     drawSprite(C.id, frame, r.x + r.w / 2 - 42, r.y - 10, 1, 1.75);
     ctx.globalAlpha = 1;
     text(C.name, r.x + r.w / 2, r.y + 80, 14, sel ? C.ui : "#b9a6e0", "center", sel ? C.ui : null);
-    text(C.ability, r.x + r.w / 2, r.y + 93, 8, "#e8dcff", "center");
+    text(abilityText(C), r.x + r.w / 2, r.y + 93, 8, "#e8dcff", "center");
   });
   DIFFS.forEach((D, i) => {
     const r = UI.diffs[i], sel = i === diffIdx;

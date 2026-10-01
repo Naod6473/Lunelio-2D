@@ -18,9 +18,14 @@ out = sys.argv[sys.argv.index("--out") + 1] if "--out" in sys.argv else os.path.
 
 b64 = lambda p: base64.b64encode(open(p, "rb").read()).decode()
 t = open(os.path.join(HERE, "template.html"), encoding="utf-8").read()
-for n in ("helio", "lune"):
-    t = t.replace(f"__LOGO_{n.upper()}__", b64(os.path.join(IMGS, f"logo_{n}.webp")))
-    t = t.replace(f"__{n.upper()}__", b64(os.path.join(IMGS, f"{n}_spritesheet.png")))
+# toutes les planches <id>_spritesheet.png et tous les logos logo_<id>.webp : un nouveau personnage n'a qu'à déposer les siens
+sprites = {}
+for f in sorted(os.listdir(IMGS)):
+    if f.endswith("_spritesheet.png"):
+        sprites[f[:-len("_spritesheet.png")]] = "data:image/png;base64," + b64(os.path.join(IMGS, f))
+    elif f.startswith("logo_") and f.endswith(".webp"):
+        sprites[f[:-5]] = "data:image/webp;base64," + b64(os.path.join(IMGS, f))
+t = t.replace("__SPRITES__", json.dumps(sprites))
 sounds = {}
 if embed:
     for f in sorted(os.listdir(AUDIO)):
