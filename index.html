@@ -437,17 +437,51 @@ function hintText(tok) {
 /* ---------------- Audio ---------------- */
 // "files" : les sons sont lus dans le dossier audio/ à côté du jeu (serveur web).
 // "embed" : les sons sont intégrés dans ce fichier (version autonome).
+// AUDIO_LIST : sons présents (chemins relatifs à audio/, sans .mp3), écrite par build.py : pas de requête de détection.
 const AUDIO_MODE = "files";
+const AUDIO_LIST = new Set(["jingles/gameover", "musique/doom/doombackground", "musique/doom/doombackground2", "musique/heros/backgroundhelio", "musique/heros/backgroundhelio2", "musique/heros/backgroundlune", "musique/heros/backgroundlune2", "musique/heros/backgroundlune3", "sfx/ennemis/laser", "sfx/joueur/coup"]);
 const AUDIO_EMBED = {};
 const AUDIO_DIR = "audio/";
-// Listes de musiques : une par personnage (CHARS[].music), Doom, boss, et celles que les mondes déclarent (WORLDS[].music, bossMusic)
-const MUSIC_BASES = { doom: "doombackground", boss: "bossbackground" };
-for (const C of CHARS) if (C.music) MUSIC_BASES["char:" + C.id] = C.music;   // plusieurs héros peuvent partager les mêmes musiques
-for (const W of WORLDS) for (const b of [W.music, W.bossMusic]) if (b) MUSIC_BASES[b] = b;
+// Listes de musiques (nom de base → base, base2, base3… tant que les numéros se suivent).
+// Personnages (CHARS[].music), Doom, boss générique, mondes et boss de la campagne, laverie, défis, histoire, quêtes,
+// et mondes de l'ancienne aventure (musique/bonus/<monde>, ou WORLDS[].music / bossMusic).
+const MUSIC_BASES = { doom: "musique/doom/doombackground", boss: "musique/boss/bossbackground",
+  laverie: "musique/laverie/laverie", laverie_nuit: "musique/laverie/laverie_nuit", defis: "musique/defis/defis",
+  prologue: "musique/histoire/prologue", souvenir: "musique/histoire/souvenir", fin: "musique/histoire/fin", generique: "musique/histoire/generique" };
+for (const C of CHARS) if (C.music) MUSIC_BASES["char:" + C.id] = "musique/heros/" + C.music;   // plusieurs héros peuvent partager les mêmes musiques
+for (const W of WORLDS) {
+  MUSIC_BASES["bonus:" + W.id] = "musique/bonus/" + (W.music || W.id);
+  if (W.bossMusic) MUSIC_BASES["bonusboss:" + W.id] = "musique/bonus/" + W.bossMusic;
+}
+// Bruitages : nom utilisé par audio.sfx() → fichier ; sans fichier, le son synthétisé de audio.sfx() est joué.
+// jingle : courte musique qui baisse la musique de fond le temps de se jouer.
+const SFX_FILES = {
+  slash: "sfx/joueur/coup", jump: "sfx/joueur/saut", dj: "sfx/joueur/double_saut", dash: "sfx/joueur/dash", land: "sfx/joueur/atterrissage",
+  deflect: "sfx/joueur/renvoi", hurt: "sfx/joueur/touche", heal: "sfx/joueur/soin",
+  pw_fast: "sfx/pouvoirs/rapide", pw_slow: "sfx/pouvoirs/ralenti", pw_shield: "sfx/pouvoirs/bouclier", pw_superjump: "sfx/pouvoirs/super_saut",
+  pw_invisible: "sfx/pouvoirs/invisible", stun: "sfx/pouvoirs/etourdir", block: "sfx/pouvoirs/bloc", pw_heal: "sfx/pouvoirs/soin_groupe",
+  gauge_full: "sfx/pouvoirs/jauge_pleine", pw_end: "sfx/pouvoirs/fin_pouvoir",
+  sock: "sfx/collecte/chaussette", sock_bonus: "sfx/collecte/chaussette_bonus", heart: "sfx/collecte/coeur", energy: "sfx/collecte/energie",
+  quest_item: "sfx/collecte/objet_quete", crystal: "sfx/collecte/cristal",
+  laser: "sfx/ennemis/laser", aim: "sfx/ennemis/visee", def_robot: "sfx/ennemis/defaite_robot", def_slime: "sfx/ennemis/defaite_slime",
+  def_ombre: "sfx/ennemis/defaite_ombre", def_lave: "sfx/ennemis/defaite_lave", def_etoiles: "sfx/ennemis/defaite_etoiles",
+  boss_intro: "sfx/boss/intro", bosshit: "sfx/boss/coup_boss", transform: "sfx/boss/transformation", wave: "sfx/boss/onde_choc", boss_defeat: "sfx/boss/defaite",
+  zap: "sfx/pieges/electricite", alert: "sfx/pieges/alerte", jet: "sfx/pieges/jet_eau", flames: "sfx/pieges/flammes", break: "sfx/pieges/mur_casse", flag: "sfx/pieges/drapeau",
+  door: "sfx/machine/porte", machine: "sfx/machine/demarrage", drum: "sfx/machine/tambour", spin: "sfx/machine/depart", arrive: "sfx/machine/arrivee", dial: "sfx/machine/programmateur",
+  page: "sfx/laverie/album_page", locker: "sfx/laverie/armoire", equip: "sfx/laverie/equiper", coin: "sfx/laverie/jukebox_piece",
+  select: "sfx/interface/deplacer", start: "sfx/interface/valider", back: "sfx/interface/retour", nope: "sfx/interface/refus", pause: "sfx/interface/pause",
+  gust_warn: "sfx/defis/bourrasque_alerte", gust: "sfx/defis/bourrasque", tick: "sfx/defis/chrono_tic", chrono_end: "sfx/defis/chrono_fin", slip: "sfx/defis/glissade",
+};
+for (const id of ["roi_slime", "drone_titan", "maitre_ombres", "colosse_lave", "singe_roi_pirate", "reine_chauve_souris"]) SFX_FILES["sig_" + id] = "sfx/boss/" + id;
+for (const id of ["bulle", "capitaine", "bobine", "kage"]) SFX_FILES["talk_" + id] = "sfx/laverie/voix_" + id;
+const JINGLES = { victory: "jingles/victoire_boss", gameover: "jingles/gameover", world_done: "jingles/monde_termine", piece: "jingles/piece_machine",
+  repair: "jingles/reparation", quest_start: "jingles/quete_acceptee", quest_done: "jingles/quete_reussie", card: "jingles/carte", badge: "jingles/badge",
+  milestone: "jingles/palier", chal_ok: "jingles/defi_reussi", chal_fail: "jingles/defi_rate", memory: "jingles/souvenir" };
+const hasSound = n => AUDIO_LIST.has(n);
 function b64ToBuf(dataUrl) { const b = atob(dataUrl.split(",")[1]); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u.buffer; }
 const audio = {
   ctx: null, muted: false, buffers: {}, loading: {}, cur: null, curKey: null, wanted: null, fx: null,
-  playlists: {}, ready: false,
+  playlists: {}, ready: false, ambience: null,
   init() {
     if (this.ctx) { if (this.ctx.state === "suspended") this.ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
@@ -459,30 +493,25 @@ const audio = {
     this.sfxG = c.createGain(); this.sfxG.gain.value = 0.6; this.sfxG.connect(this.master);
     const len = c.sampleRate; this.noise = c.createBuffer(1, len, c.sampleRate);
     const d = this.noise.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-    for (const k of ["attack", "laser", "gameover"]) this.load(k);
+    // bruitages et jingles présents : chargés tout de suite (ils sont courts)
+    for (const n of [...Object.values(SFX_FILES), ...Object.values(JINGLES)]) if (hasSound(n)) this.load(n);
     if (this.wanted) this.playMusic(this.wanted, true);
   },
-  // Cherche backgroundhelio, backgroundhelio2, backgroundhelio3… et ainsi de suite
-  async discover() {
-    if (AUDIO_MODE === "embed") {
-      for (const [k, base] of Object.entries(MUSIC_BASES))
-        this.playlists[k] = Object.keys(AUDIO_EMBED).filter(n => n === base || new RegExp("^" + base + "\\d+$").test(n))
-          .sort((a, b) => (+a.slice(base.length) || 1) - (+b.slice(base.length) || 1));
-    } else {
-      await Promise.all(Object.entries(MUSIC_BASES).map(async ([k, base]) => {
-        const list = [];
-        for (let i = 1; i <= 9; i++) {
-          const name = i === 1 ? base : base + i;
-          try { const r = await fetch(AUDIO_DIR + name + ".mp3", { method: "HEAD", cache: "no-cache" }); if (!r.ok) break; list.push(name); } catch (e) { break; }
-        }
-        this.playlists[k] = list;
-      }));
+  // Listes de musiques : base, base2, base3… (les numéros doivent se suivre), d'après AUDIO_LIST
+  discover() {
+    for (const [k, base] of Object.entries(MUSIC_BASES)) {
+      const list = [];
+      for (let i = 1; i <= 9; i++) { const n = i === 1 ? base : base + i; if (!hasSound(n)) break; list.push(n); }
+      this.playlists[k] = list;
     }
     this.ready = true;
   },
+  // liste d'une musique déclarée à la volée (monde ou boss de la campagne, piste de quête)
+  list(k, base) { if (!this.playlists[k]) { MUSIC_BASES[k] = base; const l = []; for (let i = 1; i <= 9; i++) { const n = i === 1 ? base : base + i; if (!hasSound(n)) break; l.push(n); } this.playlists[k] = l; } return this.playlists[k]; },
   load(name) {
     if (this.buffers[name]) return Promise.resolve(this.buffers[name]);
     if (this.loading[name]) return this.loading[name];
+    if (!this.ctx || !hasSound(name)) return Promise.resolve(null);
     const src = AUDIO_MODE === "embed" ? (AUDIO_EMBED[name] ? Promise.resolve(b64ToBuf(AUDIO_EMBED[name])) : Promise.reject())
       : fetch(AUDIO_DIR + name + ".mp3").then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); });
     return this.loading[name] = src.then(ab => new Promise((res, rej) => this.ctx.decodeAudioData(ab, res, rej)))
@@ -503,19 +532,36 @@ const audio = {
     s.connect(g); g.connect(this.musicBus); s.playbackRate.value = this.rate(); s.start(t);
     this.cur = { s, g }; this.curKey = name;
   },
+  // Ambiance en boucle (laverie) : jouée par-dessous la musique, avec les bruitages
+  setAmbience(name) {
+    if (!this.ctx || !OPT.sfx) name = null;
+    if ((this.ambience && this.ambience.name) === name) return;
+    if (this.ambience) { const a = this.ambience; a.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.3); try { a.s.stop(this.ctx.currentTime + 1.5); } catch (e) {} this.ambience = null; }
+    const buf = name && this.buffers[name]; if (!buf) { if (name) this.load(name); return; }
+    const s = this.ctx.createBufferSource(), g = this.ctx.createGain(); s.buffer = buf; s.loop = true; g.gain.value = 0; g.gain.setTargetAtTime(0.35, this.ctx.currentTime, 0.5);
+    s.connect(g); g.connect(this.sfxG); s.start(); this.ambience = { s, g, name };
+  },
   rate() { return this.fx === "slow" ? 0.8 : this.fx === "fast" ? 1.12 : 1; },
   toggleMute() { this.muted = !this.muted; if (this.master) this.master.gain.value = this.muted ? 0 : 0.6; },
   setTimeFx(fx) {
     this.fx = fx; if (!this.ctx) return; const t = this.ctx.currentTime;
     this.filter.frequency.setTargetAtTime(fx === "slow" ? 900 : 18000, t, 0.08);
     if (this.cur && this.cur.s.playbackRate) this.cur.s.playbackRate.setTargetAtTime(this.rate(), t, 0.1);
-    if (fx === "fast" && OPT.sfx) this.tone("sawtooth", 200, t, 0.25, 0.08, this.sfxG, 1200);
+    if (fx === "fast" && OPT.sfx && !this.file("pw_fast")) this.tone("sawtooth", 200, t, 0.25, 0.08, this.sfxG, 1200);
+    if (fx === "slow" && OPT.sfx) this.file("pw_slow");
   },
   duck(sec) { if (!this.ctx) return; const t = this.ctx.currentTime, g = this.musicBus.gain; g.cancelScheduledValues(t); g.setTargetAtTime(0.12, t, 0.05); g.setTargetAtTime(0.5, t + sec, 0.4); },
   playBuf(k, vol = 1) {
     const buf = this.buffers[k]; if (!buf) return false;
     const s = this.ctx.createBufferSource(), g = this.ctx.createGain(); s.buffer = buf; g.gain.value = vol;
-    s.connect(g); g.connect(this.sfxG); s.start(); return true;
+    s.connect(g); g.connect(this.sfxG); s.start(); return buf.duration || true;
+  },
+  // Bruitage ou jingle depuis un fichier s'il existe et qu'il est chargé ; renvoie false sinon (le son synthétisé prend le relais)
+  file(name, vol = 1) {
+    const j = JINGLES[name], n = j || SFX_FILES[name]; if (!n || !hasSound(n)) return false;
+    if (!this.buffers[n]) { this.load(n); return false; }
+    const d = this.playBuf(n, vol); if (d && j) this.duck(typeof d === "number" ? d + 0.3 : 2);
+    return !!d;
   },
   tone(type, freq, t, dur, vol, dest, freqEnd) {
     const c = this.ctx, o = c.createOscillator(), g = c.createGain();
@@ -531,32 +577,65 @@ const audio = {
     s.connect(f); f.connect(g); g.connect(dest || this.sfxG);
     s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
   },
+  arp(notes, base, t, step, type = "square", vol = 0.08, dur = 0.18) { notes.forEach((n, i) => this.tone(type, base * Math.pow(2, n / 12), t + i * step, dur, vol, this.sfxG)); },
   sfx(name) {
     const c = this.ctx; if (!c || !OPT.sfx) return; const t = c.currentTime, d = this.sfxG;
+    if (this.file(name, name === "slash" ? 0.9 : name === "laser" ? 0.7 : 1)) { if (name === "gameover") this.duck(3); return; }
     switch (name) {
-      case "slash": if (!this.playBuf("attack", 0.9)) this.noiseHit(t, 0.12, 0.6, "bandpass", 3000, d); break;
-      case "laser": if (!this.playBuf("laser", 0.7)) this.tone("square", 1400, t, 0.15, 0.12, d, 300); break;
-      case "gameover": if (!this.playBuf("gameover", 0.9)) this.tone("sawtooth", 300, t, 0.6, 0.25, d, 60); this.duck(3); break;
-      case "boom": this.noiseHit(t, 0.35, 0.8, "lowpass", 900, d); this.tone("sine", 120, t, 0.3, 0.7, d, 30); break;
+      case "slash": this.noiseHit(t, 0.12, 0.6, "bandpass", 3000, d); break;
+      case "laser": this.tone("square", 1400, t, 0.15, 0.12, d, 300); break;
+      case "gameover": this.tone("sawtooth", 300, t, 0.6, 0.25, d, 60); this.duck(3); break;
+      case "boom": case "wave": case "boss_defeat": case "def_robot": case "def_lave": this.noiseHit(t, 0.35, 0.8, "lowpass", 900, d); this.tone("sine", 120, t, 0.3, 0.7, d, 30); break;
+      case "def_slime": this.tone("sine", 500, t, 0.18, 0.3, d, 120); this.noiseHit(t, 0.12, 0.3, "lowpass", 1400, d); break;
+      case "def_ombre": this.noiseHit(t, 0.3, 0.4, "highpass", 2000, d); this.tone("triangle", 700, t, 0.25, 0.1, d, 200); break;
+      case "def_etoiles": this.arp([0, 7, 12, 19], 880, t, 0.04, "triangle", 0.09, 0.12); this.noiseHit(t, 0.1, 0.2, "highpass", 4000, d); break;
       case "bosshit": this.tone("square", 220, t, 0.12, 0.2, d, 90); this.noiseHit(t, 0.1, 0.4, "bandpass", 1500, d); break;
-      case "victory": [0, 4, 7, 12, 16].forEach((n, i) => this.tone("square", 392 * Math.pow(2, n / 12), t + 0.3 + i * 0.09, 0.25, 0.09, d)); this.duck(2); break;
-      case "heal": [0, 7, 12].forEach((n, i) => this.tone("triangle", 660 * Math.pow(2, n / 12), t + i * 0.06, 0.18, 0.12, d)); break;
+      case "victory": this.arp([0, 4, 7, 12, 16], 392, t + 0.3, 0.09, "square", 0.09, 0.25); this.duck(2); break;
+      case "heal": case "heart": case "energy": case "pw_heal": this.arp([0, 7, 12], 660, t, 0.06, "triangle", 0.12); break;
       case "deflect": this.tone("square", 600, t, 0.12, 0.15, d, 2400); this.tone("triangle", 1800, t, 0.2, 0.15, d); break;
       case "jump": this.tone("square", 300, t, 0.1, 0.07, d, 600); break;
-      case "dj": this.tone("triangle", 500, t, 0.18, 0.15, d, 1400); this.tone("triangle", 1000, t + 0.05, 0.15, 0.1, d, 2000); break;
+      case "dj": case "pw_superjump": this.tone("triangle", 500, t, 0.18, 0.15, d, 1400); this.tone("triangle", 1000, t + 0.05, 0.15, 0.1, d, 2000); break;
       case "dash": this.noiseHit(t, 0.2, 0.5, "highpass", 2500, d); this.tone("sawtooth", 200, t, 0.15, 0.08, d, 900); break;
       case "hurt": this.tone("sawtooth", 300, t, 0.3, 0.25, d, 60); break;
-      case "aim": this.tone("sine", 1200, t, 0.05, 0.06, d); break;
-      case "door": [0, 4, 7, 12].forEach((n, i) => this.tone("square", 440 * Math.pow(2, n / 12), t + i * 0.07, 0.15, 0.08, d)); break;
-      case "select": this.tone("square", 880, t, 0.06, 0.07, d); break;
-      case "start": [0, 7, 12, 19].forEach((n, i) => this.tone("square", 330 * Math.pow(2, n / 12), t + i * 0.06, 0.18, 0.08, d)); break;
+      case "aim": case "alert": this.tone("sine", 1200, t, 0.05, 0.06, d); break;
+      case "door": case "flag": this.arp([0, 4, 7, 12], 440, t, 0.07, "square", 0.08, 0.15); break;
+      case "select": case "page": case "dial": this.tone("square", 880, t, 0.06, 0.07, d); break;
+      case "back": this.tone("square", 660, t, 0.06, 0.06, d, 440); break;
+      case "pause": this.tone("triangle", 520, t, 0.1, 0.1, d); this.tone("triangle", 390, t + 0.08, 0.12, 0.1, d); break;
+      case "start": this.arp([0, 7, 12, 19], 330, t, 0.06, "square", 0.08); break;
       // machine à laver : claquement, moteur qui peine puis repart
       case "machine": this.noiseHit(t, 0.08, 0.5, "lowpass", 700, d); this.tone("sawtooth", 60, t + 0.1, 0.5, 0.12, d, 40); this.tone("sawtooth", 50, t + 0.65, 0.6, 0.14, d, 110); break;
-      case "spin": this.tone("sawtooth", 80, t, 0.9, 0.12, d, 420); this.noiseHit(t, 0.9, 0.25, "bandpass", 1200, d); break;
+      case "spin": case "drum": this.tone("sawtooth", 80, t, 0.9, 0.12, d, 420); this.noiseHit(t, 0.9, 0.25, "bandpass", 1200, d); break;
+      case "arrive": this.tone("sawtooth", 420, t, 0.6, 0.1, d, 80); this.arp([0, 7, 12], 523, t + 0.4, 0.07, "triangle", 0.1); break;
       case "zap": this.noiseHit(t, 0.25, 0.4, "highpass", 3000, d); this.tone("square", 1800, t, 0.2, 0.06, d, 600); break;
-      case "stun": [0, 4, 7, 12, 7, 4].forEach((n, i) => this.tone("triangle", 523 * Math.pow(2, n / 12), t + i * 0.08, 0.2, 0.12, d)); break;
+      case "stun": this.arp([0, 4, 7, 12, 7, 4], 523, t, 0.08, "triangle", 0.12, 0.2); break;
       case "block": this.tone("square", 180, t, 0.08, 0.15, d, 120); this.noiseHit(t, 0.06, 0.3, "lowpass", 1200, d); break;
+      case "break": this.noiseHit(t, 0.3, 0.7, "lowpass", 1200, d); this.tone("square", 140, t, 0.2, 0.15, d, 60); break;
       case "nope": this.tone("square", 200, t, 0.1, 0.08, d, 150); break;
+      case "transform": this.tone("sawtooth", 120, t, 0.6, 0.18, d, 520); this.noiseHit(t, 0.5, 0.4, "bandpass", 900, d); break;
+      case "boss_intro": this.tone("sawtooth", 90, t, 0.8, 0.16, d, 60); this.tone("square", 180, t + 0.2, 0.5, 0.06, d, 170); break;
+      // chaussette : un « pouic » puis un petit carillon
+      case "sock": this.tone("square", 900, t, 0.08, 0.1, d, 1500); this.arp([0, 4, 7, 12], 1047, t + 0.08, 0.05, "triangle", 0.1, 0.16); break;
+      case "sock_bonus": this.tone("square", 900, t, 0.08, 0.1, d, 1500); this.arp([0, 4, 7, 12, 16, 19, 24], 1047, t + 0.08, 0.04, "triangle", 0.1, 0.16); break;
+      case "quest_item": case "crystal": this.arp([0, 5, 9, 12], 784, t, 0.06, "triangle", 0.11); break;
+      case "gauge_full": this.arp([0, 12], 1320, t, 0.06, "triangle", 0.06, 0.1); break;
+      case "equip": case "locker": this.noiseHit(t, 0.06, 0.25, "bandpass", 2500, d); this.tone("triangle", 880, t + 0.04, 0.12, 0.1, d, 1320); break;
+      case "coin": this.tone("square", 1975, t, 0.07, 0.08, d); this.tone("square", 2637, t + 0.07, 0.2, 0.08, d); break;
+      case "gust_warn": this.tone("sine", 400, t, 1.2, 0.08, d, 1400); break;
+      case "gust": this.noiseHit(t, 1.1, 0.45, "bandpass", 700, d); break;
+      case "tick": this.tone("square", 1600, t, 0.03, 0.08, d); break;
+      case "chrono_end": this.arp([12, 7, 0], 660, t, 0.12, "square", 0.1, 0.2); break;
+      case "slip": this.noiseHit(t, 0.15, 0.12, "highpass", 5000, d); break;
+      // jingles de secours (sans fichier)
+      case "world_done": case "quest_done": case "chal_ok": this.arp([0, 4, 7, 12, 7, 12, 16], 523, t, 0.08, "square", 0.08, 0.22); this.duck(1.5); break;
+      case "piece": case "repair": this.arp([0, 7, 12, 16, 19, 24], 392, t, 0.07, "triangle", 0.12, 0.3); this.duck(1.5); break;
+      case "card": case "memory": this.arp([0, 4, 7, 11, 14], 659, t, 0.07, "triangle", 0.1, 0.25); break;
+      case "badge": case "milestone": this.arp([0, 7, 12, 16, 24], 523, t, 0.06, "square", 0.08, 0.3); this.duck(1.2); break;
+      case "quest_start": this.arp([0, 4, 7], 587, t, 0.08, "triangle", 0.1, 0.2); break;
+      case "chal_fail": this.arp([7, 4, 0, 2], 392, t, 0.12, "triangle", 0.1, 0.25); break;
+      default:
+        if (name.startsWith("talk_")) { const f = { talk_bulle: 900, talk_capitaine: 300, talk_bobine: 1400, talk_kage: 600 }[name] || 700; this.tone(name === "talk_bobine" ? "square" : "triangle", f * (0.9 + Math.random() * 0.2), t, 0.05, 0.05, d); }
+        else if (name.startsWith("def_") || name.startsWith("sig_")) this.noiseHit(t, 0.25, 0.4, "lowpass", 1100, d);
     }
   },
   // boucles WebAudio : notes programmées un peu à l'avance à chaque image (synthTick)
@@ -632,34 +711,44 @@ function synthTick() {
 }
 audio.discover();
 // Choix de la musique. Chaque personnage a son thème : la première piste de sa liste (CHARS[].music), sinon sa boucle WebAudio
-// provisoire (theme). Écran de choix des personnages : thème du personnage mis en avant. Ancienne aventure : musique du monde
-// (WORLDS[].music / bossMusic) si elle existe ; sinon Doom, bossbackground en salle de boss, puis la liste du personnage.
+// provisoire (theme). Écran de choix des personnages : thème du personnage mis en avant.
+// Nouvelle campagne : musique du boss (musique/boss/<boss>, <boss>_rage en dernière phase), sinon bossbackground ; musique du
+// monde (musique/mondes/<monde>, une piste par salle) ; sinon Doom, puis la liste du personnage (une piste par monde).
+// Laverie : piste choisie au jukebox, sinon musique/laverie/laverie. Ancienne aventure : musique/bonus/<monde> si elle existe.
 // Une liste vide ou absente ne plante jamais : on passe à la suivante.
 function charMusic(C, i = 0) {
   const list = audio.playlists["char:" + C.id] || [];
   return list.length ? list[i % list.length] : C.theme ? "synth:" + C.theme : null;
 }
+const pickList = (list, i) => list && list.length ? list[i % list.length] : null;
+function campMusic() {
+  const P = audio.playlists, L = k => P[k] || [], W = CWORLDS[camp.wi], doom = df().id === "doom";
+  const b = enemies && enemies.find(e => e.type === "bigboss" && e.alive && !e.dying);
+  if (lvl.bossSpawn && b) {
+    const last = b.phase >= b.th.length + 1;
+    return (last && pickList(audio.list("bossrage:" + W.boss, "musique/boss/" + W.boss + "_rage"), 0))
+      || pickList(audio.list("boss:" + W.boss, "musique/boss/" + W.boss), 0) || pickList(L("boss"), camp.wi) || "synth:boss";
+  }
+  const wm = audio.list("world:" + W.id, "musique/mondes/" + W.short);
+  if (!doom && wm.length) return pickList(wm, camp.ri);
+  if (doom && L("doom").length) return pickList(L("doom"), camp.wi);
+  return charMusic(ch(), camp.wi);
+}
 function musicKey() {
   const P = audio.playlists, L = k => P[k] || [];
-  const pick = (list, i) => list.length ? list[i % list.length] : null;
   const doom = df().id === "doom";
   if (state === "chars") return charMusic(CHARS[charSel]);
+  if (typeof screenMusic === "function") { const m = screenMusic(); if (m !== undefined) return m; }   // laverie, souvenirs, fin, défis
   const inRoom = ["play", "clear", "worldclear", "pause"].includes(state) || (optFrom === "pause" && (state === "options" || state === "keys"));
-  if (inRoom && lvl && lvl.json) {
-    const bossTime = lvl.bossSpawn && enemies.some(e => e.type === "bigboss" && e.alive && !e.dying);
-    if (bossTime) return pick(L("boss"), camp.wi) || "synth:boss";
-    if (doom && L("doom").length) return pick(L("doom"), camp.wi);
-    return charMusic(ch(), camp.wi);
-  }
+  if (inRoom && lvl && lvl.json) return campMusic();
   if (inRoom && lvl) {
     const room = ROOMS[lvlIdx], W = WORLDS[room.w], bossTime = room.boss && state !== "worldclear";
-    if (bossTime && W.bossMusic && L(W.bossMusic).length) return pick(L(W.bossMusic), 0);
-    if (!doom && W.music && L(W.music).length) return pick(L(W.music), room.ri);
-    if (bossTime && L("boss").length) return pick(L("boss"), room.w);
-    return doom && L("doom").length ? pick(L("doom"), room.w) : charMusic(ch(), room.w);
+    if (bossTime && L("bonusboss:" + W.id).length) return pickList(L("bonusboss:" + W.id), 0);
+    if (!doom && L("bonus:" + W.id).length) return pickList(L("bonus:" + W.id), room.ri);
+    if (bossTime && L("boss").length) return pickList(L("boss"), room.w);
+    return doom && L("doom").length ? pickList(L("doom"), room.w) : charMusic(ch(), room.w);
   }
-  if (state === "campwin") return charMusic(ch());
-  return doom && L("doom").length ? pick(L("doom"), 0) : charMusic(ch(), state === "worlds" ? worldSel : 0);
+  return doom && L("doom").length ? pickList(L("doom"), 0) : charMusic(ch(), state === "worlds" ? worldSel : 0);
 }
 
 /* ---------------- Voix ---------------- */
@@ -1129,7 +1218,8 @@ function killEnemy(e) {
   burst(cx, cy, 26, [...fx.sparks, ch().color], 220, 0.5, 200, 1);
   burst(cx, cy, 10, fx.debris, 160, 0.9, fx.debrisGrav, 3);
   shake = Math.max(shake, 5); hitstop = Math.max(hitstop, 0.06); flash = 0.08;
-  audio.sfx("boom"); rumble(80, 0, 0.35);
+  audio.sfx("def_robot"); rumble(80, 0, 0.35);
+  emit("oldFoe", { type: e.type });
   checkDoor();
 }
 function damageBoss(e, dmg) {
@@ -1145,6 +1235,7 @@ function damageBoss(e, dmg) {
     shake = 12; flash = 0.25; hitstop = 0.25; audio.sfx("boom"); audio.sfx("victory"); rumble(700, 1, 1);
     for (const m of enemies) if (m.alive && m.minion) killEnemy(m);
     msg = { text: `${e.name} est vaincu !`, t: 3 }; voice.say(msg.text, true);
+    emit("oldBoss", { wid: WORLDS[ROOMS[lvlIdx].w].id, doom: df().id === "doom" });
     checkDoor();
   }
 }
@@ -1168,7 +1259,7 @@ function hurtPlayer(p, srcX) {
     // bouclier : le coup est absorbé
     p.inv = 0.35; audio.sfx("deflect"); burst(p.x + 5, p.y + 16, 12, ["#5ef0ff", "#ffffff"], 140, 0.3, 0, 1); return;
   }
-  p.hp--;
+  p.hp--; if (lvl) lvl.hurt = true;
   shake = 6; hitstop = 0.08; audio.sfx("hurt");
   burst(p.x + 5, p.y + 14, 14, ["#ff3b5c", "#ffffff", p.C.color], 180, 0.5, 300, 2);
   if (p.hp <= 0 && buddyOn()) {
@@ -1923,6 +2014,11 @@ const BIG = {
   reine_chauve_souris: { name: "Reine chauve-souris néon", hp: 15, color: "#ff4fd8", fly: true, speed: 50, w: 44, h: 44, minion: "chauve_souris", defeat: "etoiles",
     moves: [["hover", "orb"], ["hover", "summon", "orb3"], ["dive", "orb5", "summon"]] },
 };
+// Annonce d'un changement de phase de boss (P2 : il s'énerve ; P3 : rage, mais il s'épuise et laisse des ouvertures)
+const BOSS_PHASE_SAY = {
+  2: e => e.th.length === 1 ? `${e.name} entre dans une rage folle !` : `${e.name} s'énerve !`,
+  3: e => `${e.name} est furieux… mais il s'épuise vite !`,
+};
 // Effets autour de la machine selon l'époque (même machine dans tous les mondes)
 const MACHINE_FX = {
   "01_centrale": ["#fccc28", "#ffffff", "#5ef0ff"], "02_usine": ["#c8d0dc", "#ffffff", "#8a92a8"], "03_temple": ["#c86eff", "#ffffff", "#7a3aff"],
@@ -1940,18 +2036,11 @@ const CAMP_HINTS = {
 const MAX_ATTACKERS = 2;
 
 /* ---------------- Nouvelle campagne : sauvegardes ---------------- */
-// Clés séparées de l'ancienne aventure (lunelio-progress-…) : un ancien numéro de monde ne débloque rien ici.
-const cKey = (k, C = ch()) => `lunelio-v2-${k}-${C.id}`;
-function campProgress(C = ch()) { try { return clamp(+localStorage.getItem(cKey("progress", C)) || 0, 0, CWORLDS.length); } catch (e) { return 0; } }
-function setCampProgress(n) { try { if (n > campProgress()) localStorage.setItem(cKey("progress"), String(n)); } catch (e) {} }
-const resumeKey = wi => `${cKey("room")}-${CWORLDS[wi].id}`;
-function campResume(wi) { try { return clamp(+localStorage.getItem(resumeKey(wi)) || 0, 0, CWORLDS[wi].rooms.length - 1); } catch (e) { return 0; } }
-function setCampResume(wi, ri) { try { if (ri > 0) localStorage.setItem(resumeKey(wi), String(ri)); else localStorage.removeItem(resumeKey(wi)); } catch (e) {} }
-const campBestKey = wi => `${cKey("best")}-${df().id}-${CWORLDS[wi].id}`;
-function campBest(wi) { try { return JSON.parse(localStorage.getItem(campBestKey(wi)) || "null"); } catch (e) { return null; } }
+// Progression, salle de reprise et records : sauvegarde commune à tous les héros (sauvegarde.js : campProgress, campResume…).
 
 /* ---------------- Nouvelle campagne : salles ---------------- */
 let mode = "camp";   // "camp" : nouvelle campagne ; "bonus" : ancienne aventure
+let chal = null;     // défi en cours (programme de lavage, defis.js), sinon null
 let camp = { wi: 0, ri: 0, ckpt: 0, fromStart: true };
 let fxs = [], mach = null, campTrans = null, arrival = null, campFade = 0;
 const campRoom = () => CWORLDS[camp.wi].rooms[camp.ri];
@@ -1986,10 +2075,34 @@ function buildRoom(wi, ri) {
     else if (o.kind === "enemy_spawn") L.foeSpawns.push(o);
     else if (o.kind === "boss_spawn") L.bossSpawn = o;
   }
+  addRoomExtras(L, R);
   // salle de boss : sortie verrouillée jusqu'à la victoire
   if (L.bossSpawn) for (const e of L.exits) e.locked = true;
   if (L.bossSpawn && L.hazards.some(h => h.arena)) L.arena = { t: 1.5, cur: null, side: 0 };
   return L;
+}
+// Ajouts de campagne_ajouts.json : plateformes et caisses en plus, chaussette de la salle, chaussettes dorées, objets de quête.
+// Dans un défi (chal), la chaussette principale est remplacée par la cible du défi s'il en a une.
+function addRoomExtras(L, R) {
+  for (const q of (AJOUTS.platforms[R.id] || [])) L.plats.push({ x: q[0], y: q[1], w: q[2], h: q[3], extra: true });
+  for (const c of (AJOUTS.crates[R.id] || [])) { const [x, y, w, h] = c.r; L.dest.push({ x, y, w, h, o: { id: c.id, onDestroyed: {} }, type: c.type || "crate", hp: 2, state: 0, alive: true, hurtT: 0, fxT: 0 }); }
+  L.sock = null; L.gold = []; L.qitems = []; L.covers = [];
+  const S = AJOUTS.socks[R.id];
+  if (S && !chal) {
+    const found = !!SAVE.socks[R.id];
+    L.sock = { x: S.r[0], y: S.r[1], w: 12, h: 12, type: S.type, alive: true, found, crate: S.crate || null,
+      hidden: !!S.crate || S.type === "apres_boss", t: Math.random() * 3 };
+    if (S.cover) L.covers.push({ x: S.cover[0], y: S.cover[1], w: S.cover[2], h: S.cover[3], a: 1 });
+  }
+  if (!chal) for (const g of AJOUTS.gold) if (g.room === R.id) L.gold.push({ ...g, x: g.r[0], y: g.r[1], w: 12, h: 12, alive: !SAVE.gold[g.id], t: 0 });
+  if (!chal) for (const q of AJOUTS.questItems) {
+    const st = SAVE.quests[q.quest];
+    if (q.room === R.id && st && st.st === "active" && !(st.items && st.items[q.id])) L.qitems.push({ ...q, x: q.r[0], y: q.r[1], w: 12, h: 12, alive: true, t: 0 });
+  }
+  if (chal && chal.C.prog === "solitaire") {
+    const t = AJOUTS.challengeTargets[chal.C.id];
+    if (t && R.id === chal.C.rooms[chal.C.rooms.length - 1]) L.sock = { x: t[0], y: t[1], w: 12, h: 12, type: "cible", alive: true, found: false, hidden: false, target: true, t: 0 };
+  }
 }
 let terrainCanvas = null, terrainFor = null;
 // Sol et plateformes pré-rendus une fois par salle à partir de l'atlas de terrain du monde (bords seulement au bord d'un trou)
@@ -2060,7 +2173,9 @@ function loadCampRoom(wi, ri, opts = {}) {
   if (arrival) for (const p of players) { p.hidden = true; p.vx = p.vy = 0; }
   setTimeFx(false, false);
   state = "play";
-  if (!opts.restart) { setCampResume(wi, ri); speakCampRoom(); }
+  lvl.hurt = false;   // touché dans cette salle (défi Délicat, boss sans dégâts)
+  if (!opts.restart && !chal) { setCampResume(wi, ri); emit("visit", { wid: W.id }); }
+  if (!opts.restart) speakCampRoom();
   if (ri === 0 && !opts.restart) hintT = 0;
 }
 function startCampWorld(wi) {
@@ -2301,7 +2416,8 @@ function damageFoe(e, dmg) {
   e.alive = false;
   foeDefeatFx(e.F.defeat, cx, cy);
   shake = Math.max(shake, 4); hitstop = Math.max(hitstop, 0.05);
-  audio.sfx("boom"); rumble(80, 0, 0.35);
+  audio.sfx("def_" + e.F.defeat); rumble(80, 0, 0.35);
+  emit("foe", { sp: e.sp });
 }
 
 /* ---------------- Nouvelle campagne : boss ---------------- */
@@ -2469,15 +2585,17 @@ function damageBig(e, dmg) {
     for (const m of enemies) if (m !== e && m.alive) { m.alive = false; foeDefeatFx(m.F ? m.F.defeat : "etoiles", m.x + m.w / 2, m.y + m.h / 2); }
     for (const h of lvl.hazards) h.disabled = true;
     e.rocks = null;
-    shake = 12; flash = 0.25; hitstop = 0.25; audio.sfx("boom"); audio.sfx("victory"); rumble(700, 1, 1);
+    shake = 12; flash = 0.25; hitstop = 0.25; audio.sfx("boss_defeat"); audio.sfx("victory"); rumble(700, 1, 1);
     msg = { text: `${e.name} est vaincu !`, t: 3 }; voice.say(msg.text, true);
+    if (!chal) emit("boss", { id: e.id, noDamage: !lvl.hurt, doom: df().id === "doom" });
     return;
   }
   const frac = e.hp / e.maxHp, ph = 1 + e.th.filter(t => frac <= t).length;
   if (ph > e.phase) {
     e.phase = ph; e.st = "transform"; e.t = 0.8; e.at = 0; e.inv = 0.8; e.vx = 0; e.rocks = null;
-    flash = 0.15; shake = 8; audio.sfx("boom");
-    msg = { text: `${e.name} se transforme !`, t: 1.6 };
+    flash = 0.15; shake = 8; audio.sfx("transform");
+    msg = { text: BOSS_PHASE_SAY[ph] ? BOSS_PHASE_SAY[ph](e) : `${e.name} se transforme !`, t: 1.8 };
+    if (!chal) emit("phase", { id: e.id, n: ph });
   }
 }
 function campVictory(e) {
@@ -2486,11 +2604,15 @@ function campVictory(e) {
   // récompense : fragment d'énergie temporelle (jauge pleine), sauvegarde du monde débloqué
   for (const p of players) { p.gauge = 1; if (!p.dead && p.hp < df().hp) p.hp++; }
   addFx("fx_collecte", players[0].x + 5, players[0].y + 10, { scale: 2 });
-  setCampProgress(camp.wi + 1); setCampResume(camp.wi, 0);
   const prev = campBest(camp.wi);
   best = camp.fromStart ? { time: runTime, deaths, isNew: !prev || runTime < prev.time } : null;
-  if (best && best.isNew) try { localStorage.setItem(campBestKey(camp.wi), JSON.stringify({ time: runTime, deaths })); } catch (e2) {}
-  msg = { text: "Fragment d'énergie temporelle !", t: 2.5 };
+  if (best && best.isNew) setBest(campBestKey(camp.wi), { time: runTime, deaths });
+  setCampResume(camp.wi, 0);
+  const P = PIECES[W.id];
+  msg = { text: P ? `Tu as récupéré ${P.name} !` : "Fragment d'énergie temporelle !", t: 3 };
+  audio.sfx("piece");
+  if (lvl.sock && lvl.sock.type === "apres_boss" && lvl.sock.hidden) { lvl.sock.hidden = false; lvl.sock.pop = 0.4; burst(lvl.sock.x + 6, lvl.sock.y + 6, 20, ["#7dffb0", "#ffffff"], 120, 0.6, 0, 1); }
+  emit("roomDone", { room: campRoom().id, char: ch().id, doom: df().id === "doom" });
   for (const x of lvl.exits) x.locked = false;
   const mx = lvl.exits.find(x => x.kind === "machine");
   if (mx) startMachine(mx.x + mx.w / 2, mx.y + mx.h);
@@ -2503,8 +2625,7 @@ function campVictory(e) {
 // États : locked → activating → ready → entering → departing → loading → arriving → finished.
 // Tout avance avec le temps du jeu (la pause arrête la séquence) ; machStarted empêche un double départ.
 const MACH_HOLE = { x: -5, y: -33, r: 15 };   // centre et rayon du hublot par rapport au pied de la machine (réglés à l'œil)
-function startMachine(x, y) { mach = { st: "activating", t: 0, x, y, started: false, first: !campProgressSeen() }; audio.sfx("machine"); }
-function campProgressSeen() { try { return localStorage.getItem("lunelio-v2-machine") === "1"; } catch (e) { return false; } }
+function startMachine(x, y) { mach = { st: "activating", t: 0, x, y, started: false, first: !SAVE.flags.machineSeen }; audio.sfx("machine"); }
 function machNear(p) { return mach && Math.abs(p.x + 5 - mach.x) < 40 && p.y + p.h > mach.y - 50 && p.y < mach.y; }
 function updateMachine(dt) {
   if (!mach) return;
@@ -2516,7 +2637,7 @@ function updateMachine(dt) {
     p.x = mach.ex + (mach.x + MACH_HOLE.x - 5 - mach.ex) * k; p.y = mach.ey + (mach.y + MACH_HOLE.y - 16 - mach.ey) * k;
     p.vx = p.vy = 0;
     if (Math.random() < 0.5) parts.push({ x: mach.x + MACH_HOLE.x + (Math.random() - 0.5) * 30, y: mach.y + MACH_HOLE.y + (Math.random() - 0.5) * 30, vx: 0, vy: 0, life: 0.3, max: 0.3, color: "#c86eff", size: 1, grav: 0 });
-    if (mach.t >= 0.7) { mach.st = "departing"; mach.t = 0; p.hidden = true; audio.sfx("spin"); try { localStorage.setItem("lunelio-v2-machine", "1"); } catch (e) {} }
+    if (mach.t >= 0.7) { mach.st = "departing"; mach.t = 0; p.hidden = true; audio.sfx("spin"); SAVE.flags.machineSeen = 1; saveGame(); }
   } else if (mach.st === "departing") {
     shake = Math.max(shake, 2);
     if (Math.random() < 0.5) burst(mach.x + (Math.random() - 0.5) * 40, mach.y - Math.random() * 50, 2, MACHINE_FX[CWORLDS[camp.wi].id], 80, 0.4, 100, 1);
@@ -2626,6 +2747,7 @@ function breakDest(d) {
   burst(d.x + d.w / 2, d.y + d.h / 2, 18, ["#c89a5a", "#7a4a24", "#ffffff"], 180, 0.8, 600, 2);
   // la récompense sort de l'objet, à hauteur du personnage (on la ramasse en passant)
   if (od.reward) lvl.items.push({ x: d.x + d.w / 2 - 8, y: d.y + d.h - 18, w: 16, h: 16, kind: od.reward, alive: true, pop: 0.25 });
+  if (lvl.sock && lvl.sock.crate === d.o.id && lvl.sock.hidden) { lvl.sock.hidden = false; lvl.sock.pop = 0.3; if (!lvl.sock.found) msg = { text: "Une chaussette était cachée là !", t: 2 }; }
   if (od.playEffect === "hydrantWater") d.jet = 2.5;
   if (od.createsWaterAt) { const h = lvl.hazards.find(x => x.id === od.createsWaterAt); if (h) { h.enabled = true; h.offset = -roomTime; msg = { text: "L'eau coule… attention aux étincelles !", t: 2 }; } }
   if (od.disableHazard) { const h = lvl.hazards.find(x => x.id === od.disableHazard); if (h) { h.disabled = true; h.phase = "safe"; msg = { text: "Le générateur est coupé : la flaque est sans danger", t: 2.5 }; } }
@@ -2636,6 +2758,94 @@ function collectItem(p, it) {
   audio.sfx("heal");
   if (it.kind === "energy") { p.gauge = Math.min(1, p.gauge + 0.5); msg = { text: powerOf(p.C) && df().power ? "+ Énergie !" : "Énergie !", t: 1.2 }; }
   else if (it.kind === "heart") { if (p.hp < df().hp) p.hp++; msg = { text: "+1 cœur", t: 1.2 }; }
+}
+// Chaussettes, chaussettes dorées, objets de quête et rideaux des recoins secrets
+const touching = it => players.some(p => !p.dead && !p.hidden && ov(p, it));
+function updateCollectibles(dt) {
+  const k = lvl.sock;
+  if (k && k.alive && !k.hidden) {
+    k.t += dt; if (k.pop > 0) { k.pop -= dt; k.y -= 40 * dt; }
+    else if (touching(k)) {
+      if (k.target) { k.alive = false; collectFx(k, "#c86eff"); chalWin(); }
+      else if (!k.found) {
+        k.alive = false; collectFx(k, "#7dffb0"); audio.sfx("sock"); rumble(120, 0.2, 0.5);
+        emit("sock", { room: campRoom().id });
+        const W = CWORLDS[camp.wi];
+        msg = { text: `Chaussette puante trouvée ! ${socksInWorld(W.id)}/${socksWorldTotal(W.id)}`, t: 2.2 }; voice.say("Chaussette trouvée !");
+      }
+    }
+  }
+  for (const g of lvl.gold) {
+    if (!g.alive) continue; g.t += dt;
+    if (touching(g)) { g.alive = false; collectFx(g, "#ffd23c"); audio.sfx("sock_bonus"); emit("gold", { id: g.id }); msg = { text: "Chaussette dorée ! Un chemin secret !", t: 2.4 }; }
+  }
+  for (const q of lvl.qitems) {
+    if (!q.alive) continue; q.t += dt;
+    const near = players.some(p => Math.hypot(p.x + 5 - (q.x + 6), p.y + 16 - (q.y + 6)) < 70);
+    q.vis = q.shadow ? Math.min(1, Math.max(0.12, (q.vis || 0.12) + (near ? dt * 2 : -dt))) : 1;
+    if (touching(q)) {
+      q.alive = false; collectFx(q, "#ff8ab0"); audio.sfx("quest_item"); emit("questItem", { quest: q.quest, id: q.id });
+      const Q = QUEST_BY_ID[q.quest], st = SAVE.quests[q.quest], n = Q.goal.items ? Q.goal.items.filter(i => st.items && st.items[i]).length : 1;
+      msg = { text: Q.goal.items && Q.goal.items.length > 1 ? `Objet de quête : ${n}/${Q.goal.items.length}` : "Objet de quête trouvé !", t: 2.2 };
+    }
+  }
+  for (const c of lvl.covers) { const inside = players.some(p => !p.dead && ov(p, c)); c.a += ((inside ? 0.18 : 1) - c.a) * Math.min(1, dt * 6); }
+}
+function collectFx(it, col) {
+  addFx("fx_collecte", it.x + it.w / 2, it.y + it.h / 2, { scale: 1.3 });
+  burst(it.x + it.w / 2, it.y + it.h / 2, 18, [col, "#ffffff", "#fccc28"], 140, 0.6, 0, 1);
+  flash = Math.max(flash, 0.05);
+}
+// Chaussette puante (provisoire, dessinée par le code tant que l'atlas « chaussette » n'existe pas) : x, y = centre
+function drawSock(x, y, o = {}) {
+  const A = ATL.chaussette;
+  if (A && atlasImg("chaussette") && !o.gold && !o.striped) { drawFrame("chaussette", animFrame("chaussette", "flotte", time + (o.t || 0), 8), x, y, 1, o.alpha ?? 1); return; }
+  const a = o.alpha ?? 1, body = o.gold ? "#ffd23c" : o.ghost ? "#8a80a8" : "#f4f0ff", band = o.gold ? "#ff8a3c" : o.striped ? "#d02a2a" : "#ff4f8a";
+  ctx.globalAlpha = a;
+  const X = Math.round(x - 5), Y = Math.round(y - 6);
+  R(X - 1, Y - 1, 7, 10, "#0e0a1a"); R(X - 1, Y + 7, 11, 5, "#0e0a1a");
+  R(X, Y, 5, 9, body); R(X, Y + 8, 9, 3, body); R(X + 7, Y + 8, 2, 2, o.ghost ? body : "#c8c0e0");
+  R(X, Y, 5, 2, band); if (o.striped) { R(X, Y + 4, 5, 1, band); R(X, Y + 7, 5, 1, band); }
+  if (!o.ghost && !o.gold) {
+    // odeur : petites vagues vertes qui montent
+    const k = (time * 1.5 + (o.t || 0)) % 1;
+    ctx.globalAlpha = a * (1 - k) * 0.9;
+    for (const dx of [-3, 3]) for (let i = 0; i < 3; i++) R(Math.round(x + dx + Math.sin(time * 6 + i + dx) * 1.5), Math.round(Y - 3 - k * 8 - i * 2), 1, 2, "#8aff6a");
+  }
+  if (o.gold) { ctx.globalAlpha = a * (0.5 + 0.5 * Math.sin(time * 8)); R(X + 6, Y - 3, 1, 3, "#ffffff"); R(X + 5, Y - 2, 3, 1, "#ffffff"); }
+  ctx.globalAlpha = 1;
+}
+function drawCollectibles(behind) {
+  const k = lvl.sock;
+  if (k && k.alive && !k.hidden && (k.type === "decor") === behind) {
+    const bob = Math.sin(time * 3 + (k.t || 0)) * 1.5, cx = k.x + 6, cy = k.y + 6 + bob;
+    if (k.found) drawSock(cx, cy, { ghost: true, alpha: 0.35 });   // déjà trouvée : discrète
+    else {
+      ctx.globalAlpha = 0.18 + 0.1 * Math.sin(time * 5); R(Math.round(k.x - 2), Math.round(k.y - 2 + bob), 16, 16, k.target ? "#c86eff" : "#7dffb0"); ctx.globalAlpha = 1;
+      drawSock(cx, cy, { t: k.t });
+    }
+  }
+  if (behind) return;
+  for (const g of lvl.gold) if (g.alive) { ctx.globalAlpha = 0.2 + 0.15 * Math.sin(time * 6); R(g.x - 3, g.y - 3, 18, 18, "#ffd23c"); ctx.globalAlpha = 1; drawSock(g.x + 6, g.y + 6 + Math.sin(time * 3) * 2, { gold: true }); }
+  for (const q of lvl.qitems) {
+    if (!q.alive) continue;
+    const y = q.y + 6 + Math.sin(time * 3 + q.x) * 1.5;
+    ctx.globalAlpha = (q.vis ?? 1) * (0.2 + 0.12 * Math.sin(time * 5)); R(q.x - 2, Math.round(y - 8), 16, 16, "#ff8ab0"); ctx.globalAlpha = 1;
+    if (q.kind === "chaussette_rayee") drawSock(q.x + 6, y, { striped: true, alpha: q.vis ?? 1 });
+    else { ctx.globalAlpha = q.vis ?? 1; R(q.x, Math.round(y - 3), 12, 5, "#0e0a1a"); R(q.x + 1, Math.round(y - 2), 10, 3, "#7a3aff"); R(q.x + 4, Math.round(y - 3), 3, 6, "#c86eff"); ctx.globalAlpha = 1; }
+  }
+}
+// Rideaux des recoins secrets : par-dessus le joueur, ils s'effacent quand on entre dedans
+function drawCovers() {
+  const col = MACHINE_FX[CWORLDS[camp.wi].id];
+  for (const c of lvl.covers) {
+    ctx.globalAlpha = c.a;
+    R(c.x, c.y, c.w, c.h, "#0e0a1a"); R(c.x + 1, c.y + 1, c.w - 2, c.h - 2, "#1e1630");
+    for (let yy = c.y + 4; yy < c.y + c.h - 2; yy += 6) R(c.x + 2 + ((yy / 6) % 2) * 3, yy, c.w - 7, 1, "#2a2244");
+    // petite étincelle de temps en temps : un indice pour les curieux
+    if (Math.floor(time * 2 + c.x) % 7 === 0) { ctx.globalAlpha = c.a * 0.8; R(c.x + c.w / 2, c.y + c.h - 10, 2, 2, col[0]); }
+    ctx.globalAlpha = 1;
+  }
 }
 // Haut devant une porte ou la machine : entre (le saut est alors ignoré)
 function campTryInteract(p) {
@@ -2673,6 +2883,8 @@ function updateCampTransition(dt) {
         for (const e of lvl.exits) e.locked = true;   // la porte se referme derrière
         return;
       }
+      if (!chal) emit("roomDone", { room: campRoom().id, char: ch().id, doom: df().id === "doom" });
+      if (chal && chalRoomDone()) return;
       const ni = x.next ? roomIndex(camp.wi, x.next) : camp.ri + 1;
       if (ni >= 0 && ni < W.rooms.length) loadCampRoom(camp.wi, ni, { fadeIn: true });
     }
@@ -2700,6 +2912,7 @@ function updateCamp(dt) {
     if (it.pop > 0) { it.pop -= dt; it.y -= 30 * dt; continue; }
     for (const p of players) if (!p.dead && !p.hidden && ov(p, it)) { collectItem(p, it); break; }
   }
+  updateCollectibles(dt);
   const ck = lvl.ckpt;
   if (ck) {
     ck.t += dt;
@@ -2769,6 +2982,7 @@ function drawCampHazard(h) {
   if (ph === "tele" && blink) { text("!", cx, h.y - 12, 12, "#ffd23c", "center", "#ff3b5c"); }
 }
 function drawCampObjects() {
+  drawCollectibles(true);
   for (const d of lvl.decor) drawFrame(d.sprite, 0, d.x + d.w / 2, d.y + d.h);
   // sorties
   for (const x of lvl.exits) {
@@ -2791,6 +3005,7 @@ function drawCampObjects() {
     R(b.x, b.y, b.w, b.h, "#0e0a1a"); R(b.x + 1, b.y + 1, b.w - 2, b.h - 2, "#8a5a2a"); R(b.x + 1, b.y + 1, b.w - 2, 4, "#4fbf3a");
     for (let i = 0; i < 4; i++) R(b.x + 2 + ((i * 7) % (b.w - 4)), b.y + 6 + (i * 5) % (b.h - 8), 2, 2, "#6a4220"); R(b.x + 3, b.y + 2, 3, 1, "#8aff6a");
   }
+  drawCollectibles(false);
   for (const it of lvl.items) {
     if (!it.alive) continue;
     const an = ATL.bonus.anims[it.kind] || ATL.bonus.anims.energy;
@@ -2923,6 +3138,7 @@ function drawCampWorld() {
     } else drawCampProjectile(l);
   }
   drawGhosts(); for (const p of players) drawCampPlayer(p);
+  drawCovers();
   // invites « entrer »
   const p = players[0];
   if (!p.dead && !campLocked(p)) {
@@ -2958,6 +3174,13 @@ function drawCampHUD() {
   }
   const foes = enemies.filter(e => e.alive && e.type === "foe").length;
   if (foes && !lvl.bossSpawn) text(`Ennemis : ${foes}`, 6, VH - 8, 8, "#b9a6e0");
+  // chaussettes du monde (icône pleine si celle de la salle est trouvée)
+  if (!chal && AJOUTS.socks[R0.id]) {
+    const got = !!SAVE.socks[R0.id], sx = 92;
+    drawSock(sx, VH - 9, got ? {} : { ghost: true, alpha: 0.6 });
+    text(`${socksInWorld(W.id)}/${socksWorldTotal(W.id)}`, sx + 9, VH - 8, 8, got ? "#7dffb0" : "#b9a6e0");
+  }
+  if (chal) drawChalHUD();
   if (specialOf(C) && specialOf(C).button && (!TOUCH || PAD)) { const ready = P1.dashCd <= 0; text(ready ? "Dash prêt" : "Dash…", VW - 6, VH - 8, 8, ready ? C.color : "#5a4a80", "right"); }
   const bs = enemies.find(e => e.type === "bigboss" && (e.alive || e.dying));
   if (bs && bs.alive) {
@@ -3041,6 +3264,592 @@ function drawCampWin(rdt) {
   if (winT > 1.5 && hit("Enter", "Space", "Mouse0", "Escape", "GA", "GB", "GStart")) openWorlds();
 }
 
+/* ---------------- Registres : laverie, collections, histoire ---------------- */
+// Toutes les définitions ont un identifiant stable (jamais renommé : la sauvegarde s'en sert).
+// Les conditions sont écrites en données et lues par testCond() (sauvegarde.js) :
+//   { start: true }                 toujours vrai              { world: n }        n mondes de la campagne terminés
+//   { boss: id } / { foe: sp }      boss / ennemi vaincu       { char: id }        une salle terminée avec ce héros
+//   { socks: n }                    n chaussettes principales  { socksWorld: wid } toutes les chaussettes d'un monde
+//   { socksWorldAny: true }         toutes celles d'un monde   { quest: id }       quête terminée (récompense reçue)
+//   { questsDone: n }               n quêtes terminées         { challenge: id }   défi réussi
+//   { challengesDone: n }           n défis réussis            { programsDone: n } n programmes différents réussis
+//   { memory: id } / { memories: n } souvenir(s) débloqué(s)   { badge: id }       badge obtenu
+//   { cardCat: cat }                catégorie de cartes complète { cardCatComplete: n } n catégories complètes
+//   { cardsAll: true }              album complet              { charsAll: true }  une salle avec chacun des 8 héros
+//   { oldFoe: type } / { oldBoss: monde } / { bonusWorld: n }  ancienne aventure
+//   { flag: nom }                   exploit noté (noDamageBoss, doomBoss, secret, doomRoom…)
+//   { visited: wid }                monde visité               { met: pnj }        client rencontré
+//   { all: [c1, c2…] }              toutes les conditions
+// Une récompense s'écrit "type:id" (card, badge, cos, decor, track, mem) et n'est donnée qu'une fois (SAVE.got).
+
+// Données placées à la main dans les salles (chaussettes, objets de quête, secrets, défis) : src/campagne_ajouts.json
+const AJOUTS = {"_doc":"Ajouts à la main par-dessus les salles du pack (campagne.json reste tel que preparer_pack.py l'écrit). socks : chaussette principale de chaque salle, r = [x, y] du coin haut-gauche (12 × 12), type = cachette (haut, decor, plateforme, caisse, secret, detour, apres_boss), crate = caisse qui la contient, cover = rideau qui la cache [x, y, w, h]. platforms : plateformes traversables ajoutées. crates : caisses ajoutées. gold : chaussettes dorées des chemins secrets, requires = capacités qui permettent de les atteindre (superjump, doublejump, block, dash…). questItems : objets de quête (visibles seulement pendant la quête). challengeTargets : cibles des défis. Vérifié par verifier_niveaux.py.","socks":{"centrale_01":{"r":[274,138],"type":"haut"},"centrale_02":{"r":[142,222],"type":"caisse","crate":"caisse_chaussette"},"centrale_03":{"r":[418,92],"type":"plateforme"},"centrale_04":{"r":[390,222],"type":"caisse","crate":"caisse"},"centrale_05":{"r":[5,226],"type":"secret","cover":[0,176,22,64]},"centrale_06":{"r":[114,142],"type":"detour"},"centrale_07":{"r":[142,222],"type":"caisse","crate":"caisse_chaussette"},"centrale_08":{"r":[162,76],"type":"plateforme"},"centrale_09":{"r":[142,222],"type":"caisse","crate":"caisse_chaussette"},"centrale_10":{"r":[183,130],"type":"secret","cover":[176,108,26,36]},"centrale_11":{"r":[98,142],"type":"detour"},"centrale_12":{"r":[338,164],"type":"apres_boss"},"usine_01":{"r":[66,124],"type":"plateforme"},"usine_02":{"r":[70,222],"type":"caisse","crate":"objet_1"},"usine_03":{"r":[5,226],"type":"secret","cover":[0,176,22,64]},"usine_04":{"r":[226,46],"type":"detour"},"usine_05":{"r":[394,226],"type":"decor"},"usine_06":{"r":[66,116],"type":"plateforme"},"usine_07":{"r":[70,222],"type":"caisse","crate":"objet_1"},"usine_08":{"r":[199,130],"type":"secret","cover":[192,108,26,36]},"usine_09":{"r":[226,110],"type":"detour"},"usine_10":{"r":[218,90],"type":"haut"},"usine_11":{"r":[170,226],"type":"decor"},"usine_12":{"r":[338,164],"type":"apres_boss"},"temple_01":{"r":[5,226],"type":"secret","cover":[0,176,22,64]},"temple_02":{"r":[178,94],"type":"detour"},"temple_03":{"r":[378,226],"type":"decor"},"temple_04":{"r":[114,76],"type":"plateforme"},"temple_05":{"r":[318,222],"type":"caisse","crate":"caisse_chaussette"},"temple_06":{"r":[103,170],"type":"secret","cover":[96,148,26,36]},"temple_07":{"r":[194,94],"type":"detour"},"temple_08":{"r":[218,90],"type":"haut"},"temple_09":{"r":[378,226],"type":"decor"},"temple_10":{"r":[162,76],"type":"plateforme"},"temple_11":{"r":[206,222],"type":"caisse","crate":"caisse_chaussette"},"temple_12":{"r":[338,164],"type":"apres_boss"},"volcan_01":{"r":[298,226],"type":"decor"},"volcan_02":{"r":[114,76],"type":"plateforme"},"volcan_03":{"r":[318,222],"type":"caisse","crate":"caisse_chaussette"},"volcan_04":{"r":[103,170],"type":"secret","cover":[96,148,26,36]},"volcan_05":{"r":[194,94],"type":"detour"},"volcan_06":{"r":[218,90],"type":"haut"},"volcan_07":{"r":[298,226],"type":"decor"},"volcan_08":{"r":[162,76],"type":"plateforme"},"volcan_09":{"r":[206,222],"type":"caisse","crate":"caisse_chaussette"},"volcan_10":{"r":[5,226],"type":"secret","cover":[0,176,22,64]},"volcan_11":{"r":[178,94],"type":"detour"},"volcan_12":{"r":[338,164],"type":"apres_boss"},"port_01":{"r":[206,222],"type":"caisse","crate":"caisse_chaussette"},"port_02":{"r":[103,170],"type":"secret","cover":[96,148,26,36]},"port_03":{"r":[194,94],"type":"detour"},"port_04":{"r":[218,90],"type":"haut"},"port_05":{"r":[378,226],"type":"decor"},"port_06":{"r":[162,76],"type":"plateforme"},"port_07":{"r":[206,222],"type":"caisse","crate":"caisse_chaussette"},"port_08":{"r":[5,226],"type":"secret","cover":[0,176,22,64]},"port_09":{"r":[178,94],"type":"detour"},"port_10":{"r":[298,226],"type":"decor"},"port_11":{"r":[114,76],"type":"plateforme"},"port_12":{"r":[338,164],"type":"apres_boss"},"grotte_01":{"r":[194,94],"type":"detour"},"grotte_02":{"r":[218,90],"type":"haut"},"grotte_03":{"r":[378,226],"type":"decor"},"grotte_04":{"r":[162,76],"type":"plateforme"},"grotte_05":{"r":[318,222],"type":"caisse","crate":"caisse_chaussette"},"grotte_06":{"r":[5,226],"type":"secret","cover":[0,176,22,64]},"grotte_07":{"r":[178,94],"type":"detour"},"grotte_08":{"r":[298,226],"type":"decor"},"grotte_09":{"r":[114,76],"type":"plateforme"},"grotte_10":{"r":[318,222],"type":"caisse","crate":"caisse_chaussette"},"grotte_11":{"r":[103,170],"type":"secret","cover":[96,148,26,36]},"grotte_12":{"r":[338,164],"type":"apres_boss"}},"platforms":{"centrale_03":[[408,112,32,16]],"centrale_08":[[152,96,32,16]],"usine_01":[[56,144,32,16]],"usine_06":[[56,136,32,16]],"temple_04":[[104,96,32,16]],"temple_10":[[152,96,32,16]],"volcan_02":[[104,96,32,16]],"volcan_08":[[152,96,32,16]],"port_06":[[152,96,32,16]],"port_11":[[104,96,32,16]],"grotte_04":[[152,96,32,16]],"grotte_09":[[104,96,32,16]]},"crates":{"centrale_02":[{"id":"caisse_chaussette","r":[136,216,24,24],"type":"crate"}],"centrale_07":[{"id":"caisse_chaussette","r":[136,216,24,24],"type":"crate"}],"centrale_09":[{"id":"caisse_chaussette","r":[136,216,24,24],"type":"crate"}],"temple_05":[{"id":"caisse_chaussette","r":[312,216,24,24],"type":"crate"}],"temple_11":[{"id":"caisse_chaussette","r":[200,216,24,24],"type":"crate"}],"volcan_03":[{"id":"caisse_chaussette","r":[312,216,24,24],"type":"barrel"}],"volcan_09":[{"id":"caisse_chaussette","r":[200,216,24,24],"type":"barrel"}],"port_01":[{"id":"caisse_chaussette","r":[200,216,24,24],"type":"crate"}],"port_07":[{"id":"caisse_chaussette","r":[200,216,24,24],"type":"crate"}],"grotte_05":[{"id":"caisse_chaussette","r":[312,216,24,24],"type":"barrel"}],"grotte_10":[{"id":"caisse_chaussette","r":[312,216,24,24],"type":"barrel"}]},"gold":[{"id":"doree_centrale","room":"centrale_05","r":[226,32],"requires":["superjump","doublejump","block"]},{"id":"doree_usine","room":"usine_02","r":[202,32],"requires":["superjump","doublejump","block"]},{"id":"doree_temple","room":"temple_03","r":[250,32],"requires":["superjump","doublejump","block"]},{"id":"doree_volcan","room":"volcan_09","r":[130,72],"requires":["superjump","doublejump","block"]},{"id":"doree_port","room":"port_10","r":[250,32],"requires":["superjump","doublejump","block"]},{"id":"doree_grotte","room":"grotte_08","r":[250,32],"requires":["superjump","doublejump","block"]}],"questItems":[{"id":"ceinture_1","quest":"kage","room":"temple_03","r":[378,172],"kind":"ceinture","shadow":true},{"id":"ceinture_2","quest":"kage","room":"temple_07","r":[8,222],"kind":"ceinture","shadow":true},{"id":"ceinture_3","quest":"kage","room":"temple_10","r":[218,124],"kind":"ceinture","shadow":true},{"id":"chaussette_rayee","quest":"capitaine","room":"volcan_06","r":[218,124],"kind":"chaussette_rayee"}],"challengeTargets":{"solitaire_grotte":[72,132]}};
+
+// Pièces de la machine temporelle, une par monde : le boss du monde la garde
+const PIECES = {
+  "01_centrale": { id: "condensateur", name: "le condensateur", color: "#fccc28" },
+  "02_usine": { id: "engrenages", name: "les engrenages du tambour", color: "#c8d0dc" },
+  "03_temple": { id: "cadran", name: "le cadran des programmes", color: "#c86eff" },
+  "04_volcan": { id: "resistance", name: "la résistance chauffante", color: "#ff8a3c" },
+  "05_port": { id: "joint", name: "le joint du hublot", color: "#7dd8ff" },
+  "06_grotte": { id: "cristal", name: "le cristal-mémoire", color: "#ff4fd8" },
+};
+
+// Personnages non jouables (portrait provisoire dessiné par le code tant que pnj/ et portrait_… n'existent pas)
+const NPCS = {
+  bulle: { name: "Mme Bulle", color: "#7dd8ff", skin: "#f0c8a0", hair: "#c8c8d8", cloth: "#7dd8ff", accent: "#ff8ab0", talk: "talk_bulle" },
+  capitaine: { name: "Capitaine Barbe-Mouillée", color: "#ff5a3c", skin: "#e8b088", hair: "#3a6aff", cloth: "#c8302a", accent: "#fccc28", talk: "talk_capitaine" },
+  bobine: { name: "Bobine", color: "#9fe8ff", skin: "#c8d0dc", hair: "#5ef0ff", cloth: "#ff8a3c", accent: "#5ef0ff", talk: "talk_bobine", robot: true },
+  kage: { name: "Kage", color: "#c86eff", skin: "#e8c0a0", hair: "#2a1a3a", cloth: "#4a2a7a", accent: "#c86eff", talk: "talk_kage" },
+  firmin: { name: "Grand-père Firmin", color: "#fccc28", skin: "#f0c8a0", hair: "#ffffff", cloth: "#4a6aa8", accent: "#fccc28", talk: "talk_bulle" },
+};
+
+// Histoire : dialogues courts. who = clé de NPCS, "hero" (héros joué) ou "machine".
+const STORY = {
+  prologue: [
+    ["bulle", "Bienvenue à la laverie ! Je suis Mme Bulle."],
+    ["bulle", "Attention, cette vieille machine est un peu… farceuse."],
+    ["machine", "BLOUB ! BLOUB ! Programme : « Essorage 3000 ans » !"],
+    ["hero", "Hé ! Le hublot m'aspire !"],
+    ["bulle", "Ses programmes envoient les gens dans d'autres époques !"],
+    ["bulle", "Le programmateur est cassé : six pièces ont disparu."],
+    ["bulle", "Ramène-les, et la machine te ramènera à la maison !"],
+    ["bulle", "Entre dans la machine quand tu es prêt. Bonne chance !"],
+  ],
+  // retour à la laverie après chaque boss : la pièce est remise en place
+  repair: {
+    "01_centrale": [["bulle", "Tu as le condensateur ! La machine retrouve de l'énergie."], ["machine", "Bzzt ! Programme « Coton 40 » … presque !"], ["bulle", "Ha ha ! Encore cinq pièces."]],
+    "02_usine": [["bulle", "Les engrenages du tambour ! Écoute-la ronronner."], ["machine", "Vrrrr… Programme « Linge robotique » activé."], ["bulle", "Pourvu qu'elle ne mélange plus les chaussettes…"]],
+    "03_temple": [["bulle", "Le cadran des programmes ! On peut enfin les lire."], ["bulle", "Tiens, il y a un programme « Retour à la maison »…"], ["bulle", "Mais il lui manque encore trois pièces."]],
+    "04_volcan": [["bulle", "La résistance chauffante ! Attention, ça brûle."], ["machine", "Programme « Lavage à 3000 degrés »… non merci !"], ["bulle", "Plus que deux pièces !"]],
+    "05_port": [["bulle", "Le joint du hublot ! Il ne fuira plus."], ["bulle", "Tu sens cette odeur ? Ce sont les chaussettes du pirate…"], ["bulle", "Dernière pièce : le cristal-mémoire, dans la grotte néon."]],
+    "06_grotte": [["bulle", "Le cristal-mémoire ! La machine est réparée !"], ["machine", "Programme « Retour à la maison » : PRÊT."], ["bulle", "Merci, petit héros. Tu peux rentrer chez toi !"]],
+  },
+  ending: [
+    ["machine", "Programme « Retour à la maison » : C'EST PARTI !"],
+    ["bulle", "Elle tourne… elle tourne… et elle ne mange aucune chaussette !"],
+    ["hero", "Je suis rentré ! Merci Mme Bulle !"],
+    ["bulle", "Reviens quand tu veux : la laverie reste ouverte."],
+    ["bulle", "Il reste peut-être des chaussettes perdues à retrouver…"],
+  ],
+  // petites phrases de Mme Bulle selon l'avancée (la dernière qui convient est choisie)
+  bulle: [
+    { cond: { start: true }, lines: [["bulle", "Le programme « Délicat », c'est pour les chaussettes fragiles. Et les héros prudents !"]] },
+    { cond: { socks: 1 }, lines: [["bulle", "Une chaussette puante ! Accroche-la sur l'étendoir, elle séchera."], ["bulle", "Chaque salle en cache une. Cherche bien !"]] },
+    { cond: { world: 1 }, lines: [["bulle", "La machine de défis s'est allumée ! Essaie un programme de lavage."]] },
+    { cond: { world: 2 }, lines: [["bulle", "Un drôle de robot attend son linge. Va lui parler !"]] },
+    { cond: { world: 3 }, lines: [["bulle", "Mes bigoudis ? C'est pour le style, pas pour le lavage !"]] },
+    { cond: { world: 4 }, lines: [["bulle", "Ce pirate sent la marée. Il cherche une chaussette, comme tout le monde ici."]] },
+    { cond: { world: 6 }, lines: [["bulle", "La machine est réparée. Mais les chaussettes perdues, elles, sont toujours là-bas !"]] },
+  ],
+};
+
+// Mécaniques propres à chaque monde (pour les prochaines séries de salles) : points d'extension, vides pour l'instant.
+// Une mécanique = { id, monde, intro (salle qui l'introduit), params } ; le moteur les lira dans buildRoom().
+const WORLD_MECHANICS = {};
+
+/* ---- Cartes ---- */
+// cat : pnj, heros, monstres, boss. world : filtre (id de monde, "laverie" ou "bonus").
+// art : { atlas, frame } (portrait du pack) ou { npc } (portrait dessiné) ou { foe } / { old } (sprite du jeu).
+const CARD_CATS = [["pnj", "Clients"], ["heros", "Héros"], ["monstres", "Monstres"], ["boss", "Boss"]];
+const CARDS = [
+  { id: "pnj_bulle", cat: "pnj", world: "laverie", name: "Mme Bulle", art: { npc: "bulle" }, cond: { met: "bulle" }, how: "Entre dans la laverie",
+    desc: "La gérante de la laverie. Elle connaît tous les programmes.", tip: "Ses bigoudis ne sont pas des pièces de la machine. Promis." },
+  { id: "pnj_capitaine", cat: "pnj", world: "05_port", name: "Capitaine Barbe-Mouillée", art: { npc: "capitaine" }, cond: { quest: "capitaine" }, how: "Termine la quête du capitaine",
+    desc: "Un pirate perdu dans la laverie, avec un seul pied chaussé.", tip: "Sa barbe goutte toujours. Même au soleil." },
+  { id: "pnj_bobine", cat: "pnj", world: "02_usine", name: "Bobine", art: { npc: "bobine" }, cond: { quest: "bobine" }, how: "Termine la quête de Bobine",
+    desc: "Un petit robot qui lave son tee-shirt… beaucoup trop chaud.", tip: "Bobine fait « bip » quand il est content. Il fait souvent « bip »." },
+  { id: "pnj_kage", cat: "pnj", world: "03_temple", name: "Kage", art: { npc: "kage" }, cond: { quest: "kage" }, how: "Termine la quête de Kage",
+    desc: "Un jeune ninja qui a perdu sa ceinture dans les ombres.", tip: "Il est si discret qu'on oublie parfois qu'il est là." },
+  { id: "pnj_firmin", cat: "pnj", world: "laverie", name: "Grand-père Firmin", art: { npc: "firmin" }, cond: { memory: "souvenir_1" }, how: "Débloque le premier souvenir",
+    desc: "L'inventeur de la Lavotron 3000, et le grand-père de Mme Bulle.", tip: "Il voulait juste laver le linge plus vite que l'éclair." },
+  ...["helio", "lune", "robot", "singe", "ninja", "rumi", "steve", "homme"].map(id => ({ id: "heros_" + id, cat: "heros", world: "laverie", heroId: id,
+    art: { atlas: "portraits", anim: id }, cond: { char: id }, how: "Termine une salle de la campagne avec ce héros" })),
+  { id: "monstre_slime", cat: "monstres", world: "01_centrale", foe: "slime", name: "Slime électrique", art: { foe: "slime" }, cond: { foe: "slime" }, how: "Bats un slime électrique",
+    desc: "Il glisse lentement et pique au contact.", tip: "Faiblesse : un seul coup de sabre. Ne le touche pas avec les mains !" },
+  { id: "monstre_drone", cat: "monstres", world: "02_usine", foe: "drone", name: "Drone sentinelle", art: { foe: "drone" }, cond: { foe: "drone" }, how: "Bats un drone sentinelle",
+    desc: "Il vise avec un trait rouge, puis il tire.", tip: "Faiblesse : renvoie son laser au sabre, il fait 2 dégâts !" },
+  { id: "monstre_ninja", cat: "monstres", world: "03_temple", foe: "ninja_ombre", name: "Ninja de l'ombre", art: { foe: "ninja_ombre" }, cond: { foe: "ninja_ombre" }, how: "Bats un ninja de l'ombre",
+    desc: "Il lève son sabre (« ! ») puis il frappe devant lui.", tip: "Faiblesse : recule quand il lève le sabre, puis frappe pendant qu'il se relève." },
+  { id: "monstre_golem", cat: "monstres", world: "04_volcan", foe: "golem", name: "Golem de lave", art: { foe: "golem" }, cond: { foe: "golem" }, how: "Bats un golem de lave",
+    desc: "Il brille, puis il fonce droit devant.", tip: "Faiblesse : il faut deux coups. Saute par-dessus sa charge." },
+  { id: "monstre_singe", cat: "monstres", world: "05_port", foe: "singe_pirate", name: "Singe pirate", art: { foe: "singe_pirate" }, cond: { foe: "singe_pirate" }, how: "Bats un singe pirate",
+    desc: "Il bondit avec son petit sabre.", tip: "Faiblesse : recule pendant son bond, puis tranche à l'atterrissage." },
+  { id: "monstre_chauve_souris", cat: "monstres", world: "06_grotte", foe: "chauve_souris", name: "Chauve-souris néon", art: { foe: "chauve_souris" }, cond: { foe: "chauve_souris" }, how: "Bats une chauve-souris néon",
+    desc: "Elle plane, puis plonge vers toi.", tip: "Faiblesse : esquive le plongeon, elle reste en bas un instant." },
+  { id: "monstre_marcheur", cat: "monstres", world: "bonus", old: "walker", name: "Robot marcheur", art: { old: "walker" }, cond: { oldFoe: "walker" }, how: "Ancienne aventure : bats un robot marcheur",
+    desc: "Il marche, et fonce quand il te voit.", tip: "Faiblesse : un coup de sabre suffit." },
+  { id: "monstre_canon", cat: "monstres", world: "bonus", old: "shooter", name: "Robot-canon", art: { old: "shooter" }, cond: { oldFoe: "shooter" }, how: "Ancienne aventure : bats un robot-canon",
+    desc: "Il vise (trait rouge) puis tire un laser.", tip: "Faiblesse : renvoie son laser au sabre." },
+  { id: "monstre_drone_ancien", cat: "monstres", world: "bonus", old: "drone", name: "Petit drone", art: { old: "drone" }, cond: { oldFoe: "drone" }, how: "Ancienne aventure : bats un petit drone",
+    desc: "Il vole vers toi quand tu es proche.", tip: "Faiblesse : attends qu'il descende, puis tranche." },
+  { id: "boss_roi_slime", cat: "boss", world: "01_centrale", boss: "roi_slime", name: "Roi Slime électrique", art: { atlas: "portraits_boss", anim: "roi_slime" }, cond: { boss: "roi_slime" }, how: "Bats le boss de la centrale",
+    desc: "Il garde le condensateur… sur sa tête, comme une couronne.",
+    phases: ["P1 : il marche et saute. Frappe-le quand il retombe.", "P2 : il lance des orbes et électrise une flaque à la fois.", "P3 : orbes triples, les flaques alternent. Après un grand saut, il souffle : frappe !"] },
+  { id: "boss_drone_titan", cat: "boss", world: "02_usine", boss: "drone_titan", name: "Drone Titan", art: { atlas: "portraits_boss", anim: "drone_titan" }, cond: { boss: "drone_titan" }, how: "Bats le boss de l'usine",
+    desc: "Il a vissé les engrenages du tambour sur son ventre.",
+    phases: ["P1 : il plane et tire trois lasers. Renvoie-les !", "P2 : tirs doubles et petits drones en renfort.", "P3 : il plonge (trait rouge au sol) puis tire en éventail. Après le plongeon, il fume : frappe !"] },
+  { id: "boss_maitre_ombres", cat: "boss", world: "03_temple", boss: "maitre_ombres", name: "Maître des ombres", art: { atlas: "portraits_boss", anim: "maitre_ombres" }, cond: { boss: "maitre_ombres" }, how: "Bats le boss du temple",
+    desc: "Il prend le cadran des programmes pour un miroir sacré.",
+    phases: ["P1 : il marche puis fonce (trait rouge). Saute par-dessus.", "P2 : il se téléporte derrière toi et lance des lames.", "P3 : téléportations et trois lames. Après sa charge, il s'essouffle : frappe !"] },
+  { id: "boss_colosse_lave", cat: "boss", world: "04_volcan", boss: "colosse_lave", name: "Colosse de lave", art: { atlas: "portraits_boss", anim: "colosse_lave" }, cond: { boss: "colosse_lave" }, how: "Bats le boss du volcan",
+    desc: "Il garde la résistance chauffante comme une bouillotte.",
+    phases: ["P1 : il frappe le sol : saute au-dessus des ondes.", "P2 : pluie de rochers annoncée au sol (« ! »).", "P3 : double frappe et grosse pluie. Ensuite il s'assoit, épuisé : frappe !"] },
+  { id: "boss_singe_roi_pirate", cat: "boss", world: "05_port", boss: "singe_roi_pirate", name: "Singe roi pirate", art: { atlas: "portraits_boss", anim: "singe_roi_pirate" }, cond: { boss: "singe_roi_pirate" }, how: "Bats le boss du port",
+    desc: "Il porte le joint du hublot comme une bouée en or.",
+    phases: ["P1 : il marche et bondit vers toi.", "P2 : bonds et noix de coco. Après trois bonds, il reprend son souffle : frappe !"] },
+  { id: "boss_reine_chauve_souris", cat: "boss", world: "06_grotte", boss: "reine_chauve_souris", name: "Reine chauve-souris néon", art: { atlas: "portraits_boss", anim: "reine_chauve_souris" }, cond: { boss: "reine_chauve_souris" }, how: "Bats le boss de la grotte",
+    desc: "Le cristal-mémoire brille dans son nid.",
+    phases: ["P1 : elle plane et lance des orbes.", "P2 : elle appelle des chauves-souris et lance trois orbes.", "P3 : plongeons et cinq orbes. Après un plongeon, elle reste au sol : frappe !"] },
+  ...Object.entries(BOSSES).map(([wid, b]) => ({ id: "boss_ancien_" + wid, cat: "boss", world: "bonus", oldBoss: wid, name: b.name, art: { oldBoss: wid },
+    cond: { oldBoss: wid }, how: "Ancienne aventure : bats ce boss",
+    desc: { brute: "Il charge et saute : saute par-dessus ses ondes de choc.", canon: "Il vole de place en place et tire des rafales.",
+      mother: "Il lâche des drones et plonge vers toi.", final: "Le Dr. Boulon enchaîne charge, canon et drones." }[b.kind],
+    tip: { brute: "Contre un mur, il reste étourdi : frappe !", canon: "Renvoie ses lasers au sabre.", mother: "Après le plongeon, il reste en bas un instant.", final: "Le boss final de l'ancienne aventure." }[b.kind] })),
+];
+const CARD_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
+
+/* ---- Badges ---- */
+// icon : symbole dessiné sur la médaille (provisoire, en attendant icones/badges.png)
+const BADGES = [
+  { id: "premiere_chaussette", name: "Première chaussette", how: "Trouve ta première chaussette puante", cond: { socks: 1 }, icon: "sock", col: "#cd7f32" },
+  { id: "dix_chaussettes", name: "Panier de linge", how: "Trouve 10 chaussettes", cond: { socks: 10 }, icon: "socks", col: "#c0c8d8" },
+  { id: "moitie_chaussettes", name: "Grand panier", how: "Trouve 36 chaussettes", cond: { socks: 36 }, icon: "basket", col: "#fccc28" },
+  { id: "toutes_chaussettes", name: "Chaussettes en or", how: "Trouve les 72 chaussettes", cond: { socks: 72 }, icon: "gold", col: "#ffd23c" },
+  { id: "monde_propre", name: "Monde tout propre", how: "Trouve toutes les chaussettes d'un monde", cond: { socksWorldAny: true }, icon: "star", col: "#7dffb0" },
+  { id: "premier_monde", name: "Premier voyage", how: "Termine un monde", cond: { world: 1 }, icon: "machine", col: "#5ef0ff" },
+  { id: "campagne", name: "Retour à la maison", how: "Termine la campagne", cond: { world: 6 }, icon: "home", col: "#ffd23c" },
+  { id: "premiere_quete", name: "Rendre service", how: "Termine une quête d'un client", cond: { questsDone: 1 }, icon: "bubble", col: "#ff8ab0" },
+  { id: "toutes_quetes", name: "Ami de la laverie", how: "Termine les trois quêtes", cond: { questsDone: 3 }, icon: "heart", col: "#ff4f8a" },
+  { id: "sans_degats", name: "Sans une égratignure", how: "Bats un boss sans être touché", cond: { flag: "noDamageBoss" }, icon: "shield", col: "#7dd8ff" },
+  { id: "premier_programme", name: "Premier programme", how: "Réussis un programme de lavage", cond: { challengesDone: 1 }, icon: "bolt", col: "#ffb43c" },
+  { id: "tous_programmes", name: "Maître lavandier", how: "Réussis les cinq programmes", cond: { programsDone: 5 }, icon: "swirl", col: "#c86eff" },
+  { id: "premiere_categorie", name: "Collectionneur", how: "Complète une catégorie de cartes", cond: { cardCatComplete: 1 }, icon: "card", col: "#5ef0ff" },
+  { id: "album_complet", name: "Album complet", how: "Trouve toutes les cartes", cond: { cardsAll: true }, icon: "book", col: "#ffd23c" },
+  { id: "tous_heros", name: "Toute la bande", how: "Termine une salle avec chacun des 8 héros", cond: { charsAll: true }, icon: "crown", col: "#ff8a3c" },
+  { id: "souvenirs", name: "Mémoire de la machine", how: "Débloque les six souvenirs", cond: { memories: 6 }, icon: "crystal", col: "#ff4fd8" },
+  { id: "ancienne_aventure", name: "Vieux souvenirs", how: "Termine l'ancienne aventure", cond: { bonusWorld: 8 }, icon: "trophy", col: "#b6ff5a" },
+  { id: "doom_boss", name: "Courage de parent", how: "Bats un boss en mode Doom", cond: { flag: "doomBoss" }, icon: "skull", col: "#ff3b5c" },
+  { id: "secret", name: "Chemin secret", how: "Trouve une chaussette dorée cachée", cond: { flag: "secret" }, icon: "key", col: "#fccc28" },
+];
+
+/* ---- Cosmétiques ---- */
+// slot : acc (accessoire de tête), pal (couleurs du héros), fx (couleur du sabre et des effets), machine (machine temporelle).
+// Ils changent l'apparence seulement : les capacités restent celles du héros. Équipés par héros (SAVE.cos.char[id]).
+const COSMETICS = [
+  { id: "acc_chapeau_pirate", slot: "acc", name: "Chapeau de pirate", cond: { quest: "capitaine" }, how: "Quête du capitaine" },
+  { id: "acc_bandana", slot: "acc", name: "Bandana rouge", cond: { socks: 12 }, how: "12 chaussettes" },
+  { id: "acc_echarpe", slot: "acc", name: "Écharpe de nuit", cond: { quest: "kage" }, how: "Quête de Kage" },
+  { id: "acc_couronne_slime", slot: "acc", name: "Couronne de slime", cond: { socksWorld: "01_centrale" }, how: "Toutes les chaussettes de la centrale" },
+  { id: "acc_lunettes", slot: "acc", name: "Lunettes néon", cond: { challenge: "express_centrale" }, how: "Programme Express" },
+  { id: "acc_bonnet", slot: "acc", name: "Bonnet à pompon", cond: { challenge: "froid_usine" }, how: "Programme Lavage à froid" },
+  { id: "acc_casque", slot: "acc", name: "Casque de chantier", cond: { world: 2 }, how: "Termine l'usine" },
+  { id: "acc_bigoudis", slot: "acc", name: "Bigoudis de Mme Bulle", cond: { socks: 24 }, how: "24 chaussettes" },
+  { id: "acc_oreilles", slot: "acc", name: "Oreilles de chauve-souris", cond: { boss: "reine_chauve_souris" }, how: "Bats la reine chauve-souris" },
+  { id: "acc_fleurs", slot: "acc", name: "Couronne de fleurs", cond: { memories: 6 }, how: "Les six souvenirs" },
+  { id: "acc_helice", slot: "acc", name: "Casquette à hélice", cond: { socks: 48 }, how: "48 chaussettes" },
+  { id: "acc_bulle", slot: "acc", name: "Bulle de savon", cond: { socks: 72 }, how: "Les 72 chaussettes" },
+  { id: "pal_menthe", slot: "pal", name: "Menthe", hue: 120, sat: 1, light: 0, cond: { socks: 6 }, how: "6 chaussettes" },
+  { id: "pal_nuit", slot: "pal", name: "Bleu nuit", hue: 200, sat: 0.8, light: -0.08, cond: { challenge: "delicat_temple" }, how: "Programme Délicat" },
+  { id: "pal_coucher", slot: "pal", name: "Coucher de soleil", hue: -40, sat: 1.15, light: 0.02, cond: { socks: 36 }, how: "36 chaussettes" },
+  { id: "pal_rose", slot: "pal", name: "Rose néon", hue: 300, sat: 1.2, light: 0.03, cond: { questsDone: 2 }, how: "Deux quêtes" },
+  { id: "pal_brillant", slot: "pal", name: "Variante brillante", hue: 0, sat: 1.1, light: 0.06, shiny: true, cond: { world: 6 }, how: "Termine la campagne" },
+  { id: "pal_dore", slot: "pal", name: "Doré", gold: true, cond: { cardsAll: true }, how: "Album complet" },
+  { id: "fx_bulles", slot: "fx", name: "Bulles de savon", color: "#9fe8ff", color2: "#ffffff", cond: { questsDone: 1 }, how: "Première quête" },
+  { id: "fx_or", slot: "fx", name: "Éclat d'or", color: "#ffd23c", color2: "#fff4c0", cond: { challengesDone: 2 }, how: "Deux défis réussis" },
+  { id: "fx_glace", slot: "fx", name: "Givre", color: "#bff4ff", color2: "#5ec8ff", cond: { challenge: "essorage_port" }, how: "Programme Essorage" },
+  { id: "fx_feu", slot: "fx", name: "Braise", color: "#ff8a3c", color2: "#ffd23c", cond: { boss: "colosse_lave" }, how: "Bats le colosse de lave" },
+  { id: "fx_ombre", slot: "fx", name: "Ombre violette", color: "#b07dff", color2: "#5a2a9a", cond: { boss: "maitre_ombres" }, how: "Bats le maître des ombres" },
+  { id: "fx_arcenciel", slot: "fx", name: "Arc-en-ciel", rainbow: true, color: "#ff4fd8", color2: "#5ef0ff", cond: { challenge: "solitaire_grotte" }, how: "Programme Chaussette solitaire" },
+  { id: "machine_neon", slot: "machine", name: "Machine néon", hue: 260, sat: 1.3, light: 0.04, cond: { socks: 30 }, how: "30 chaussettes" },
+  { id: "machine_menthe", slot: "machine", name: "Machine menthe", hue: 110, sat: 1, light: 0, cond: { world: 3 }, how: "Termine le temple" },
+  { id: "machine_doree", slot: "machine", name: "Machine dorée", gold: true, cond: { world: 6 }, how: "Termine la campagne" },
+];
+const COS_BY_ID = Object.fromEntries(COSMETICS.map(c => [c.id, c]));
+const COS_SLOTS = [["acc", "Tenue"], ["pal", "Couleurs"], ["fx", "Sabre et effets"]];
+
+/* ---- Décoration de la laverie ---- */
+// slot : tile (carrelage), light (éclairage), sign (couleur de l'enseigne), item (objet du coin détente, à poser ou ranger).
+// Les affiches, la vitrine, le présentoir et l'étendoir suivent les progrès du joueur (show : on peut les masquer).
+const DECOR = [
+  { id: "tile_damier", slot: "tile", name: "Damier", cond: { start: true }, how: "", colors: ["#d8d4e8", "#3a3450"] },
+  { id: "tile_losanges", slot: "tile", name: "Losanges", cond: { socks: 18 }, how: "18 chaussettes", colors: ["#7a5aa8", "#3a2a5a"] },
+  { id: "tile_bleu", slot: "tile", name: "Bleu piscine", cond: { world: 2 }, how: "Termine l'usine", colors: ["#5ac8e8", "#2a6a8a"] },
+  { id: "tile_neon", slot: "tile", name: "Néon", cond: { socks: 60 }, how: "60 chaussettes", colors: ["#1a1030", "#ff4fd8"] },
+  { id: "light_blanc", slot: "light", name: "Blanc", cond: { start: true }, how: "", color: "255,250,235" },
+  { id: "light_rose", slot: "light", name: "Rose", cond: { world: 3 }, how: "Termine le temple", color: "255,120,220" },
+  { id: "light_cyan", slot: "light", name: "Cyan", cond: { challengesDone: 1 }, how: "Un programme réussi", color: "120,240,255" },
+  { id: "light_or", slot: "light", name: "Or", cond: { world: 6 }, how: "Termine la campagne", color: "255,210,90" },
+  { id: "sign_violet", slot: "sign", name: "Violet", cond: { start: true }, how: "", color: "#c86eff" },
+  { id: "sign_cyan", slot: "sign", name: "Cyan", cond: { world: 1 }, how: "Termine la centrale", color: "#5ef0ff" },
+  { id: "sign_rose", slot: "sign", name: "Rose", cond: { badge: "premiere_chaussette" }, how: "Badge « Première chaussette »", color: "#ff4fd8" },
+  { id: "sign_vert", slot: "sign", name: "Vert", cond: { questsDone: 1 }, how: "Une quête terminée", color: "#7dffb0" },
+  { id: "sign_or", slot: "sign", name: "Or", cond: { socks: 72 }, how: "Les 72 chaussettes", color: "#ffd23c" },
+  { id: "item_canape", slot: "item", name: "Canapé", cond: { world: 1 }, how: "Termine la centrale" },
+  { id: "item_plante", slot: "item", name: "Plante verte", cond: { socks: 6 }, how: "6 chaussettes" },
+  { id: "item_distributeur", slot: "item", name: "Distributeur de jus", cond: { world: 4 }, how: "Termine le volcan" },
+  { id: "item_panier", slot: "item", name: "Panier à linge", cond: { socks: 30 }, how: "30 chaussettes" },
+  { id: "item_table", slot: "item", name: "Table basse", cond: { questsDone: 1 }, how: "Une quête terminée" },
+  { id: "item_drapeau", slot: "item", name: "Drapeau pirate", cond: { quest: "capitaine" }, how: "Quête du capitaine" },
+  { id: "item_affiche_bobine", slot: "item", name: "Affiche de Bobine", cond: { quest: "bobine" }, how: "Quête de Bobine" },
+  { id: "item_lanterne", slot: "item", name: "Lanterne du temple", cond: { quest: "kage" }, how: "Quête de Kage" },
+];
+const DECOR_BY_ID = Object.fromEntries(DECOR.map(d => [d.id, d]));
+const DECOR_SLOTS = [["tile", "Carrelage"], ["light", "Éclairage"], ["sign", "Enseigne"], ["machine", "Machine"], ["item", "Coin détente"], ["show", "Trophées"]];
+// éléments qui reflètent les progrès (toujours débloqués, on peut seulement les masquer)
+const SHOWCASE = [["affiches", "Affiches des boss vaincus"], ["vitrine", "Vitrine à trophées"], ["presentoir", "Présentoir à badges"], ["etendoir", "Étendoir à chaussettes"]];
+
+/* ---- Paliers de chaussettes ---- */
+// Annoncés dans le menu de collection ; les récompenses sont celles dont la condition est { socks: n }.
+const SOCK_TIERS = [6, 10, 12, 18, 24, 30, 36, 48, 60, 72];
+
+/* ---- Souvenirs de la machine ---- */
+// Un par monde, débloqué en ramenant la pièce du monde. scene : illustration provisoire dessinée par le code
+// (remplacée par assets/laverie/souvenir_<n>.png quand elle existe).
+const MEMORIES = [
+  { id: "souvenir_1", world: "01_centrale", title: "L'atelier de Grand-père Firmin", cond: { world: 1 }, scene: "atelier",
+    lines: ["Il y a longtemps, Grand-père Firmin avait un atelier plein d'outils.", "Il construisit une machine à laver ronde : la Lavotron 3000.", "« Elle lavera le linge plus vite que l'éclair ! » disait-il."] },
+  { id: "souvenir_2", world: "02_usine", title: "La première chaussette", cond: { world: 2 }, scene: "chaussette",
+    lines: ["Le premier jour, la machine tourna si vite…", "… qu'une chaussette disparut dans un tourbillon d'étoiles !", "Firmin comprit : sa machine voyageait dans le temps. Et les chaussettes aussi."] },
+  { id: "souvenir_3", world: "03_temple", title: "La nuit de l'orage", cond: { world: 3 }, scene: "orage",
+    lines: ["Un soir d'orage, un éclair tomba sur la laverie.", "Le programmateur se fendit en mille étincelles.", "Depuis, la machine choisit ses programmes toute seule."] },
+  { id: "souvenir_4", world: "04_volcan", title: "Les pièces envolées", cond: { world: 4 }, scene: "pieces",
+    lines: ["Six pièces s'échappèrent par le hublot.", "Elles tombèrent dans six époques différentes.", "Les boss les trouvèrent si brillantes qu'ils les gardèrent comme des trésors."] },
+  { id: "souvenir_5", world: "05_port", title: "Le grand plongeon", cond: { world: 5 }, scene: "plongeon",
+    lines: ["Bien plus tard, huit amis entrèrent dans la laverie.", "La machine s'alluma toute seule : BLOUB !", "Le hublot les aspira, comme un grand toboggan."] },
+  { id: "souvenir_6", world: "06_grotte", title: "Le message de Firmin", cond: { world: 6 }, scene: "message",
+    lines: ["Dans le cristal, Firmin sourit.", "« Avec les six pièces, appuie sur le bouton en forme de maison. »", "« Le programme Retour à la maison ramènera tout le monde. Même les chaussettes ! »"] },
+];
+const MEM_BY_ID = Object.fromEntries(MEMORIES.map(m => [m.id, m]));
+
+/* ---- Programmes de lavage et défis ---- */
+// Les programmes sont des variantes de salles existantes (copies : la campagne n'est jamais modifiée).
+// Ils sont distincts des difficultés Facile, Normal et Doom, qui restent appliquées.
+const PROGRAMS = {
+  express: { name: "Express", color: "#ffb43c", icon: "⏱", rule: "Atteins la sortie avant la fin du chronomètre." },
+  delicat: { name: "Délicat", color: "#ff8ab0", icon: "♥", rule: "Termine sans te faire toucher une seule fois." },
+  essorage: { name: "Essorage", color: "#7dd8ff", icon: "≋", rule: "Des bourrasques de vent soufflent. Elles sont annoncées avant." },
+  froid: { name: "Lavage à froid", color: "#bff4ff", icon: "❄", rule: "Le sol est gelé : ça glisse !" },
+  solitaire: { name: "Chaussette solitaire", color: "#c86eff", icon: "?", rule: "Retrouve la chaussette cachée grâce aux indices." },
+};
+// rooms : salles jouées à la suite. unlock : condition d'accès. reward : récompenses à la première réussite.
+// limit : temps (s) pour Express et Chaussette solitaire, calibré sans dash ni super vitesse.
+// win / lose : textes affichés avant le départ. record : "time" (plus petit = mieux).
+const CHALLENGES = [
+  { id: "express_centrale", prog: "express", world: "01_centrale", rooms: ["centrale_01", "centrale_02", "centrale_03"], limit: 50, unlock: { world: 1 },
+    win: "Passer la porte de la salle 3 avant 0 s", lose: "Le chronomètre arrive à 0", reward: ["cos:acc_lunettes"], record: "time" },
+  { id: "delicat_temple", prog: "delicat", world: "03_temple", rooms: ["temple_02"], unlock: { world: 3 },
+    win: "Passer la porte sans être touché", lose: "Un seul coup reçu (le bouclier protège)", reward: ["cos:pal_nuit"], record: "time" },
+  { id: "essorage_port", prog: "essorage", world: "05_port", rooms: ["port_02"], unlock: { world: 5 }, gust: { every: 4.5, warn: 1.5, push: 1.2, force: 120 },
+    win: "Passer la porte malgré le vent", lose: "Pas d'échec : si tu tombes, la salle recommence", reward: ["cos:fx_glace"], record: "time" },
+  { id: "froid_usine", prog: "froid", world: "02_usine", rooms: ["usine_02"], unlock: { world: 2 }, grip: 0.22,
+    win: "Passer la porte sur le sol gelé", lose: "Pas d'échec : si tu tombes, la salle recommence", reward: ["cos:acc_bonnet"], record: "time" },
+  { id: "solitaire_grotte", prog: "solitaire", world: "06_grotte", rooms: ["grotte_04"], unlock: { world: 6 }, limit: 120,
+    hints: ["Elle n'aime pas le sol : elle se cache en hauteur.", "Elle se cache du côté gauche de la salle.", "Elle brille quand tu passes tout près."],
+    win: "Trouver la chaussette cachée", lose: "Le temps arrive à 0", reward: ["cos:fx_arcenciel"], record: "time" },
+];
+const CHAL_BY_ID = Object.fromEntries(CHALLENGES.map(c => [c.id, c]));
+
+/* ---- Quêtes des clients ---- */
+// appear : condition d'apparition dans la laverie. goal : objectif (items à ramasser dans les salles, ou défi à réussir).
+// Les objets de quête sont placés dans AJOUTS.questItems et n'apparaissent que pendant la quête.
+// after : dialogues une fois la quête terminée, qui évoluent avec la progression (la dernière qui convient est choisie).
+const QUESTS = [
+  { id: "bobine", npc: "bobine", appear: { world: 2 }, x: 300,
+    intro: [["bobine", "Bip ! Bonjour ! Mon tee-shirt rétrécit à chaque lavage."], ["bobine", "Je le lave à 90 degrés. C'est normal, non ?"], ["bulle", "Ha ha ! Trop chaud, ça rétrécit !"], ["bobine", "Montre-moi le programme « Lavage à froid » ! Bip ?"]],
+    goal: { type: "challenge", challenge: "froid_usine", text: "Réussis le programme « Lavage à froid » (machine de défis)" },
+    outro: [["bobine", "BIP ! Mon linge reste à la bonne taille !"], ["bobine", "Tiens, voici une affiche de moi. Je suis très beau dessus."]],
+    reward: ["card:pnj_bobine", "decor:item_affiche_bobine"], rewardText: "Carte de Bobine et son affiche pour la laverie",
+    after: [{ cond: { start: true }, lines: [["bobine", "Bip ! Je lave tout à froid maintenant."]] },
+      { cond: { world: 4 }, lines: [["bobine", "Le volcan, c'est trop chaud pour le linge. Bip."]] },
+      { cond: { world: 6 }, lines: [["bobine", "La machine est réparée ! Je vais laver mes boulons."]] }] },
+  { id: "kage", npc: "kage", appear: { world: 3 }, x: 386,
+    intro: [["kage", "… Pardon, je ne voulais pas te faire peur."], ["kage", "J'ai perdu ma ceinture dans les ombres du temple."], ["kage", "Elle s'est coupée en trois morceaux. Tu peux les retrouver ?"]],
+    goal: { type: "items", items: ["ceinture_1", "ceinture_2", "ceinture_3"], text: "Retrouve les 3 morceaux de ceinture dans le temple" },
+    outro: [["kage", "Ma ceinture ! Mon kimono ne flotte plus."], ["kage", "Prends cette écharpe de nuit. Elle rend… un peu plus discret."]],
+    reward: ["card:pnj_kage", "cos:acc_echarpe", "decor:item_lanterne", "track:ombres_kage"], rewardText: "Carte de Kage, écharpe de nuit, lanterne et une musique",
+    after: [{ cond: { start: true }, lines: [["kage", "… Tu ne m'avais pas vu ? C'est normal."]] },
+      { cond: { world: 5 }, lines: [["kage", "Le capitaine fait beaucoup de bruit. Les ninjas, non."]] }] },
+  { id: "capitaine", npc: "capitaine", appear: { world: 4 }, x: 146,
+    intro: [["capitaine", "Mille sabords ! Ma chaussette rayée a disparu !"], ["capitaine", "La machine l'a envoyée dans le volcan, j'en suis sûr."], ["capitaine", "Trouve-la, moussaillon, et je te donne un trésor !"]],
+    goal: { type: "items", items: ["chaussette_rayee"], text: "Retrouve la chaussette rayée du capitaine dans le volcan" },
+    outro: [["capitaine", "Ma chaussette ! Encore un peu chaude, mais elle sent bon le pirate."], ["capitaine", "Voici mon vieux chapeau et mon drapeau. Et ma chanson !"]],
+    reward: ["card:pnj_capitaine", "cos:acc_chapeau_pirate", "decor:item_drapeau", "track:chanson_capitaine"], rewardText: "Carte du capitaine, chapeau, drapeau et sa chanson",
+    after: [{ cond: { start: true }, lines: [["capitaine", "Deux pieds chaussés ! Je suis le pirate le plus élégant des sept mers."]] },
+      { cond: { world: 5 }, lines: [["capitaine", "Tu as battu le Singe roi ? C'était mon perroquet… enfin, presque."]] },
+      { cond: { world: 6 }, lines: [["capitaine", "Une machine réparée, des chaussettes propres : la belle vie !"]] }] },
+];
+const QUEST_BY_ID = Object.fromEntries(QUESTS.map(q => [q.id, q]));
+
+/* ---- Jukebox ---- */
+// base : musique (chemin dans audio/, sans .mp3) ou synth:<thème> (composition WebAudio du jeu).
+// Une piste débloquée dont le fichier manque est affichée comme « à venir » (fichier attendu indiqué).
+const TRACKS = [
+  { id: "helio_1", group: "Héros", name: "Thème d'Hélio", base: "musique/heros/backgroundhelio", cond: { start: true }, how: "" },
+  { id: "helio_2", group: "Héros", name: "Thème d'Hélio 2", base: "musique/heros/backgroundhelio2", cond: { start: true }, how: "" },
+  { id: "lune_1", group: "Héros", name: "Thème de Lune", base: "musique/heros/backgroundlune", cond: { start: true }, how: "" },
+  { id: "lune_2", group: "Héros", name: "Thème de Lune 2", base: "musique/heros/backgroundlune2", cond: { start: true }, how: "" },
+  { id: "lune_3", group: "Héros", name: "Thème de Lune 3", base: "musique/heros/backgroundlune3", cond: { start: true }, how: "" },
+  ...["robot", "singe", "ninja", "rumi", "steve", "homme"].map(id => ({ id: "synth_" + id, group: "Héros", name: `Thème : ${{ robot: "Robot", singe: "Singe", ninja: "Ninja", rumi: "Rumi", steve: "Steve", homme: "Randonneur" }[id]}`,
+    base: "synth:" + id, cond: { char: id }, how: "Termine une salle avec ce héros" })),
+  { id: "laverie", group: "Laverie", name: "La laverie", base: "musique/laverie/laverie", cond: { start: true }, how: "" },
+  { id: "laverie_nuit", group: "Laverie", name: "La laverie, la nuit", base: "musique/laverie/laverie_nuit", cond: { world: 6 }, how: "Termine la campagne" },
+  { id: "defis", group: "Laverie", name: "Programmes de lavage", base: "musique/defis/defis", cond: { challengesDone: 1 }, how: "Réussis un programme" },
+  ...[["centrale", "01_centrale", "Centrale électrique"], ["usine", "02_usine", "Usine robotique"], ["temple", "03_temple", "Temple des ombres"],
+    ["volcan", "04_volcan", "Volcan primordial"], ["port", "05_port", "Port pirate"], ["grotte", "06_grotte", "Grotte néon"]].map(([s, w, n]) =>
+    ({ id: "monde_" + s, group: "Mondes", name: n, base: "musique/mondes/" + s, cond: { visited: w }, how: "Entre dans ce monde" })),
+  ...[["roi_slime", "Roi Slime électrique"], ["drone_titan", "Drone Titan"], ["maitre_ombres", "Maître des ombres"], ["colosse_lave", "Colosse de lave"],
+    ["singe_roi_pirate", "Singe roi pirate"], ["reine_chauve_souris", "Reine chauve-souris néon"]].map(([b, n]) =>
+    ({ id: "boss_" + b, group: "Boss", name: n, base: "musique/boss/" + b, cond: { boss: b }, how: "Bats ce boss" })),
+  { id: "boss_synth", group: "Boss", name: "Combat (composition)", base: "synth:boss", cond: { boss: "roi_slime" }, how: "Bats un boss" },
+  { id: "doom_1", group: "Doom", name: "Mode Doom", base: "musique/doom/doombackground", cond: { flag: "doomRoom" }, how: "Termine une salle en mode Doom" },
+  { id: "doom_2", group: "Doom", name: "Mode Doom 2", base: "musique/doom/doombackground2", cond: { flag: "doomRoom" }, how: "Termine une salle en mode Doom" },
+  { id: "prologue", group: "Histoire", name: "Prologue", base: "musique/histoire/prologue", cond: { met: "bulle" }, how: "" },
+  { id: "souvenir", group: "Histoire", name: "Souvenirs", base: "musique/histoire/souvenir", cond: { memories: 1 }, how: "Débloque un souvenir" },
+  { id: "fin", group: "Histoire", name: "Retour à la maison", base: "musique/histoire/fin", cond: { world: 6 }, how: "Termine la campagne" },
+  { id: "generique", group: "Histoire", name: "Générique", base: "musique/histoire/generique", cond: { world: 6 }, how: "Termine la campagne" },
+  { id: "chanson_capitaine", group: "Quêtes", name: "Chanson du capitaine", base: "musique/quetes/chanson_capitaine", cond: { quest: "capitaine" }, how: "Quête du capitaine" },
+  { id: "danse_bobine", group: "Quêtes", name: "Danse de Bobine", base: "musique/quetes/danse_bobine", cond: { quest: "bobine" }, how: "Quête de Bobine" },
+  { id: "ombres_kage", group: "Quêtes", name: "Ombres de Kage", base: "musique/quetes/ombres_kage", cond: { quest: "kage" }, how: "Quête de Kage" },
+];
+const TRACK_BY_ID = Object.fromEntries(TRACKS.map(t => [t.id, t]));
+const trackAvailable = t => t.base.startsWith("synth:") ? !!SYNTH_THEMES[t.base.slice(6)] : hasSound(t.base);
+
+/* ---------------- Sauvegarde commune (version 3) ---------------- */
+// Une seule sauvegarde pour tous les héros, dans localStorage (lunelio-save). Les réglages restent dans lunelio-options.
+// SAVE.got est le registre des récompenses déjà données : grant() n'agit qu'une fois par clé, même après un rechargement.
+// Migration : les anciennes clés (lunelio-v2-…, lunelio-progress-…, lunelio-best-…) sont relues une fois, puis laissées en place
+// (une ancienne version du jeu reste donc jouable si on revient en arrière).
+const SAVE_KEY = "lunelio-save", SAVE_VERSION = 3;
+function newSave() {
+  return {
+    v: SAVE_VERSION,
+    camp: { done: 0, resume: {}, rooms: {}, visited: {} },   // done : mondes terminés ; resume : salle où reprendre par monde
+    bonus: { done: 0 },                                      // ancienne aventure : mondes terminés
+    best: {},                                                // "camp|diff|monde" ou "bonus|diff|monde" → { time, deaths }
+    socks: {}, gold: {},                                     // chaussettes principales (par salle) et dorées (chemins secrets)
+    seen: { foe: {}, oldFoe: {}, boss: {}, oldBoss: {}, phase: {}, char: {}, met: {} },
+    flags: {}, got: {}, quests: {}, chal: {}, memSeen: {}, repaired: {},
+    cos: { char: {}, machine: null, hub: { tile: "tile_damier", light: "light_blanc", sign: "sign_violet", items: {}, show: {} } },
+    jukebox: null, lastChar: null,
+  };
+}
+let SAVE = newSave();
+function saveGame() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) {} }
+// Complète une sauvegarde relue avec les champs manquants (versions futures ou fichier abîmé)
+function fillSave(o) {
+  const base = newSave();
+  const fill = (dst, src) => { for (const k in src) { if (dst[k] === undefined || dst[k] === null && src[k] !== null) dst[k] = src[k]; else if (src[k] && typeof src[k] === "object" && !Array.isArray(src[k]) && typeof dst[k] === "object") fill(dst[k], src[k]); } };
+  fill(o, base); o.v = SAVE_VERSION;
+  o.camp.done = clamp(+o.camp.done || 0, 0, CWORLDS.length); o.bonus.done = clamp(+o.bonus.done || 0, 0, WORLDS.length);
+  return o;
+}
+function loadGame() {
+  let o = null;
+  try { o = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); } catch (e) { o = null; }
+  if (o && typeof o === "object" && o.v >= 3) { SAVE = fillSave(o); }
+  else { SAVE = migrateOld(); saveGame(); }
+  checkUnlocks(true);
+}
+// Relit les sauvegardes des versions précédentes (par personnage) et les fusionne : le meilleur de chaque héros est gardé.
+function migrateOld() {
+  const S = newSave(), get = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const ids = CHARS.map(C => C.id);
+  let any = false;
+  for (const id of ids) {
+    const p = +get(`lunelio-v2-progress-${id}`) || 0; if (p) any = true;
+    S.camp.done = Math.max(S.camp.done, clamp(p, 0, CWORLDS.length));
+    if (p > 0) S.seen.char[id] = 1;
+    const b = +get(`lunelio-progress-${id}`) || 0; S.bonus.done = Math.max(S.bonus.done, clamp(b, 0, WORLDS.length));
+    CWORLDS.forEach(W => {
+      const r = +get(`lunelio-v2-room-${id}-${W.id}`) || 0; if (r > (S.camp.resume[W.id] || 0)) S.camp.resume[W.id] = r;
+      for (const D of DIFFS) {
+        let v = null; try { v = JSON.parse(get(`lunelio-v2-best-${id}-${D.id}-${W.id}`) || "null"); } catch (e) {}
+        const k = `camp|${D.id}|${W.id}`; if (v && typeof v.time === "number" && (!S.best[k] || v.time < S.best[k].time)) S.best[k] = { time: v.time, deaths: v.deaths || 0 };
+      }
+    });
+    WORLDS.forEach((W, wi) => {
+      for (const D of DIFFS) {
+        let v = null; try { v = JSON.parse(get(`lunelio-best-${id}-${D.id}-${wi}`) || "null"); } catch (e) {}
+        const k = `bonus|${D.id}|${wi}`; if (v && typeof v.time === "number" && (!S.best[k] || v.time < S.best[k].time)) S.best[k] = { time: v.time, deaths: v.deaths || 0 };
+      }
+    });
+  }
+  // mondes déjà terminés : boss et ennemis vaincus, pièces déjà réparées (pas de dialogue rejoué)
+  for (let i = 0; i < S.camp.done; i++) { const W = CWORLDS[i]; S.seen.boss[W.boss] = 1; S.seen.foe[W.enemy] = 1; S.camp.visited[W.id] = 1; S.repaired[W.id] = 1; S.seen.phase[W.boss] = BIG[W.boss].moves.length; }
+  if (S.camp.done < CWORLDS.length && S.camp.done > 0) S.camp.visited[CWORLDS[S.camp.done].id] = 1;
+  for (let i = 0; i < S.bonus.done; i++) S.seen.oldBoss[WORLDS[i].id] = 1;
+  if (S.bonus.done > 0) { S.seen.oldFoe.walker = 1; S.seen.oldFoe.shooter = 1; }
+  S.lastChar = get("lunelio-perso");
+  if (any) S.flags.migrated = 2;
+  return S;
+}
+// Remet tout à zéro (écran des options, avec confirmation) : les réglages ne bougent pas
+function resetGame() { SAVE = newSave(); saveGame(); checkUnlocks(true); }
+
+/* ---- Compteurs ---- */
+const SOCK_ROOMS = Object.keys(AJOUTS.socks || {});
+const socksCount = () => SOCK_ROOMS.filter(r => SAVE.socks[r]).length;
+const socksTotal = () => SOCK_ROOMS.length;
+const worldRooms = wid => (CWORLDS.find(W => W.id === wid) || { rooms: [] }).rooms.map(r => r.id);
+const socksInWorld = wid => worldRooms(wid).filter(r => SAVE.socks[r]).length;
+const socksWorldTotal = wid => worldRooms(wid).filter(r => AJOUTS.socks[r]).length;
+const questsDone = () => QUESTS.filter(q => (SAVE.quests[q.id] || {}).st === "done").length;
+const challengesDone = () => CHALLENGES.filter(c => (SAVE.chal[c.id] || {}).done).length;
+const programsDone = () => new Set(CHALLENGES.filter(c => (SAVE.chal[c.id] || {}).done).map(c => c.prog)).size;
+const has = key => !!SAVE.got[key];
+const memoriesCount = () => MEMORIES.filter(m => has("mem:" + m.id)).length;
+const cardsIn = cat => CARDS.filter(c => c.cat === cat);
+const catComplete = cat => cardsIn(cat).every(c => has("card:" + c.id));
+
+// Évalue une condition des registres (voir l'en-tête de registres.js)
+function testCond(c) {
+  if (!c) return false;
+  if (c.all) return c.all.every(testCond);
+  if (c.start) return true;
+  if (c.world !== undefined) return SAVE.camp.done >= c.world;
+  if (c.boss) return !!SAVE.seen.boss[c.boss];
+  if (c.foe) return !!SAVE.seen.foe[c.foe];
+  if (c.char) return !!SAVE.seen.char[c.char];
+  if (c.socks !== undefined) return socksCount() >= c.socks;
+  if (c.socksWorld) return socksWorldTotal(c.socksWorld) > 0 && socksInWorld(c.socksWorld) >= socksWorldTotal(c.socksWorld);
+  if (c.socksWorldAny) return CWORLDS.some(W => socksWorldTotal(W.id) > 0 && socksInWorld(W.id) >= socksWorldTotal(W.id));
+  if (c.quest) return (SAVE.quests[c.quest] || {}).st === "done";
+  if (c.questsDone !== undefined) return questsDone() >= c.questsDone;
+  if (c.challenge) return !!(SAVE.chal[c.challenge] || {}).done;
+  if (c.challengesDone !== undefined) return challengesDone() >= c.challengesDone;
+  if (c.programsDone !== undefined) return programsDone() >= c.programsDone;
+  if (c.memory) return has("mem:" + c.memory);
+  if (c.memories !== undefined) return memoriesCount() >= c.memories;
+  if (c.badge) return has("badge:" + c.badge);
+  if (c.cardCat) return catComplete(c.cardCat);
+  if (c.cardCatComplete !== undefined) return CARD_CATS.filter(([k]) => catComplete(k)).length >= c.cardCatComplete;
+  if (c.cardsAll) return CARDS.every(k => has("card:" + k.id));
+  if (c.charsAll) return CHARS.every(C => SAVE.seen.char[C.id]);
+  if (c.oldFoe) return !!SAVE.seen.oldFoe[c.oldFoe];
+  if (c.oldBoss) return !!SAVE.seen.oldBoss[c.oldBoss];
+  if (c.bonusWorld !== undefined) return SAVE.bonus.done >= c.bonusWorld;
+  if (c.flag) return !!SAVE.flags[c.flag];
+  if (c.visited) return !!SAVE.camp.visited[c.visited];
+  if (c.met) return !!SAVE.seen.met[c.met];
+  return false;
+}
+
+/* ---- Récompenses ---- */
+// Annonces à l'écran (une à la fois) : nouvelle carte, badge, cosmétique, décoration, musique, souvenir, palier
+let toasts = [];
+const REWARD_INFO = {
+  card: [k => (CARD_BY_ID[k] || {}).name || heroCardName(k), "Nouvelle carte", "card"],
+  badge: [k => (BADGES.find(b => b.id === k) || {}).name, "Nouveau badge", "badge"],
+  cos: [k => (COS_BY_ID[k] || {}).name, "Nouvelle tenue", "equip"],
+  decor: [k => (DECOR_BY_ID[k] || {}).name, "Nouvelle décoration", "equip"],
+  track: [k => (TRACK_BY_ID[k] || {}).name, "Nouvelle musique", "coin"],
+  mem: [k => (MEM_BY_ID[k] || {}).title, "Nouveau souvenir", "memory"],
+};
+function heroCardName(k) { const C = CHARS.find(c => "heros_" + c.id === k); return C ? C.name : k; }
+function toast(title, sub, snd, col = "#7dffb0") { toasts.push({ title, sub, t: 0, col, snd }); }
+// Donne une récompense une seule fois ; silent : sans annonce (chargement, migration)
+function grant(key, silent) {
+  if (!key || SAVE.got[key]) return false;
+  SAVE.got[key] = 1;
+  const [type, id] = key.split(/:(.*)/);
+  const R = REWARD_INFO[type];
+  if (R && !silent) toast(R[1], R[0](id) || id, R[2], type === "badge" ? "#fccc28" : type === "mem" ? "#ff8ab0" : "#7dffb0");
+  return true;
+}
+// Passe en revue tous les registres et donne ce qui vient d'être mérité (plusieurs tours : un badge peut en débloquer un autre)
+function checkUnlocks(silent) {
+  for (let pass = 0; pass < 3; pass++) {
+    let changed = false;
+    const list = [
+      ...CARDS.filter(c => c.cond).map(c => ["card:" + c.id, c.cond]),
+      ...BADGES.map(b => ["badge:" + b.id, b.cond]),
+      ...COSMETICS.map(c => ["cos:" + c.id, c.cond]),
+      ...DECOR.map(d => ["decor:" + d.id, d.cond]),
+      ...TRACKS.map(t => ["track:" + t.id, t.cond]),
+      ...MEMORIES.map(m => ["mem:" + m.id, m.cond]),
+    ];
+    // une musique dont le fichier manque est débloquée sans annonce (le jukebox l'affiche « à venir »)
+    const quiet = key => key.startsWith("track:") && !trackAvailable(TRACK_BY_ID[key.slice(6)]);
+    for (const [key, cond] of list) if (!SAVE.got[key] && testCond(cond)) { grant(key, silent || !!cond.start || quiet(key)); changed = true; }
+    if (!changed) break;
+  }
+  for (const n of SOCK_TIERS) { const k = "tier:" + n; if (!SAVE.got[k] && socksCount() >= n) { SAVE.got[k] = 1; if (!silent) toast("Palier atteint !", `${n} chaussettes`, "milestone", "#fccc28"); } }
+  updateQuests();
+  saveGame();
+}
+// Avancée des quêtes : objets ramassés ou défi réussi → la quête est prête à être rendue au client
+function updateQuests() {
+  for (const q of QUESTS) {
+    const s = SAVE.quests[q.id]; if (!s || s.st !== "active") continue;
+    const g = q.goal;
+    const ok = g.type === "items" ? g.items.every(i => s.items && s.items[i]) : g.type === "challenge" ? !!(SAVE.chal[g.challenge] || {}).done : false;
+    if (ok) { s.st = "ready"; toast("Quête accomplie !", `Va voir ${NPCS[q.npc].name}`, "quest_done", "#ff8ab0"); }
+  }
+}
+// Événements du jeu : chaque système appelle emit(), qui note le fait puis vérifie les récompenses
+function emit(type, d = {}) {
+  const S = SAVE;
+  switch (type) {
+    case "sock": if (S.socks[d.room]) return; S.socks[d.room] = 1; break;
+    case "gold": if (S.gold[d.id]) return; S.gold[d.id] = 1; S.flags.secret = 1; break;
+    case "foe": if (S.seen.foe[d.sp]) return; S.seen.foe[d.sp] = 1; break;
+    case "oldFoe": if (S.seen.oldFoe[d.type]) return; S.seen.oldFoe[d.type] = 1; break;
+    case "phase": if ((S.seen.phase[d.id] || 0) >= d.n) return; S.seen.phase[d.id] = d.n; break;
+    case "boss": S.seen.boss[d.id] = 1; if (d.noDamage) S.flags.noDamageBoss = 1; if (d.doom) S.flags.doomBoss = 1; break;
+    case "oldBoss": S.seen.oldBoss[d.wid] = 1; if (d.doom) S.flags.doomBoss = 1; break;
+    case "roomDone": S.camp.rooms[d.room] = 1; S.seen.char[d.char] = 1; if (d.doom) S.flags.doomRoom = 1; break;
+    case "worldDone": S.camp.done = Math.max(S.camp.done, d.wi + 1); break;
+    case "bonusDone": S.bonus.done = Math.max(S.bonus.done, d.wi + 1); break;
+    case "visit": if (S.camp.visited[d.wid]) return; S.camp.visited[d.wid] = 1; break;
+    case "met": if (S.seen.met[d.npc]) return; S.seen.met[d.npc] = 1; break;
+    case "questItem": { const s = S.quests[d.quest]; if (!s || s.st !== "active" || (s.items && s.items[d.id])) return; s.items = s.items || {}; s.items[d.id] = 1; break; }
+    case "challenge": { const c = S.chal[d.id] = S.chal[d.id] || { best: {} }; c.done = 1; break; }
+  }
+  checkUnlocks(false);
+}
+
+/* ---- Accès pratiques (campagne et ancienne aventure) ---- */
+const campProgress = () => SAVE.camp.done;
+function setCampProgress(n) { if (n > SAVE.camp.done) { SAVE.camp.done = clamp(n, 0, CWORLDS.length); checkUnlocks(false); } }
+function campResume(wi) { return clamp(+SAVE.camp.resume[CWORLDS[wi].id] || 0, 0, CWORLDS[wi].rooms.length - 1); }
+function setCampResume(wi, ri) { if (ri > 0) SAVE.camp.resume[CWORLDS[wi].id] = ri; else delete SAVE.camp.resume[CWORLDS[wi].id]; saveGame(); }
+const campBestKey = wi => `camp|${df().id}|${CWORLDS[wi].id}`;
+function campBest(wi) { return SAVE.best[campBestKey(wi)] || null; }
+function getProgress() { return Math.min(WORLDS.length, SAVE.bonus.done); }
+function setProgress(n) { if (n > SAVE.bonus.done) emit("bonusDone", { wi: n - 1 }); }
+const bestKey = wi => `bonus|${df().id}|${wi}`;
+function getBest(wi) { return SAVE.best[bestKey(wi)] || null; }
+function setBest(k, v) { SAVE.best[k] = v; saveGame(); }
+
+/* ---- Annonces ---- */
+function updateToasts(rdt) {
+  const t = toasts[0]; if (!t) return;
+  if (t.t === 0 && t.snd) audio.sfx(t.snd);
+  t.t += rdt; if (t.t > 2.6) toasts.shift();
+}
+function drawToasts() {
+  const t = toasts[0]; if (!t) return;
+  const k = Math.min(1, t.t / 0.25, (2.6 - t.t) / 0.3), y = 24 + (1 - k) * -30;
+  ctx.font = `700 9px ${FONT}`; const w = Math.max(120, ctx.measureText(t.sub).width + 24);
+  ctx.globalAlpha = Math.max(0, k);
+  R(Math.round(VW - w - 8), Math.round(y), Math.round(w), 26, "rgba(10,6,24,0.92)");
+  ctx.strokeStyle = t.col; ctx.lineWidth = 1; ctx.strokeRect(Math.round(VW - w - 8) + 0.5, Math.round(y) + 0.5, Math.round(w) - 1, 25);
+  text(t.title, VW - w / 2 - 8, y + 8, 7, t.col, "center");
+  text(t.sub, VW - w / 2 - 8, y + 18, 9, "#ffffff", "center");
+  ctx.globalAlpha = 1;
+}
+loadGame();
+
+/* ---------------- laverie ---------------- */
+
+/* ---------------- ecrans ---------------- */
+
+/* ---------------- defis ---------------- */
+function chalRoomDone() { return false; }
+function chalWin() {}
+function drawChalHUD() {}
+
 /* ---------------- Menu ---------------- */
 // Écran titre : difficulté, Options, Jouer (→ choix du héros → choix des mondes)
 const UI = {
@@ -3051,10 +3860,6 @@ const UI = {
 const inside = (r) => mouse.x >= r.x && mouse.x <= r.x + r.w && mouse.y >= r.y && mouse.y <= r.y + r.h;
 function goMenu() { state = "menu"; setTimeFx(false, false); }
 function startGame() { audio.sfx("start"); openChars(); }
-function getProgress() { try { return Math.min(WORLDS.length, +localStorage.getItem(`lunelio-progress-${ch().id}`) || 0); } catch (e) { return 0; } }
-function setProgress(n) { try { if (n > getProgress()) localStorage.setItem(`lunelio-progress-${ch().id}`, String(n)); } catch (e) {} }
-const bestKey = wi => `lunelio-best-${ch().id}-${df().id}-${wi}`;
-function getBest(wi) { try { return JSON.parse(localStorage.getItem(bestKey(wi)) || "null"); } catch (e) { return null; } }
 let worldSel = 0, thumbs = null, thumbsFor = null, curWorld = 0;
 // Choix des mondes : pages de 4 × 2 ; au-delà de 8 mondes, d'autres pages apparaissent (← → passent d'une page à l'autre)
 const WCOLS = 4, WPAGE = 8;
@@ -3261,12 +4066,12 @@ const CUI = {
   back: { x: 12, y: 214, w: 74, h: 20 }, ok: { x: 160, y: 214, w: 74, h: 20 },
 };
 (function loadLastChar() {
-  try { const id = localStorage.getItem("lunelio-perso"); const i = CHARS.findIndex(C => C.id === id); if (i >= 0) charIdx = i; } catch (e) {}
+  const i = CHARS.findIndex(C => C.id === SAVE.lastChar); if (i >= 0) charIdx = i;
   charSel = charIdx;
 })();
 function openChars() { state = "chars"; charSel = charIdx; charSelT = 0; audio.sfx("select"); }
 function confirmChar() {
-  charIdx = charSel; try { localStorage.setItem("lunelio-perso", CHARS[charIdx].id); } catch (e) {}
+  charIdx = charSel; SAVE.lastChar = CHARS[charIdx].id; saveGame();
   audio.sfx("start"); mode = "camp"; openWorlds();
 }
 function moveCharSel(i) { if (i !== charSel) { charSel = i; charSelT = 0; audio.sfx("select"); } }
@@ -3324,7 +4129,7 @@ function drawChars() {
   if (pwr) lines.push(abilityLine(pwr.icon, pwr.name.toLowerCase(), (pwr.burst ? "" : "maintenir ") + kbNames("power"), (pwr.burst ? "" : "maintenir ") + `bouton ${pwr.icon}`, padText((pwr.burst ? "" : "maintenir ") + "bouton {POW}")));
   if (df().id === "doom" && pwr) lines[lines.length - 1] += "  (pas en Doom)";
   lines.forEach((l, i) => text(l, px + 10, 176 + i * 12, 7, i ? "#e8dcff" : "#b9a6e0"));
-  const prog = campProgress(C);
+  const prog = campProgress();
   text(`Mondes terminés : ${prog}/${CWORLDS.length}`, px + pw / 2, 226, 7, "#7dffb0", "center");
   // boutons
   for (const [r, label, col] of [[CUI.back, "◀ Retour", "#b9a6e0"], [CUI.ok, "Choisir ▶", C.ui]]) {
@@ -3490,7 +4295,7 @@ function updateClear(rdt) {
       setProgress(r.w + 1);
       const prev = getBest(r.w);
       best = { time: runTime, deaths, isNew: !prev || runTime < prev.time };
-      if (best.isNew) try { localStorage.setItem(bestKey(r.w), JSON.stringify({ time: runTime, deaths })); } catch (e) {}
+      if (best.isNew) setBest(bestKey(r.w), { time: runTime, deaths });
       state = r.w + 1 < WORLDS.length ? "worldclear" : "win"; wcSel = 0;
     }
   }

@@ -81,6 +81,11 @@ const BIG = {
   reine_chauve_souris: { name: "Reine chauve-souris néon", hp: 15, color: "#ff4fd8", fly: true, speed: 50, w: 44, h: 44, minion: "chauve_souris", defeat: "etoiles",
     moves: [["hover", "orb"], ["hover", "summon", "orb3"], ["dive", "orb5", "summon"]] },
 };
+// Annonce d'un changement de phase de boss (P2 : il s'énerve ; P3 : rage, mais il s'épuise et laisse des ouvertures)
+const BOSS_PHASE_SAY = {
+  2: e => e.th.length === 1 ? `${e.name} entre dans une rage folle !` : `${e.name} s'énerve !`,
+  3: e => `${e.name} est furieux… mais il s'épuise vite !`,
+};
 // Effets autour de la machine selon l'époque (même machine dans tous les mondes)
 const MACHINE_FX = {
   "01_centrale": ["#fccc28", "#ffffff", "#5ef0ff"], "02_usine": ["#c8d0dc", "#ffffff", "#8a92a8"], "03_temple": ["#c86eff", "#ffffff", "#7a3aff"],
@@ -98,18 +103,11 @@ const CAMP_HINTS = {
 const MAX_ATTACKERS = 2;
 
 /* ---------------- Nouvelle campagne : sauvegardes ---------------- */
-// Clés séparées de l'ancienne aventure (lunelio-progress-…) : un ancien numéro de monde ne débloque rien ici.
-const cKey = (k, C = ch()) => `lunelio-v2-${k}-${C.id}`;
-function campProgress(C = ch()) { try { return clamp(+localStorage.getItem(cKey("progress", C)) || 0, 0, CWORLDS.length); } catch (e) { return 0; } }
-function setCampProgress(n) { try { if (n > campProgress()) localStorage.setItem(cKey("progress"), String(n)); } catch (e) {} }
-const resumeKey = wi => `${cKey("room")}-${CWORLDS[wi].id}`;
-function campResume(wi) { try { return clamp(+localStorage.getItem(resumeKey(wi)) || 0, 0, CWORLDS[wi].rooms.length - 1); } catch (e) { return 0; } }
-function setCampResume(wi, ri) { try { if (ri > 0) localStorage.setItem(resumeKey(wi), String(ri)); else localStorage.removeItem(resumeKey(wi)); } catch (e) {} }
-const campBestKey = wi => `${cKey("best")}-${df().id}-${CWORLDS[wi].id}`;
-function campBest(wi) { try { return JSON.parse(localStorage.getItem(campBestKey(wi)) || "null"); } catch (e) { return null; } }
+// Progression, salle de reprise et records : sauvegarde commune à tous les héros (sauvegarde.js : campProgress, campResume…).
 
 /* ---------------- Nouvelle campagne : salles ---------------- */
 let mode = "camp";   // "camp" : nouvelle campagne ; "bonus" : ancienne aventure
+let chal = null;     // défi en cours (programme de lavage, defis.js), sinon null
 let camp = { wi: 0, ri: 0, ckpt: 0, fromStart: true };
 let fxs = [], mach = null, campTrans = null, arrival = null, campFade = 0;
 const campRoom = () => CWORLDS[camp.wi].rooms[camp.ri];
@@ -144,10 +142,34 @@ function buildRoom(wi, ri) {
     else if (o.kind === "enemy_spawn") L.foeSpawns.push(o);
     else if (o.kind === "boss_spawn") L.bossSpawn = o;
   }
+  addRoomExtras(L, R);
   // salle de boss : sortie verrouillée jusqu'à la victoire
   if (L.bossSpawn) for (const e of L.exits) e.locked = true;
   if (L.bossSpawn && L.hazards.some(h => h.arena)) L.arena = { t: 1.5, cur: null, side: 0 };
   return L;
+}
+// Ajouts de campagne_ajouts.json : plateformes et caisses en plus, chaussette de la salle, chaussettes dorées, objets de quête.
+// Dans un défi (chal), la chaussette principale est remplacée par la cible du défi s'il en a une.
+function addRoomExtras(L, R) {
+  for (const q of (AJOUTS.platforms[R.id] || [])) L.plats.push({ x: q[0], y: q[1], w: q[2], h: q[3], extra: true });
+  for (const c of (AJOUTS.crates[R.id] || [])) { const [x, y, w, h] = c.r; L.dest.push({ x, y, w, h, o: { id: c.id, onDestroyed: {} }, type: c.type || "crate", hp: 2, state: 0, alive: true, hurtT: 0, fxT: 0 }); }
+  L.sock = null; L.gold = []; L.qitems = []; L.covers = [];
+  const S = AJOUTS.socks[R.id];
+  if (S && !chal) {
+    const found = !!SAVE.socks[R.id];
+    L.sock = { x: S.r[0], y: S.r[1], w: 12, h: 12, type: S.type, alive: true, found, crate: S.crate || null,
+      hidden: !!S.crate || S.type === "apres_boss", t: Math.random() * 3 };
+    if (S.cover) L.covers.push({ x: S.cover[0], y: S.cover[1], w: S.cover[2], h: S.cover[3], a: 1 });
+  }
+  if (!chal) for (const g of AJOUTS.gold) if (g.room === R.id) L.gold.push({ ...g, x: g.r[0], y: g.r[1], w: 12, h: 12, alive: !SAVE.gold[g.id], t: 0 });
+  if (!chal) for (const q of AJOUTS.questItems) {
+    const st = SAVE.quests[q.quest];
+    if (q.room === R.id && st && st.st === "active" && !(st.items && st.items[q.id])) L.qitems.push({ ...q, x: q.r[0], y: q.r[1], w: 12, h: 12, alive: true, t: 0 });
+  }
+  if (chal && chal.C.prog === "solitaire") {
+    const t = AJOUTS.challengeTargets[chal.C.id];
+    if (t && R.id === chal.C.rooms[chal.C.rooms.length - 1]) L.sock = { x: t[0], y: t[1], w: 12, h: 12, type: "cible", alive: true, found: false, hidden: false, target: true, t: 0 };
+  }
 }
 let terrainCanvas = null, terrainFor = null;
 // Sol et plateformes pré-rendus une fois par salle à partir de l'atlas de terrain du monde (bords seulement au bord d'un trou)
@@ -218,7 +240,9 @@ function loadCampRoom(wi, ri, opts = {}) {
   if (arrival) for (const p of players) { p.hidden = true; p.vx = p.vy = 0; }
   setTimeFx(false, false);
   state = "play";
-  if (!opts.restart) { setCampResume(wi, ri); speakCampRoom(); }
+  lvl.hurt = false;   // touché dans cette salle (défi Délicat, boss sans dégâts)
+  if (!opts.restart && !chal) { setCampResume(wi, ri); emit("visit", { wid: W.id }); }
+  if (!opts.restart) speakCampRoom();
   if (ri === 0 && !opts.restart) hintT = 0;
 }
 function startCampWorld(wi) {
@@ -459,7 +483,8 @@ function damageFoe(e, dmg) {
   e.alive = false;
   foeDefeatFx(e.F.defeat, cx, cy);
   shake = Math.max(shake, 4); hitstop = Math.max(hitstop, 0.05);
-  audio.sfx("boom"); rumble(80, 0, 0.35);
+  audio.sfx("def_" + e.F.defeat); rumble(80, 0, 0.35);
+  emit("foe", { sp: e.sp });
 }
 
 /* ---------------- Nouvelle campagne : boss ---------------- */
@@ -627,15 +652,17 @@ function damageBig(e, dmg) {
     for (const m of enemies) if (m !== e && m.alive) { m.alive = false; foeDefeatFx(m.F ? m.F.defeat : "etoiles", m.x + m.w / 2, m.y + m.h / 2); }
     for (const h of lvl.hazards) h.disabled = true;
     e.rocks = null;
-    shake = 12; flash = 0.25; hitstop = 0.25; audio.sfx("boom"); audio.sfx("victory"); rumble(700, 1, 1);
+    shake = 12; flash = 0.25; hitstop = 0.25; audio.sfx("boss_defeat"); audio.sfx("victory"); rumble(700, 1, 1);
     msg = { text: `${e.name} est vaincu !`, t: 3 }; voice.say(msg.text, true);
+    if (!chal) emit("boss", { id: e.id, noDamage: !lvl.hurt, doom: df().id === "doom" });
     return;
   }
   const frac = e.hp / e.maxHp, ph = 1 + e.th.filter(t => frac <= t).length;
   if (ph > e.phase) {
     e.phase = ph; e.st = "transform"; e.t = 0.8; e.at = 0; e.inv = 0.8; e.vx = 0; e.rocks = null;
-    flash = 0.15; shake = 8; audio.sfx("boom");
-    msg = { text: `${e.name} se transforme !`, t: 1.6 };
+    flash = 0.15; shake = 8; audio.sfx("transform");
+    msg = { text: BOSS_PHASE_SAY[ph] ? BOSS_PHASE_SAY[ph](e) : `${e.name} se transforme !`, t: 1.8 };
+    if (!chal) emit("phase", { id: e.id, n: ph });
   }
 }
 function campVictory(e) {
@@ -644,11 +671,15 @@ function campVictory(e) {
   // récompense : fragment d'énergie temporelle (jauge pleine), sauvegarde du monde débloqué
   for (const p of players) { p.gauge = 1; if (!p.dead && p.hp < df().hp) p.hp++; }
   addFx("fx_collecte", players[0].x + 5, players[0].y + 10, { scale: 2 });
-  setCampProgress(camp.wi + 1); setCampResume(camp.wi, 0);
   const prev = campBest(camp.wi);
   best = camp.fromStart ? { time: runTime, deaths, isNew: !prev || runTime < prev.time } : null;
-  if (best && best.isNew) try { localStorage.setItem(campBestKey(camp.wi), JSON.stringify({ time: runTime, deaths })); } catch (e2) {}
-  msg = { text: "Fragment d'énergie temporelle !", t: 2.5 };
+  if (best && best.isNew) setBest(campBestKey(camp.wi), { time: runTime, deaths });
+  setCampResume(camp.wi, 0);
+  const P = PIECES[W.id];
+  msg = { text: P ? `Tu as récupéré ${P.name} !` : "Fragment d'énergie temporelle !", t: 3 };
+  audio.sfx("piece");
+  if (lvl.sock && lvl.sock.type === "apres_boss" && lvl.sock.hidden) { lvl.sock.hidden = false; lvl.sock.pop = 0.4; burst(lvl.sock.x + 6, lvl.sock.y + 6, 20, ["#7dffb0", "#ffffff"], 120, 0.6, 0, 1); }
+  emit("roomDone", { room: campRoom().id, char: ch().id, doom: df().id === "doom" });
   for (const x of lvl.exits) x.locked = false;
   const mx = lvl.exits.find(x => x.kind === "machine");
   if (mx) startMachine(mx.x + mx.w / 2, mx.y + mx.h);
@@ -661,8 +692,7 @@ function campVictory(e) {
 // États : locked → activating → ready → entering → departing → loading → arriving → finished.
 // Tout avance avec le temps du jeu (la pause arrête la séquence) ; machStarted empêche un double départ.
 const MACH_HOLE = { x: -5, y: -33, r: 15 };   // centre et rayon du hublot par rapport au pied de la machine (réglés à l'œil)
-function startMachine(x, y) { mach = { st: "activating", t: 0, x, y, started: false, first: !campProgressSeen() }; audio.sfx("machine"); }
-function campProgressSeen() { try { return localStorage.getItem("lunelio-v2-machine") === "1"; } catch (e) { return false; } }
+function startMachine(x, y) { mach = { st: "activating", t: 0, x, y, started: false, first: !SAVE.flags.machineSeen }; audio.sfx("machine"); }
 function machNear(p) { return mach && Math.abs(p.x + 5 - mach.x) < 40 && p.y + p.h > mach.y - 50 && p.y < mach.y; }
 function updateMachine(dt) {
   if (!mach) return;
@@ -674,7 +704,7 @@ function updateMachine(dt) {
     p.x = mach.ex + (mach.x + MACH_HOLE.x - 5 - mach.ex) * k; p.y = mach.ey + (mach.y + MACH_HOLE.y - 16 - mach.ey) * k;
     p.vx = p.vy = 0;
     if (Math.random() < 0.5) parts.push({ x: mach.x + MACH_HOLE.x + (Math.random() - 0.5) * 30, y: mach.y + MACH_HOLE.y + (Math.random() - 0.5) * 30, vx: 0, vy: 0, life: 0.3, max: 0.3, color: "#c86eff", size: 1, grav: 0 });
-    if (mach.t >= 0.7) { mach.st = "departing"; mach.t = 0; p.hidden = true; audio.sfx("spin"); try { localStorage.setItem("lunelio-v2-machine", "1"); } catch (e) {} }
+    if (mach.t >= 0.7) { mach.st = "departing"; mach.t = 0; p.hidden = true; audio.sfx("spin"); SAVE.flags.machineSeen = 1; saveGame(); }
   } else if (mach.st === "departing") {
     shake = Math.max(shake, 2);
     if (Math.random() < 0.5) burst(mach.x + (Math.random() - 0.5) * 40, mach.y - Math.random() * 50, 2, MACHINE_FX[CWORLDS[camp.wi].id], 80, 0.4, 100, 1);
@@ -784,6 +814,7 @@ function breakDest(d) {
   burst(d.x + d.w / 2, d.y + d.h / 2, 18, ["#c89a5a", "#7a4a24", "#ffffff"], 180, 0.8, 600, 2);
   // la récompense sort de l'objet, à hauteur du personnage (on la ramasse en passant)
   if (od.reward) lvl.items.push({ x: d.x + d.w / 2 - 8, y: d.y + d.h - 18, w: 16, h: 16, kind: od.reward, alive: true, pop: 0.25 });
+  if (lvl.sock && lvl.sock.crate === d.o.id && lvl.sock.hidden) { lvl.sock.hidden = false; lvl.sock.pop = 0.3; if (!lvl.sock.found) msg = { text: "Une chaussette était cachée là !", t: 2 }; }
   if (od.playEffect === "hydrantWater") d.jet = 2.5;
   if (od.createsWaterAt) { const h = lvl.hazards.find(x => x.id === od.createsWaterAt); if (h) { h.enabled = true; h.offset = -roomTime; msg = { text: "L'eau coule… attention aux étincelles !", t: 2 }; } }
   if (od.disableHazard) { const h = lvl.hazards.find(x => x.id === od.disableHazard); if (h) { h.disabled = true; h.phase = "safe"; msg = { text: "Le générateur est coupé : la flaque est sans danger", t: 2.5 }; } }
@@ -794,6 +825,94 @@ function collectItem(p, it) {
   audio.sfx("heal");
   if (it.kind === "energy") { p.gauge = Math.min(1, p.gauge + 0.5); msg = { text: powerOf(p.C) && df().power ? "+ Énergie !" : "Énergie !", t: 1.2 }; }
   else if (it.kind === "heart") { if (p.hp < df().hp) p.hp++; msg = { text: "+1 cœur", t: 1.2 }; }
+}
+// Chaussettes, chaussettes dorées, objets de quête et rideaux des recoins secrets
+const touching = it => players.some(p => !p.dead && !p.hidden && ov(p, it));
+function updateCollectibles(dt) {
+  const k = lvl.sock;
+  if (k && k.alive && !k.hidden) {
+    k.t += dt; if (k.pop > 0) { k.pop -= dt; k.y -= 40 * dt; }
+    else if (touching(k)) {
+      if (k.target) { k.alive = false; collectFx(k, "#c86eff"); chalWin(); }
+      else if (!k.found) {
+        k.alive = false; collectFx(k, "#7dffb0"); audio.sfx("sock"); rumble(120, 0.2, 0.5);
+        emit("sock", { room: campRoom().id });
+        const W = CWORLDS[camp.wi];
+        msg = { text: `Chaussette puante trouvée ! ${socksInWorld(W.id)}/${socksWorldTotal(W.id)}`, t: 2.2 }; voice.say("Chaussette trouvée !");
+      }
+    }
+  }
+  for (const g of lvl.gold) {
+    if (!g.alive) continue; g.t += dt;
+    if (touching(g)) { g.alive = false; collectFx(g, "#ffd23c"); audio.sfx("sock_bonus"); emit("gold", { id: g.id }); msg = { text: "Chaussette dorée ! Un chemin secret !", t: 2.4 }; }
+  }
+  for (const q of lvl.qitems) {
+    if (!q.alive) continue; q.t += dt;
+    const near = players.some(p => Math.hypot(p.x + 5 - (q.x + 6), p.y + 16 - (q.y + 6)) < 70);
+    q.vis = q.shadow ? Math.min(1, Math.max(0.12, (q.vis || 0.12) + (near ? dt * 2 : -dt))) : 1;
+    if (touching(q)) {
+      q.alive = false; collectFx(q, "#ff8ab0"); audio.sfx("quest_item"); emit("questItem", { quest: q.quest, id: q.id });
+      const Q = QUEST_BY_ID[q.quest], st = SAVE.quests[q.quest], n = Q.goal.items ? Q.goal.items.filter(i => st.items && st.items[i]).length : 1;
+      msg = { text: Q.goal.items && Q.goal.items.length > 1 ? `Objet de quête : ${n}/${Q.goal.items.length}` : "Objet de quête trouvé !", t: 2.2 };
+    }
+  }
+  for (const c of lvl.covers) { const inside = players.some(p => !p.dead && ov(p, c)); c.a += ((inside ? 0.18 : 1) - c.a) * Math.min(1, dt * 6); }
+}
+function collectFx(it, col) {
+  addFx("fx_collecte", it.x + it.w / 2, it.y + it.h / 2, { scale: 1.3 });
+  burst(it.x + it.w / 2, it.y + it.h / 2, 18, [col, "#ffffff", "#fccc28"], 140, 0.6, 0, 1);
+  flash = Math.max(flash, 0.05);
+}
+// Chaussette puante (provisoire, dessinée par le code tant que l'atlas « chaussette » n'existe pas) : x, y = centre
+function drawSock(x, y, o = {}) {
+  const A = ATL.chaussette;
+  if (A && atlasImg("chaussette") && !o.gold && !o.striped) { drawFrame("chaussette", animFrame("chaussette", "flotte", time + (o.t || 0), 8), x, y, 1, o.alpha ?? 1); return; }
+  const a = o.alpha ?? 1, body = o.gold ? "#ffd23c" : o.ghost ? "#8a80a8" : "#f4f0ff", band = o.gold ? "#ff8a3c" : o.striped ? "#d02a2a" : "#ff4f8a";
+  ctx.globalAlpha = a;
+  const X = Math.round(x - 5), Y = Math.round(y - 6);
+  R(X - 1, Y - 1, 7, 10, "#0e0a1a"); R(X - 1, Y + 7, 11, 5, "#0e0a1a");
+  R(X, Y, 5, 9, body); R(X, Y + 8, 9, 3, body); R(X + 7, Y + 8, 2, 2, o.ghost ? body : "#c8c0e0");
+  R(X, Y, 5, 2, band); if (o.striped) { R(X, Y + 4, 5, 1, band); R(X, Y + 7, 5, 1, band); }
+  if (!o.ghost && !o.gold) {
+    // odeur : petites vagues vertes qui montent
+    const k = (time * 1.5 + (o.t || 0)) % 1;
+    ctx.globalAlpha = a * (1 - k) * 0.9;
+    for (const dx of [-3, 3]) for (let i = 0; i < 3; i++) R(Math.round(x + dx + Math.sin(time * 6 + i + dx) * 1.5), Math.round(Y - 3 - k * 8 - i * 2), 1, 2, "#8aff6a");
+  }
+  if (o.gold) { ctx.globalAlpha = a * (0.5 + 0.5 * Math.sin(time * 8)); R(X + 6, Y - 3, 1, 3, "#ffffff"); R(X + 5, Y - 2, 3, 1, "#ffffff"); }
+  ctx.globalAlpha = 1;
+}
+function drawCollectibles(behind) {
+  const k = lvl.sock;
+  if (k && k.alive && !k.hidden && (k.type === "decor") === behind) {
+    const bob = Math.sin(time * 3 + (k.t || 0)) * 1.5, cx = k.x + 6, cy = k.y + 6 + bob;
+    if (k.found) drawSock(cx, cy, { ghost: true, alpha: 0.35 });   // déjà trouvée : discrète
+    else {
+      ctx.globalAlpha = 0.18 + 0.1 * Math.sin(time * 5); R(Math.round(k.x - 2), Math.round(k.y - 2 + bob), 16, 16, k.target ? "#c86eff" : "#7dffb0"); ctx.globalAlpha = 1;
+      drawSock(cx, cy, { t: k.t });
+    }
+  }
+  if (behind) return;
+  for (const g of lvl.gold) if (g.alive) { ctx.globalAlpha = 0.2 + 0.15 * Math.sin(time * 6); R(g.x - 3, g.y - 3, 18, 18, "#ffd23c"); ctx.globalAlpha = 1; drawSock(g.x + 6, g.y + 6 + Math.sin(time * 3) * 2, { gold: true }); }
+  for (const q of lvl.qitems) {
+    if (!q.alive) continue;
+    const y = q.y + 6 + Math.sin(time * 3 + q.x) * 1.5;
+    ctx.globalAlpha = (q.vis ?? 1) * (0.2 + 0.12 * Math.sin(time * 5)); R(q.x - 2, Math.round(y - 8), 16, 16, "#ff8ab0"); ctx.globalAlpha = 1;
+    if (q.kind === "chaussette_rayee") drawSock(q.x + 6, y, { striped: true, alpha: q.vis ?? 1 });
+    else { ctx.globalAlpha = q.vis ?? 1; R(q.x, Math.round(y - 3), 12, 5, "#0e0a1a"); R(q.x + 1, Math.round(y - 2), 10, 3, "#7a3aff"); R(q.x + 4, Math.round(y - 3), 3, 6, "#c86eff"); ctx.globalAlpha = 1; }
+  }
+}
+// Rideaux des recoins secrets : par-dessus le joueur, ils s'effacent quand on entre dedans
+function drawCovers() {
+  const col = MACHINE_FX[CWORLDS[camp.wi].id];
+  for (const c of lvl.covers) {
+    ctx.globalAlpha = c.a;
+    R(c.x, c.y, c.w, c.h, "#0e0a1a"); R(c.x + 1, c.y + 1, c.w - 2, c.h - 2, "#1e1630");
+    for (let yy = c.y + 4; yy < c.y + c.h - 2; yy += 6) R(c.x + 2 + ((yy / 6) % 2) * 3, yy, c.w - 7, 1, "#2a2244");
+    // petite étincelle de temps en temps : un indice pour les curieux
+    if (Math.floor(time * 2 + c.x) % 7 === 0) { ctx.globalAlpha = c.a * 0.8; R(c.x + c.w / 2, c.y + c.h - 10, 2, 2, col[0]); }
+    ctx.globalAlpha = 1;
+  }
 }
 // Haut devant une porte ou la machine : entre (le saut est alors ignoré)
 function campTryInteract(p) {
@@ -831,6 +950,8 @@ function updateCampTransition(dt) {
         for (const e of lvl.exits) e.locked = true;   // la porte se referme derrière
         return;
       }
+      if (!chal) emit("roomDone", { room: campRoom().id, char: ch().id, doom: df().id === "doom" });
+      if (chal && chalRoomDone()) return;
       const ni = x.next ? roomIndex(camp.wi, x.next) : camp.ri + 1;
       if (ni >= 0 && ni < W.rooms.length) loadCampRoom(camp.wi, ni, { fadeIn: true });
     }
@@ -858,6 +979,7 @@ function updateCamp(dt) {
     if (it.pop > 0) { it.pop -= dt; it.y -= 30 * dt; continue; }
     for (const p of players) if (!p.dead && !p.hidden && ov(p, it)) { collectItem(p, it); break; }
   }
+  updateCollectibles(dt);
   const ck = lvl.ckpt;
   if (ck) {
     ck.t += dt;
@@ -927,6 +1049,7 @@ function drawCampHazard(h) {
   if (ph === "tele" && blink) { text("!", cx, h.y - 12, 12, "#ffd23c", "center", "#ff3b5c"); }
 }
 function drawCampObjects() {
+  drawCollectibles(true);
   for (const d of lvl.decor) drawFrame(d.sprite, 0, d.x + d.w / 2, d.y + d.h);
   // sorties
   for (const x of lvl.exits) {
@@ -949,6 +1072,7 @@ function drawCampObjects() {
     R(b.x, b.y, b.w, b.h, "#0e0a1a"); R(b.x + 1, b.y + 1, b.w - 2, b.h - 2, "#8a5a2a"); R(b.x + 1, b.y + 1, b.w - 2, 4, "#4fbf3a");
     for (let i = 0; i < 4; i++) R(b.x + 2 + ((i * 7) % (b.w - 4)), b.y + 6 + (i * 5) % (b.h - 8), 2, 2, "#6a4220"); R(b.x + 3, b.y + 2, 3, 1, "#8aff6a");
   }
+  drawCollectibles(false);
   for (const it of lvl.items) {
     if (!it.alive) continue;
     const an = ATL.bonus.anims[it.kind] || ATL.bonus.anims.energy;
@@ -1081,6 +1205,7 @@ function drawCampWorld() {
     } else drawCampProjectile(l);
   }
   drawGhosts(); for (const p of players) drawCampPlayer(p);
+  drawCovers();
   // invites « entrer »
   const p = players[0];
   if (!p.dead && !campLocked(p)) {
@@ -1116,6 +1241,13 @@ function drawCampHUD() {
   }
   const foes = enemies.filter(e => e.alive && e.type === "foe").length;
   if (foes && !lvl.bossSpawn) text(`Ennemis : ${foes}`, 6, VH - 8, 8, "#b9a6e0");
+  // chaussettes du monde (icône pleine si celle de la salle est trouvée)
+  if (!chal && AJOUTS.socks[R0.id]) {
+    const got = !!SAVE.socks[R0.id], sx = 92;
+    drawSock(sx, VH - 9, got ? {} : { ghost: true, alpha: 0.6 });
+    text(`${socksInWorld(W.id)}/${socksWorldTotal(W.id)}`, sx + 9, VH - 8, 8, got ? "#7dffb0" : "#b9a6e0");
+  }
+  if (chal) drawChalHUD();
   if (specialOf(C) && specialOf(C).button && (!TOUCH || PAD)) { const ready = P1.dashCd <= 0; text(ready ? "Dash prêt" : "Dash…", VW - 6, VH - 8, 8, ready ? C.color : "#5a4a80", "right"); }
   const bs = enemies.find(e => e.type === "bigboss" && (e.alive || e.dying));
   if (bs && bs.alive) {

@@ -435,17 +435,51 @@ function hintText(tok) {
 /* ---------------- Audio ---------------- */
 // "files" : les sons sont lus dans le dossier audio/ à côté du jeu (serveur web).
 // "embed" : les sons sont intégrés dans ce fichier (version autonome).
+// AUDIO_LIST : sons présents (chemins relatifs à audio/, sans .mp3), écrite par build.py : pas de requête de détection.
 const AUDIO_MODE = "__AUDIO_MODE__";
+const AUDIO_LIST = new Set(__AUDIO_LIST__);
 const AUDIO_EMBED = __AUDIO_EMBED__;
 const AUDIO_DIR = "audio/";
-// Listes de musiques : une par personnage (CHARS[].music), Doom, boss, et celles que les mondes déclarent (WORLDS[].music, bossMusic)
-const MUSIC_BASES = { doom: "doombackground", boss: "bossbackground" };
-for (const C of CHARS) if (C.music) MUSIC_BASES["char:" + C.id] = C.music;   // plusieurs héros peuvent partager les mêmes musiques
-for (const W of WORLDS) for (const b of [W.music, W.bossMusic]) if (b) MUSIC_BASES[b] = b;
+// Listes de musiques (nom de base → base, base2, base3… tant que les numéros se suivent).
+// Personnages (CHARS[].music), Doom, boss générique, mondes et boss de la campagne, laverie, défis, histoire, quêtes,
+// et mondes de l'ancienne aventure (musique/bonus/<monde>, ou WORLDS[].music / bossMusic).
+const MUSIC_BASES = { doom: "musique/doom/doombackground", boss: "musique/boss/bossbackground",
+  laverie: "musique/laverie/laverie", laverie_nuit: "musique/laverie/laverie_nuit", defis: "musique/defis/defis",
+  prologue: "musique/histoire/prologue", souvenir: "musique/histoire/souvenir", fin: "musique/histoire/fin", generique: "musique/histoire/generique" };
+for (const C of CHARS) if (C.music) MUSIC_BASES["char:" + C.id] = "musique/heros/" + C.music;   // plusieurs héros peuvent partager les mêmes musiques
+for (const W of WORLDS) {
+  MUSIC_BASES["bonus:" + W.id] = "musique/bonus/" + (W.music || W.id);
+  if (W.bossMusic) MUSIC_BASES["bonusboss:" + W.id] = "musique/bonus/" + W.bossMusic;
+}
+// Bruitages : nom utilisé par audio.sfx() → fichier ; sans fichier, le son synthétisé de audio.sfx() est joué.
+// jingle : courte musique qui baisse la musique de fond le temps de se jouer.
+const SFX_FILES = {
+  slash: "sfx/joueur/coup", jump: "sfx/joueur/saut", dj: "sfx/joueur/double_saut", dash: "sfx/joueur/dash", land: "sfx/joueur/atterrissage",
+  deflect: "sfx/joueur/renvoi", hurt: "sfx/joueur/touche", heal: "sfx/joueur/soin",
+  pw_fast: "sfx/pouvoirs/rapide", pw_slow: "sfx/pouvoirs/ralenti", pw_shield: "sfx/pouvoirs/bouclier", pw_superjump: "sfx/pouvoirs/super_saut",
+  pw_invisible: "sfx/pouvoirs/invisible", stun: "sfx/pouvoirs/etourdir", block: "sfx/pouvoirs/bloc", pw_heal: "sfx/pouvoirs/soin_groupe",
+  gauge_full: "sfx/pouvoirs/jauge_pleine", pw_end: "sfx/pouvoirs/fin_pouvoir",
+  sock: "sfx/collecte/chaussette", sock_bonus: "sfx/collecte/chaussette_bonus", heart: "sfx/collecte/coeur", energy: "sfx/collecte/energie",
+  quest_item: "sfx/collecte/objet_quete", crystal: "sfx/collecte/cristal",
+  laser: "sfx/ennemis/laser", aim: "sfx/ennemis/visee", def_robot: "sfx/ennemis/defaite_robot", def_slime: "sfx/ennemis/defaite_slime",
+  def_ombre: "sfx/ennemis/defaite_ombre", def_lave: "sfx/ennemis/defaite_lave", def_etoiles: "sfx/ennemis/defaite_etoiles",
+  boss_intro: "sfx/boss/intro", bosshit: "sfx/boss/coup_boss", transform: "sfx/boss/transformation", wave: "sfx/boss/onde_choc", boss_defeat: "sfx/boss/defaite",
+  zap: "sfx/pieges/electricite", alert: "sfx/pieges/alerte", jet: "sfx/pieges/jet_eau", flames: "sfx/pieges/flammes", break: "sfx/pieges/mur_casse", flag: "sfx/pieges/drapeau",
+  door: "sfx/machine/porte", machine: "sfx/machine/demarrage", drum: "sfx/machine/tambour", spin: "sfx/machine/depart", arrive: "sfx/machine/arrivee", dial: "sfx/machine/programmateur",
+  page: "sfx/laverie/album_page", locker: "sfx/laverie/armoire", equip: "sfx/laverie/equiper", coin: "sfx/laverie/jukebox_piece",
+  select: "sfx/interface/deplacer", start: "sfx/interface/valider", back: "sfx/interface/retour", nope: "sfx/interface/refus", pause: "sfx/interface/pause",
+  gust_warn: "sfx/defis/bourrasque_alerte", gust: "sfx/defis/bourrasque", tick: "sfx/defis/chrono_tic", chrono_end: "sfx/defis/chrono_fin", slip: "sfx/defis/glissade",
+};
+for (const id of ["roi_slime", "drone_titan", "maitre_ombres", "colosse_lave", "singe_roi_pirate", "reine_chauve_souris"]) SFX_FILES["sig_" + id] = "sfx/boss/" + id;
+for (const id of ["bulle", "capitaine", "bobine", "kage"]) SFX_FILES["talk_" + id] = "sfx/laverie/voix_" + id;
+const JINGLES = { victory: "jingles/victoire_boss", gameover: "jingles/gameover", world_done: "jingles/monde_termine", piece: "jingles/piece_machine",
+  repair: "jingles/reparation", quest_start: "jingles/quete_acceptee", quest_done: "jingles/quete_reussie", card: "jingles/carte", badge: "jingles/badge",
+  milestone: "jingles/palier", chal_ok: "jingles/defi_reussi", chal_fail: "jingles/defi_rate", memory: "jingles/souvenir" };
+const hasSound = n => AUDIO_LIST.has(n);
 function b64ToBuf(dataUrl) { const b = atob(dataUrl.split(",")[1]); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u.buffer; }
 const audio = {
   ctx: null, muted: false, buffers: {}, loading: {}, cur: null, curKey: null, wanted: null, fx: null,
-  playlists: {}, ready: false,
+  playlists: {}, ready: false, ambience: null,
   init() {
     if (this.ctx) { if (this.ctx.state === "suspended") this.ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
@@ -457,30 +491,25 @@ const audio = {
     this.sfxG = c.createGain(); this.sfxG.gain.value = 0.6; this.sfxG.connect(this.master);
     const len = c.sampleRate; this.noise = c.createBuffer(1, len, c.sampleRate);
     const d = this.noise.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-    for (const k of ["attack", "laser", "gameover"]) this.load(k);
+    // bruitages et jingles présents : chargés tout de suite (ils sont courts)
+    for (const n of [...Object.values(SFX_FILES), ...Object.values(JINGLES)]) if (hasSound(n)) this.load(n);
     if (this.wanted) this.playMusic(this.wanted, true);
   },
-  // Cherche backgroundhelio, backgroundhelio2, backgroundhelio3… et ainsi de suite
-  async discover() {
-    if (AUDIO_MODE === "embed") {
-      for (const [k, base] of Object.entries(MUSIC_BASES))
-        this.playlists[k] = Object.keys(AUDIO_EMBED).filter(n => n === base || new RegExp("^" + base + "\\d+$").test(n))
-          .sort((a, b) => (+a.slice(base.length) || 1) - (+b.slice(base.length) || 1));
-    } else {
-      await Promise.all(Object.entries(MUSIC_BASES).map(async ([k, base]) => {
-        const list = [];
-        for (let i = 1; i <= 9; i++) {
-          const name = i === 1 ? base : base + i;
-          try { const r = await fetch(AUDIO_DIR + name + ".mp3", { method: "HEAD", cache: "no-cache" }); if (!r.ok) break; list.push(name); } catch (e) { break; }
-        }
-        this.playlists[k] = list;
-      }));
+  // Listes de musiques : base, base2, base3… (les numéros doivent se suivre), d'après AUDIO_LIST
+  discover() {
+    for (const [k, base] of Object.entries(MUSIC_BASES)) {
+      const list = [];
+      for (let i = 1; i <= 9; i++) { const n = i === 1 ? base : base + i; if (!hasSound(n)) break; list.push(n); }
+      this.playlists[k] = list;
     }
     this.ready = true;
   },
+  // liste d'une musique déclarée à la volée (monde ou boss de la campagne, piste de quête)
+  list(k, base) { if (!this.playlists[k]) { MUSIC_BASES[k] = base; const l = []; for (let i = 1; i <= 9; i++) { const n = i === 1 ? base : base + i; if (!hasSound(n)) break; l.push(n); } this.playlists[k] = l; } return this.playlists[k]; },
   load(name) {
     if (this.buffers[name]) return Promise.resolve(this.buffers[name]);
     if (this.loading[name]) return this.loading[name];
+    if (!this.ctx || !hasSound(name)) return Promise.resolve(null);
     const src = AUDIO_MODE === "embed" ? (AUDIO_EMBED[name] ? Promise.resolve(b64ToBuf(AUDIO_EMBED[name])) : Promise.reject())
       : fetch(AUDIO_DIR + name + ".mp3").then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); });
     return this.loading[name] = src.then(ab => new Promise((res, rej) => this.ctx.decodeAudioData(ab, res, rej)))
@@ -501,19 +530,36 @@ const audio = {
     s.connect(g); g.connect(this.musicBus); s.playbackRate.value = this.rate(); s.start(t);
     this.cur = { s, g }; this.curKey = name;
   },
+  // Ambiance en boucle (laverie) : jouée par-dessous la musique, avec les bruitages
+  setAmbience(name) {
+    if (!this.ctx || !OPT.sfx) name = null;
+    if ((this.ambience && this.ambience.name) === name) return;
+    if (this.ambience) { const a = this.ambience; a.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.3); try { a.s.stop(this.ctx.currentTime + 1.5); } catch (e) {} this.ambience = null; }
+    const buf = name && this.buffers[name]; if (!buf) { if (name) this.load(name); return; }
+    const s = this.ctx.createBufferSource(), g = this.ctx.createGain(); s.buffer = buf; s.loop = true; g.gain.value = 0; g.gain.setTargetAtTime(0.35, this.ctx.currentTime, 0.5);
+    s.connect(g); g.connect(this.sfxG); s.start(); this.ambience = { s, g, name };
+  },
   rate() { return this.fx === "slow" ? 0.8 : this.fx === "fast" ? 1.12 : 1; },
   toggleMute() { this.muted = !this.muted; if (this.master) this.master.gain.value = this.muted ? 0 : 0.6; },
   setTimeFx(fx) {
     this.fx = fx; if (!this.ctx) return; const t = this.ctx.currentTime;
     this.filter.frequency.setTargetAtTime(fx === "slow" ? 900 : 18000, t, 0.08);
     if (this.cur && this.cur.s.playbackRate) this.cur.s.playbackRate.setTargetAtTime(this.rate(), t, 0.1);
-    if (fx === "fast" && OPT.sfx) this.tone("sawtooth", 200, t, 0.25, 0.08, this.sfxG, 1200);
+    if (fx === "fast" && OPT.sfx && !this.file("pw_fast")) this.tone("sawtooth", 200, t, 0.25, 0.08, this.sfxG, 1200);
+    if (fx === "slow" && OPT.sfx) this.file("pw_slow");
   },
   duck(sec) { if (!this.ctx) return; const t = this.ctx.currentTime, g = this.musicBus.gain; g.cancelScheduledValues(t); g.setTargetAtTime(0.12, t, 0.05); g.setTargetAtTime(0.5, t + sec, 0.4); },
   playBuf(k, vol = 1) {
     const buf = this.buffers[k]; if (!buf) return false;
     const s = this.ctx.createBufferSource(), g = this.ctx.createGain(); s.buffer = buf; g.gain.value = vol;
-    s.connect(g); g.connect(this.sfxG); s.start(); return true;
+    s.connect(g); g.connect(this.sfxG); s.start(); return buf.duration || true;
+  },
+  // Bruitage ou jingle depuis un fichier s'il existe et qu'il est chargé ; renvoie false sinon (le son synthétisé prend le relais)
+  file(name, vol = 1) {
+    const j = JINGLES[name], n = j || SFX_FILES[name]; if (!n || !hasSound(n)) return false;
+    if (!this.buffers[n]) { this.load(n); return false; }
+    const d = this.playBuf(n, vol); if (d && j) this.duck(typeof d === "number" ? d + 0.3 : 2);
+    return !!d;
   },
   tone(type, freq, t, dur, vol, dest, freqEnd) {
     const c = this.ctx, o = c.createOscillator(), g = c.createGain();
@@ -529,32 +575,65 @@ const audio = {
     s.connect(f); f.connect(g); g.connect(dest || this.sfxG);
     s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
   },
+  arp(notes, base, t, step, type = "square", vol = 0.08, dur = 0.18) { notes.forEach((n, i) => this.tone(type, base * Math.pow(2, n / 12), t + i * step, dur, vol, this.sfxG)); },
   sfx(name) {
     const c = this.ctx; if (!c || !OPT.sfx) return; const t = c.currentTime, d = this.sfxG;
+    if (this.file(name, name === "slash" ? 0.9 : name === "laser" ? 0.7 : 1)) { if (name === "gameover") this.duck(3); return; }
     switch (name) {
-      case "slash": if (!this.playBuf("attack", 0.9)) this.noiseHit(t, 0.12, 0.6, "bandpass", 3000, d); break;
-      case "laser": if (!this.playBuf("laser", 0.7)) this.tone("square", 1400, t, 0.15, 0.12, d, 300); break;
-      case "gameover": if (!this.playBuf("gameover", 0.9)) this.tone("sawtooth", 300, t, 0.6, 0.25, d, 60); this.duck(3); break;
-      case "boom": this.noiseHit(t, 0.35, 0.8, "lowpass", 900, d); this.tone("sine", 120, t, 0.3, 0.7, d, 30); break;
+      case "slash": this.noiseHit(t, 0.12, 0.6, "bandpass", 3000, d); break;
+      case "laser": this.tone("square", 1400, t, 0.15, 0.12, d, 300); break;
+      case "gameover": this.tone("sawtooth", 300, t, 0.6, 0.25, d, 60); this.duck(3); break;
+      case "boom": case "wave": case "boss_defeat": case "def_robot": case "def_lave": this.noiseHit(t, 0.35, 0.8, "lowpass", 900, d); this.tone("sine", 120, t, 0.3, 0.7, d, 30); break;
+      case "def_slime": this.tone("sine", 500, t, 0.18, 0.3, d, 120); this.noiseHit(t, 0.12, 0.3, "lowpass", 1400, d); break;
+      case "def_ombre": this.noiseHit(t, 0.3, 0.4, "highpass", 2000, d); this.tone("triangle", 700, t, 0.25, 0.1, d, 200); break;
+      case "def_etoiles": this.arp([0, 7, 12, 19], 880, t, 0.04, "triangle", 0.09, 0.12); this.noiseHit(t, 0.1, 0.2, "highpass", 4000, d); break;
       case "bosshit": this.tone("square", 220, t, 0.12, 0.2, d, 90); this.noiseHit(t, 0.1, 0.4, "bandpass", 1500, d); break;
-      case "victory": [0, 4, 7, 12, 16].forEach((n, i) => this.tone("square", 392 * Math.pow(2, n / 12), t + 0.3 + i * 0.09, 0.25, 0.09, d)); this.duck(2); break;
-      case "heal": [0, 7, 12].forEach((n, i) => this.tone("triangle", 660 * Math.pow(2, n / 12), t + i * 0.06, 0.18, 0.12, d)); break;
+      case "victory": this.arp([0, 4, 7, 12, 16], 392, t + 0.3, 0.09, "square", 0.09, 0.25); this.duck(2); break;
+      case "heal": case "heart": case "energy": case "pw_heal": this.arp([0, 7, 12], 660, t, 0.06, "triangle", 0.12); break;
       case "deflect": this.tone("square", 600, t, 0.12, 0.15, d, 2400); this.tone("triangle", 1800, t, 0.2, 0.15, d); break;
       case "jump": this.tone("square", 300, t, 0.1, 0.07, d, 600); break;
-      case "dj": this.tone("triangle", 500, t, 0.18, 0.15, d, 1400); this.tone("triangle", 1000, t + 0.05, 0.15, 0.1, d, 2000); break;
+      case "dj": case "pw_superjump": this.tone("triangle", 500, t, 0.18, 0.15, d, 1400); this.tone("triangle", 1000, t + 0.05, 0.15, 0.1, d, 2000); break;
       case "dash": this.noiseHit(t, 0.2, 0.5, "highpass", 2500, d); this.tone("sawtooth", 200, t, 0.15, 0.08, d, 900); break;
       case "hurt": this.tone("sawtooth", 300, t, 0.3, 0.25, d, 60); break;
-      case "aim": this.tone("sine", 1200, t, 0.05, 0.06, d); break;
-      case "door": [0, 4, 7, 12].forEach((n, i) => this.tone("square", 440 * Math.pow(2, n / 12), t + i * 0.07, 0.15, 0.08, d)); break;
-      case "select": this.tone("square", 880, t, 0.06, 0.07, d); break;
-      case "start": [0, 7, 12, 19].forEach((n, i) => this.tone("square", 330 * Math.pow(2, n / 12), t + i * 0.06, 0.18, 0.08, d)); break;
+      case "aim": case "alert": this.tone("sine", 1200, t, 0.05, 0.06, d); break;
+      case "door": case "flag": this.arp([0, 4, 7, 12], 440, t, 0.07, "square", 0.08, 0.15); break;
+      case "select": case "page": case "dial": this.tone("square", 880, t, 0.06, 0.07, d); break;
+      case "back": this.tone("square", 660, t, 0.06, 0.06, d, 440); break;
+      case "pause": this.tone("triangle", 520, t, 0.1, 0.1, d); this.tone("triangle", 390, t + 0.08, 0.12, 0.1, d); break;
+      case "start": this.arp([0, 7, 12, 19], 330, t, 0.06, "square", 0.08); break;
       // machine à laver : claquement, moteur qui peine puis repart
       case "machine": this.noiseHit(t, 0.08, 0.5, "lowpass", 700, d); this.tone("sawtooth", 60, t + 0.1, 0.5, 0.12, d, 40); this.tone("sawtooth", 50, t + 0.65, 0.6, 0.14, d, 110); break;
-      case "spin": this.tone("sawtooth", 80, t, 0.9, 0.12, d, 420); this.noiseHit(t, 0.9, 0.25, "bandpass", 1200, d); break;
+      case "spin": case "drum": this.tone("sawtooth", 80, t, 0.9, 0.12, d, 420); this.noiseHit(t, 0.9, 0.25, "bandpass", 1200, d); break;
+      case "arrive": this.tone("sawtooth", 420, t, 0.6, 0.1, d, 80); this.arp([0, 7, 12], 523, t + 0.4, 0.07, "triangle", 0.1); break;
       case "zap": this.noiseHit(t, 0.25, 0.4, "highpass", 3000, d); this.tone("square", 1800, t, 0.2, 0.06, d, 600); break;
-      case "stun": [0, 4, 7, 12, 7, 4].forEach((n, i) => this.tone("triangle", 523 * Math.pow(2, n / 12), t + i * 0.08, 0.2, 0.12, d)); break;
+      case "stun": this.arp([0, 4, 7, 12, 7, 4], 523, t, 0.08, "triangle", 0.12, 0.2); break;
       case "block": this.tone("square", 180, t, 0.08, 0.15, d, 120); this.noiseHit(t, 0.06, 0.3, "lowpass", 1200, d); break;
+      case "break": this.noiseHit(t, 0.3, 0.7, "lowpass", 1200, d); this.tone("square", 140, t, 0.2, 0.15, d, 60); break;
       case "nope": this.tone("square", 200, t, 0.1, 0.08, d, 150); break;
+      case "transform": this.tone("sawtooth", 120, t, 0.6, 0.18, d, 520); this.noiseHit(t, 0.5, 0.4, "bandpass", 900, d); break;
+      case "boss_intro": this.tone("sawtooth", 90, t, 0.8, 0.16, d, 60); this.tone("square", 180, t + 0.2, 0.5, 0.06, d, 170); break;
+      // chaussette : un « pouic » puis un petit carillon
+      case "sock": this.tone("square", 900, t, 0.08, 0.1, d, 1500); this.arp([0, 4, 7, 12], 1047, t + 0.08, 0.05, "triangle", 0.1, 0.16); break;
+      case "sock_bonus": this.tone("square", 900, t, 0.08, 0.1, d, 1500); this.arp([0, 4, 7, 12, 16, 19, 24], 1047, t + 0.08, 0.04, "triangle", 0.1, 0.16); break;
+      case "quest_item": case "crystal": this.arp([0, 5, 9, 12], 784, t, 0.06, "triangle", 0.11); break;
+      case "gauge_full": this.arp([0, 12], 1320, t, 0.06, "triangle", 0.06, 0.1); break;
+      case "equip": case "locker": this.noiseHit(t, 0.06, 0.25, "bandpass", 2500, d); this.tone("triangle", 880, t + 0.04, 0.12, 0.1, d, 1320); break;
+      case "coin": this.tone("square", 1975, t, 0.07, 0.08, d); this.tone("square", 2637, t + 0.07, 0.2, 0.08, d); break;
+      case "gust_warn": this.tone("sine", 400, t, 1.2, 0.08, d, 1400); break;
+      case "gust": this.noiseHit(t, 1.1, 0.45, "bandpass", 700, d); break;
+      case "tick": this.tone("square", 1600, t, 0.03, 0.08, d); break;
+      case "chrono_end": this.arp([12, 7, 0], 660, t, 0.12, "square", 0.1, 0.2); break;
+      case "slip": this.noiseHit(t, 0.15, 0.12, "highpass", 5000, d); break;
+      // jingles de secours (sans fichier)
+      case "world_done": case "quest_done": case "chal_ok": this.arp([0, 4, 7, 12, 7, 12, 16], 523, t, 0.08, "square", 0.08, 0.22); this.duck(1.5); break;
+      case "piece": case "repair": this.arp([0, 7, 12, 16, 19, 24], 392, t, 0.07, "triangle", 0.12, 0.3); this.duck(1.5); break;
+      case "card": case "memory": this.arp([0, 4, 7, 11, 14], 659, t, 0.07, "triangle", 0.1, 0.25); break;
+      case "badge": case "milestone": this.arp([0, 7, 12, 16, 24], 523, t, 0.06, "square", 0.08, 0.3); this.duck(1.2); break;
+      case "quest_start": this.arp([0, 4, 7], 587, t, 0.08, "triangle", 0.1, 0.2); break;
+      case "chal_fail": this.arp([7, 4, 0, 2], 392, t, 0.12, "triangle", 0.1, 0.25); break;
+      default:
+        if (name.startsWith("talk_")) { const f = { talk_bulle: 900, talk_capitaine: 300, talk_bobine: 1400, talk_kage: 600 }[name] || 700; this.tone(name === "talk_bobine" ? "square" : "triangle", f * (0.9 + Math.random() * 0.2), t, 0.05, 0.05, d); }
+        else if (name.startsWith("def_") || name.startsWith("sig_")) this.noiseHit(t, 0.25, 0.4, "lowpass", 1100, d);
     }
   },
   // boucles WebAudio : notes programmées un peu à l'avance à chaque image (synthTick)
@@ -630,34 +709,44 @@ function synthTick() {
 }
 audio.discover();
 // Choix de la musique. Chaque personnage a son thème : la première piste de sa liste (CHARS[].music), sinon sa boucle WebAudio
-// provisoire (theme). Écran de choix des personnages : thème du personnage mis en avant. Ancienne aventure : musique du monde
-// (WORLDS[].music / bossMusic) si elle existe ; sinon Doom, bossbackground en salle de boss, puis la liste du personnage.
+// provisoire (theme). Écran de choix des personnages : thème du personnage mis en avant.
+// Nouvelle campagne : musique du boss (musique/boss/<boss>, <boss>_rage en dernière phase), sinon bossbackground ; musique du
+// monde (musique/mondes/<monde>, une piste par salle) ; sinon Doom, puis la liste du personnage (une piste par monde).
+// Laverie : piste choisie au jukebox, sinon musique/laverie/laverie. Ancienne aventure : musique/bonus/<monde> si elle existe.
 // Une liste vide ou absente ne plante jamais : on passe à la suivante.
 function charMusic(C, i = 0) {
   const list = audio.playlists["char:" + C.id] || [];
   return list.length ? list[i % list.length] : C.theme ? "synth:" + C.theme : null;
 }
+const pickList = (list, i) => list && list.length ? list[i % list.length] : null;
+function campMusic() {
+  const P = audio.playlists, L = k => P[k] || [], W = CWORLDS[camp.wi], doom = df().id === "doom";
+  const b = enemies && enemies.find(e => e.type === "bigboss" && e.alive && !e.dying);
+  if (lvl.bossSpawn && b) {
+    const last = b.phase >= b.th.length + 1;
+    return (last && pickList(audio.list("bossrage:" + W.boss, "musique/boss/" + W.boss + "_rage"), 0))
+      || pickList(audio.list("boss:" + W.boss, "musique/boss/" + W.boss), 0) || pickList(L("boss"), camp.wi) || "synth:boss";
+  }
+  const wm = audio.list("world:" + W.id, "musique/mondes/" + W.short);
+  if (!doom && wm.length) return pickList(wm, camp.ri);
+  if (doom && L("doom").length) return pickList(L("doom"), camp.wi);
+  return charMusic(ch(), camp.wi);
+}
 function musicKey() {
   const P = audio.playlists, L = k => P[k] || [];
-  const pick = (list, i) => list.length ? list[i % list.length] : null;
   const doom = df().id === "doom";
   if (state === "chars") return charMusic(CHARS[charSel]);
+  if (typeof screenMusic === "function") { const m = screenMusic(); if (m !== undefined) return m; }   // laverie, souvenirs, fin, défis
   const inRoom = ["play", "clear", "worldclear", "pause"].includes(state) || (optFrom === "pause" && (state === "options" || state === "keys"));
-  if (inRoom && lvl && lvl.json) {
-    const bossTime = lvl.bossSpawn && enemies.some(e => e.type === "bigboss" && e.alive && !e.dying);
-    if (bossTime) return pick(L("boss"), camp.wi) || "synth:boss";
-    if (doom && L("doom").length) return pick(L("doom"), camp.wi);
-    return charMusic(ch(), camp.wi);
-  }
+  if (inRoom && lvl && lvl.json) return campMusic();
   if (inRoom && lvl) {
     const room = ROOMS[lvlIdx], W = WORLDS[room.w], bossTime = room.boss && state !== "worldclear";
-    if (bossTime && W.bossMusic && L(W.bossMusic).length) return pick(L(W.bossMusic), 0);
-    if (!doom && W.music && L(W.music).length) return pick(L(W.music), room.ri);
-    if (bossTime && L("boss").length) return pick(L("boss"), room.w);
-    return doom && L("doom").length ? pick(L("doom"), room.w) : charMusic(ch(), room.w);
+    if (bossTime && L("bonusboss:" + W.id).length) return pickList(L("bonusboss:" + W.id), 0);
+    if (!doom && L("bonus:" + W.id).length) return pickList(L("bonus:" + W.id), room.ri);
+    if (bossTime && L("boss").length) return pickList(L("boss"), room.w);
+    return doom && L("doom").length ? pickList(L("doom"), room.w) : charMusic(ch(), room.w);
   }
-  if (state === "campwin") return charMusic(ch());
-  return doom && L("doom").length ? pick(L("doom"), 0) : charMusic(ch(), state === "worlds" ? worldSel : 0);
+  return doom && L("doom").length ? pickList(L("doom"), 0) : charMusic(ch(), state === "worlds" ? worldSel : 0);
 }
 
 /* ---------------- Voix ---------------- */
@@ -1127,7 +1216,8 @@ function killEnemy(e) {
   burst(cx, cy, 26, [...fx.sparks, ch().color], 220, 0.5, 200, 1);
   burst(cx, cy, 10, fx.debris, 160, 0.9, fx.debrisGrav, 3);
   shake = Math.max(shake, 5); hitstop = Math.max(hitstop, 0.06); flash = 0.08;
-  audio.sfx("boom"); rumble(80, 0, 0.35);
+  audio.sfx("def_robot"); rumble(80, 0, 0.35);
+  emit("oldFoe", { type: e.type });
   checkDoor();
 }
 function damageBoss(e, dmg) {
@@ -1143,6 +1233,7 @@ function damageBoss(e, dmg) {
     shake = 12; flash = 0.25; hitstop = 0.25; audio.sfx("boom"); audio.sfx("victory"); rumble(700, 1, 1);
     for (const m of enemies) if (m.alive && m.minion) killEnemy(m);
     msg = { text: `${e.name} est vaincu !`, t: 3 }; voice.say(msg.text, true);
+    emit("oldBoss", { wid: WORLDS[ROOMS[lvlIdx].w].id, doom: df().id === "doom" });
     checkDoor();
   }
 }
@@ -1166,7 +1257,7 @@ function hurtPlayer(p, srcX) {
     // bouclier : le coup est absorbé
     p.inv = 0.35; audio.sfx("deflect"); burst(p.x + 5, p.y + 16, 12, ["#5ef0ff", "#ffffff"], 140, 0.3, 0, 1); return;
   }
-  p.hp--;
+  p.hp--; if (lvl) lvl.hurt = true;
   shake = 6; hitstop = 0.08; audio.sfx("hurt");
   burst(p.x + 5, p.y + 14, 14, ["#ff3b5c", "#ffffff", p.C.color], 180, 0.5, 300, 2);
   if (p.hp <= 0 && buddyOn()) {
@@ -1849,10 +1940,6 @@ const UI = {
 const inside = (r) => mouse.x >= r.x && mouse.x <= r.x + r.w && mouse.y >= r.y && mouse.y <= r.y + r.h;
 function goMenu() { state = "menu"; setTimeFx(false, false); }
 function startGame() { audio.sfx("start"); openChars(); }
-function getProgress() { try { return Math.min(WORLDS.length, +localStorage.getItem(`lunelio-progress-${ch().id}`) || 0); } catch (e) { return 0; } }
-function setProgress(n) { try { if (n > getProgress()) localStorage.setItem(`lunelio-progress-${ch().id}`, String(n)); } catch (e) {} }
-const bestKey = wi => `lunelio-best-${ch().id}-${df().id}-${wi}`;
-function getBest(wi) { try { return JSON.parse(localStorage.getItem(bestKey(wi)) || "null"); } catch (e) { return null; } }
 let worldSel = 0, thumbs = null, thumbsFor = null, curWorld = 0;
 // Choix des mondes : pages de 4 × 2 ; au-delà de 8 mondes, d'autres pages apparaissent (← → passent d'une page à l'autre)
 const WCOLS = 4, WPAGE = 8;
@@ -2059,12 +2146,12 @@ const CUI = {
   back: { x: 12, y: 214, w: 74, h: 20 }, ok: { x: 160, y: 214, w: 74, h: 20 },
 };
 (function loadLastChar() {
-  try { const id = localStorage.getItem("lunelio-perso"); const i = CHARS.findIndex(C => C.id === id); if (i >= 0) charIdx = i; } catch (e) {}
+  const i = CHARS.findIndex(C => C.id === SAVE.lastChar); if (i >= 0) charIdx = i;
   charSel = charIdx;
 })();
 function openChars() { state = "chars"; charSel = charIdx; charSelT = 0; audio.sfx("select"); }
 function confirmChar() {
-  charIdx = charSel; try { localStorage.setItem("lunelio-perso", CHARS[charIdx].id); } catch (e) {}
+  charIdx = charSel; SAVE.lastChar = CHARS[charIdx].id; saveGame();
   audio.sfx("start"); mode = "camp"; openWorlds();
 }
 function moveCharSel(i) { if (i !== charSel) { charSel = i; charSelT = 0; audio.sfx("select"); } }
@@ -2122,7 +2209,7 @@ function drawChars() {
   if (pwr) lines.push(abilityLine(pwr.icon, pwr.name.toLowerCase(), (pwr.burst ? "" : "maintenir ") + kbNames("power"), (pwr.burst ? "" : "maintenir ") + `bouton ${pwr.icon}`, padText((pwr.burst ? "" : "maintenir ") + "bouton {POW}")));
   if (df().id === "doom" && pwr) lines[lines.length - 1] += "  (pas en Doom)";
   lines.forEach((l, i) => text(l, px + 10, 176 + i * 12, 7, i ? "#e8dcff" : "#b9a6e0"));
-  const prog = campProgress(C);
+  const prog = campProgress();
   text(`Mondes terminés : ${prog}/${CWORLDS.length}`, px + pw / 2, 226, 7, "#7dffb0", "center");
   // boutons
   for (const [r, label, col] of [[CUI.back, "◀ Retour", "#b9a6e0"], [CUI.ok, "Choisir ▶", C.ui]]) {
@@ -2288,7 +2375,7 @@ function updateClear(rdt) {
       setProgress(r.w + 1);
       const prev = getBest(r.w);
       best = { time: runTime, deaths, isNew: !prev || runTime < prev.time };
-      if (best.isNew) try { localStorage.setItem(bestKey(r.w), JSON.stringify({ time: runTime, deaths })); } catch (e) {}
+      if (best.isNew) setBest(bestKey(r.w), { time: runTime, deaths });
       state = r.w + 1 < WORLDS.length ? "worldclear" : "win"; wcSel = 0;
     }
   }

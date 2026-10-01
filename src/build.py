@@ -4,12 +4,13 @@
   python3 build.py             version serveur : les sons restent dans ../audio/ (recommandé)
   python3 build.py --embed     version autonome : les sons sont intégrés dans le fichier (plus lourd)
 
-En version serveur, ajouter une musique ne demande pas de reconstruire le jeu :
-déposer backgroundhelio2.mp3, backgroundlune2.mp3… dans ../audio/ suffit.
-La version serveur écrit aussi ../sw.js (service worker de l'appli, à partir de sw.js).
+Sons : tous les .mp3 de ../audio/ et de ses sous-dossiers (musique/, jingles/, sfx/, voir docs/sons_a_fournir.md).
+Leur liste est écrite dans le jeu : après avoir déposé un son, relancer build.py (il met aussi à jour ../sw.js,
+le service worker de l'appli, à partir de sw.js). Un son absent garde le bruitage synthétisé ou la musique de secours.
 
-Nouvelle campagne : campagne.js est inséré dans le jeu, avec campagne.json (atlas et salles, écrit par
-preparer_pack.py). Ses images restent dans ../assets/ en version serveur (avec une empreinte ?v=… pour que
+Nouvelle campagne : les modules JS_FILES (campagne.js, registres.js, sauvegarde.js…) sont insérés dans le jeu,
+avec campagne.json (atlas et salles, écrit par preparer_pack.py), campagne_ajouts.json (chaussettes, objets de quête,
+secrets et défis, écrit à la main) et laverie.json (images de la laverie, si preparer_laverie.py l'a écrit). Ses images restent dans ../assets/ en version serveur (avec une empreinte ?v=… pour que
 le navigateur et l'appli prennent toujours la bonne version) ; la version autonome les intègre.
 """
 import base64, hashlib, json, os, sys
@@ -30,17 +31,23 @@ for f in sorted(os.listdir(IMGS)):
     elif f.startswith("logo_") and f.endswith(".webp"):
         sprites[f[:-5]] = "data:image/webp;base64," + b64(os.path.join(IMGS, f))
 t = t.replace("__SPRITES__", json.dumps(sprites))
-sounds = {}
-if embed:
-    for f in sorted(os.listdir(AUDIO)):
-        if f.endswith(".mp3"):
-            sounds[f[:-4]] = "data:audio/mpeg;base64," + b64(os.path.join(AUDIO, f))
+# sons : chemins relatifs à audio/, sans .mp3 (« musique/heros/backgroundhelio », « sfx/joueur/coup »…)
+audio_list = sorted(os.path.relpath(os.path.join(d, f), AUDIO).replace(os.sep, "/")[:-4]
+                    for d, _, fs in os.walk(AUDIO) for f in fs if f.endswith(".mp3"))
+sounds = {n: "data:audio/mpeg;base64," + b64(os.path.join(AUDIO, n + ".mp3")) for n in audio_list} if embed else {}
 t = t.replace("__AUDIO_MODE__", "embed" if embed else "files")
+t = t.replace("__AUDIO_LIST__", json.dumps(audio_list))
 t = t.replace("__AUDIO_EMBED__", json.dumps(sounds))
 t = t.replace("__WORLDS__", open(os.path.join(HERE, "worlds.json"), encoding="utf-8").read())
-# nouvelle campagne : moteur (campagne.js), données (campagne.json) et images de ../assets/
-t = t.replace("/*__CAMPAGNE_JS__*/", open(os.path.join(HERE, "campagne.js"), encoding="utf-8").read())
+# nouvelle campagne : moteur et systèmes (JS_FILES, dans cet ordre), données (campagne.json) et images de ../assets/
+JS_FILES = ["campagne.js", "registres.js", "sauvegarde.js", "laverie.js", "ecrans.js", "defis.js"]
+t = t.replace("/*__CAMPAGNE_JS__*/", "\n".join(open(os.path.join(HERE, f), encoding="utf-8").read() for f in JS_FILES))
 camp = json.load(open(os.path.join(HERE, "campagne.json"), encoding="utf-8"))
+# images de la laverie, des cartes et des cosmétiques (écrites par preparer_laverie.py quand elles existent)
+lav = os.path.join(HERE, "laverie.json")
+if os.path.exists(lav): camp["atlas"].update(json.load(open(lav, encoding="utf-8")).get("atlas", {}))
+ajouts = json.load(open(os.path.join(HERE, "campagne_ajouts.json"), encoding="utf-8"))
+t = t.replace("__AJOUTS__", json.dumps(ajouts, ensure_ascii=False, separators=(",", ":")))
 asset_paths = sorted({a["src"] for a in camp["atlas"].values()} | {r["bg"] for w in camp["worlds"] for r in w["rooms"]})
 missing = [a for a in asset_paths if not os.path.exists(os.path.join(ROOT, a))]
 if missing: sys.exit(f"Images manquantes dans assets/ ({len(missing)}), relancer preparer_pack.py : {missing[:5]}")
@@ -58,7 +65,7 @@ open(out, "w", encoding="utf-8", newline="\n").write(t)
 if not embed:
     # la version du service worker change dès que le jeu, ses icônes ou la liste des sons changent :
     # le navigateur installe alors le nouveau service worker tout seul
-    audio_files = sorted("audio/" + f for f in os.listdir(AUDIO) if f.endswith(".mp3"))
+    audio_files = ["audio/" + n + ".mp3" for n in audio_list]
     sw = open(os.path.join(HERE, "sw.js"), encoding="utf-8").read()
     asset_urls = [f"{a}?v={v}" for a, v in asset_ver.items()]
     h = hashlib.sha256((t + sw + "\n".join(audio_files)).encode())
