@@ -1,6 +1,12 @@
 import json, sys, os
 HERE = os.path.dirname(os.path.abspath(__file__))
 
+# Lettres des ennemis qui marchent au sol (doivent être posés sur # ou -). Une nouvelle lettre d'ennemi au sol s'ajoute ici,
+# dans GROUND de verifier_niveaux.py, et dans ENEMIES de template.html.
+GROUND_ENEMIES = "WS"
+# Un monde peut déclarer ses musiques : music="nom" (audio/nom.mp3, nom2.mp3… une par salle, en boucle)
+# et bossMusic="nom" (salle de boss). Sans elles, les musiques du personnage sont utilisées.
+
 FULL = "#" * 30
 EMPTY = "#" + "." * 28 + "#"
 
@@ -362,7 +368,7 @@ def validate():
             if flat.count("P") != 1 or flat.count("E") != 1: print(tag, "P/E count"); ok = False
             for y, row in enumerate(m):
                 for x, ch in enumerate(row):
-                    if ch in "WSEB" and y + 1 < 17 and not (ch == "B" and r.get("boss") and w["id"] in ("ruelle", "avion")):
+                    if ch in GROUND_ENEMIES + "EB" and y + 1 < 17 and not (ch == "B" and r.get("boss") and w["id"] in ("ruelle", "avion")):
                         below = m[y+1][x] if x < len(m[y+1]) else "#"
                         if below not in "#-": print(tag, f"{ch} at r{y} c{x} unsupported ({below})"); ok = False
                     if ch == "E" and y + 1 < 17 and x + 1 < 30 and m[y+1][x+1] not in "#-":

@@ -1,11 +1,11 @@
 // Service worker de Lunelio : permet de jouer hors ligne une fois le jeu installé.
-// Ce fichier est un modèle : build.py remplace 6e06a8b5d408 et ["audio/attack.mp3", "audio/backgroundhelio.mp3", "audio/backgroundlune.mp3", "audio/doombackground.mp3", "audio/gameover.mp3", "audio/laser.mp3"] et écrit ../sw.js.
+// Ce fichier est un modèle : build.py remplace 305a8ff891e0 et ["audio/attack.mp3", "audio/backgroundhelio.mp3", "audio/backgroundlune.mp3", "audio/doombackground.mp3", "audio/gameover.mp3", "audio/laser.mp3"] et écrit ../sw.js.
 //
 // Le jeu (index.html) est toujours demandé au serveur d'abord ; le cache ne sert que
 // sans réseau. Une nouvelle version publiée sur main est donc prise dès le prochain
 // chargement, sans vider le cache à la main. Les sons, lourds et rarement modifiés,
 // sont lus dans le cache puis rafraîchis en arrière-plan.
-const VERSION = "6e06a8b5d408";
+const VERSION = "305a8ff891e0";
 const GAME_CACHE = "lunelio-jeu-" + VERSION;
 const AUDIO_CACHE = "lunelio-audio";
 const GAME_FILES = ["./", "index.html", "manifest.json", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon-32.png"];

@@ -28,7 +28,7 @@ src/verifier_niveaux.py  Vérifie que robots marcheurs, robots-canons et sortie 
 src/build.py             Assemble index.html à partir du template, des images et des niveaux, et écrit sw.js
 src/generateur_sprites.py  Génère les planches de sprites d'Hélio et Lune (Pillow)
 src/generer_icones.py    Génère les icônes de icons/ à partir des sprites (Pillow) ; à relancer si les sprites changent
-src/assets/images/       helio_spritesheet.png, lune_spritesheet.png, logo_helio.webp, logo_lune.webp
+src/assets/images/       <id>_spritesheet.png et logo_<id>.webp de chaque personnage (tous intégrés par build.py)
 deploy/                  Config Nginx et scripts pour le conteneur LXC
 README.md                Présentation pour GitHub
 ```
@@ -68,7 +68,7 @@ Le site est servi en `http://` sur l'IP du conteneur. Les navigateurs n'activent
 
 Un seul `<script>`, organisé en sections commentées `/* ---------------- Nom ---------------- */`.
 
-**Marqueurs remplacés par `build.py`** : `__HELIO__`, `__LUNE__` (sprites PNG en base64), `__LOGO_HELIO__`, `__LOGO_LUNE__` (WebP en base64), `__WORLDS__` (JSON des mondes), `__AUDIO_MODE__` (`files` ou `embed`), `__AUDIO_EMBED__` (dictionnaire de data URLs, vide en mode `files`), `__PWA_HEAD__` (liens vers le manifeste et les icônes, vide en mode `embed`). Ne pas les renommer sans adapter `build.py`.
+**Marqueurs remplacés par `build.py`** : `__SPRITES__` (objet `{id: data URL}` de toutes les planches `*_spritesheet.png` et de tous les logos `logo_*.webp` de `src/assets/images/`), `__WORLDS__` (JSON des mondes), `__AUDIO_MODE__` (`files` ou `embed`), `__AUDIO_EMBED__` (dictionnaire de data URLs, vide en mode `files`), `__PWA_HEAD__` (liens vers le manifeste et les icônes, vide en mode `embed`). Ne pas les renommer sans adapter `build.py`.
 
 **Rendu** : résolution logique 480×272 (`VW`, `VH`), dessinée sur un canvas 3× plus grand (`SC = 3`) avec `imageSmoothingEnabled = false`. Tuiles de 16 px (`T`), salles de 30×17 tuiles. Scanlines et vignette par-dessus tout (`scanCanvas`).
 
@@ -76,21 +76,23 @@ Un seul `<script>`, organisé en sections commentées `/* ---------------- Nom -
 
 **Données principales**
 - `DIFFS` : facile (5 cœurs), normal (3), doom (1). Champs : `eSpeed`, `laser`, `cd`, `tele`, `power`, `drain`, `regen`, `bossHp`.
-- `CHARS` : Hélio (`ui` orange/or, sabre cyan, dash, super vitesse) et Lune (`ui` violet/rose, double saut, ralenti, attaque plus large `atkW`). Chaque personnage a ses couleurs de ciel, utilisées dans les décors.
-- `HINTS` : consignes à afficher, chacune en version clavier, tactile et manette (`hintText(tok)` choisit ; si les touches du clavier ont été changées, la version clavier est recomposée par `KB_HINTS`). Dans les textes manette, `{A}`, `{B}`, `{X}`, `{Y}`, `{START}`, `{SELECT}` donnent le nom du bouton lui-même, et `{JUMP}`, `{ATK}`, `{SPEC}`, `{POW}` le nom du bouton choisi pour l'action (Xbox ou PlayStation). Pour tout autre texte qui dépend de la commande, utiliser `say(clavier, tactile, manette)`. Dans `worlds.py`, les consignes peuvent être des jetons : `MOVE`, `ATTACK`, `SPECIAL`, `POWER`.
+- `CHARS` : fiches des personnages. Champs : `id` (nom de la planche `<id>_spritesheet.png` et du logo), `name`, `special` (clé de `SPECIALS` : `dash`, `doublejump`, ou `null`), `power` (clé de `POWERS` : `fast`, `slow`, ou `null`), `music` (nom de base des musiques dans `audio/`), `unlock` (`null` = disponible ; prévu pour les personnages à débloquer), couleurs (`color`, `glow`, `ui`, `ui2`, ciel `sky`, `moon`, `stripe`, `stars`, `city`) et portée d'attaque `atkW`. Hélio : dash et super vitesse ; Lune : double saut et ralenti. **Ne jamais tester l'identifiant d'un personnage dans le moteur** : passer par `specialOf(C)`, `powerOf(C)` ou un champ de la fiche.
+- `SPECIALS` / `POWERS` : capacités, avec icône et libellé du bouton tactile, nom affiché (`abilityText(C)`), consigne `hint` [clavier, tactile, manette] et `kbHint` (consigne clavier recomposée quand les touches ont changé). `POWERS[].timeFx` (`fast` ou `slow`) dit l'effet sur le temps. Une nouvelle capacité demande sa fiche et son effet dans `updatePlayer()` (ou `updatePlay()` pour un pouvoir).
+- `HINTS` : consignes communes `MOVE` et `ATTACK`, chacune en version clavier, tactile et manette ; `SPECIAL` et `POWER` viennent de la capacité du personnage (`hintText(tok)` choisit, et renvoie `""` si le personnage n'a pas la capacité ; si les touches du clavier ont été changées, la version clavier est recomposée par `KB_HINTS` ou `kbHint`). Dans les textes manette, `{A}`, `{B}`, `{X}`, `{Y}`, `{START}`, `{SELECT}` donnent le nom du bouton lui-même, et `{JUMP}`, `{ATK}`, `{SPEC}`, `{POW}` le nom du bouton choisi pour l'action (Xbox ou PlayStation). Pour tout autre texte qui dépend de la commande, utiliser `say(clavier, tactile, manette)`. Dans `worlds.py`, les consignes peuvent être des jetons : `MOVE`, `ATTACK`, `SPECIAL`, `POWER`.
 - `WORLDS` / `ROOMS` : `ROOMS` est la liste à plat de toutes les salles, avec `w` (index du monde) et `ri` (index dans le monde). La dernière salle de chaque monde a `boss: true`.
 - `WORLD_STYLE` : couleurs des tuiles et enseignes par monde. `BG` dessine le fond de chaque monde, `PROPS` dessine les décors (lettres minuscules des cartes). Fonds et décors sont pré-rendus une fois par salle dans `makeWorldBg()`, les tuiles dans `makeTiles()`.
-- `BOSSES` : un boss par monde avec `kind` (`brute`, `canon`, `mother`, `final`), `name`, `hp`, couleurs et options (`fast`, `spread`, `lasers`).
+- `BOSSES` : un boss par monde avec `kind` (clé de `BOSS_KINDS`), `name`, `hp`, couleurs et options (`fast`, `spread`, `lasers`).
 
 **Entités**
+- Joueurs : `players` (liste ; un seul joueur pour l'instant, la coop en ajoutera). `makePlayer(C, input, idx)` crée un joueur avec son personnage `C`, ses commandes `input` (au format de `K`), ses cœurs `hp` et sa jauge de pouvoir `gauge`. `players[0]` (`player1()`) est le joueur principal : HUD, menus. Les fonctions de joueur prennent le joueur en paramètre : `updatePlayer(p, dt)`, `hurtPlayer(p, srcX)`, `drawPlayer(p)`, `hitEnemy(e, src, p)`. Les ennemis visent `targetOf(e)` (joueur vivant le plus proche) et blessent au contact via `touchPlayers(e, srcX)`. La salle recommence quand `allDead()`.
 - Joueur : boîte de collision 10×32. Saut à 450 px/s (hauteur ≈ 67 px, soit un peu plus de 4 tuiles), gravité 1500. Lune a un double saut, Hélio un dash (`dashT`, `dashCd`).
-- Ennemis dans `enemies` : `walker`, `shooter` (laser après un temps de visée), `drone` (vole vers le joueur), `boss`. Les drones de la mère-drone ont `minion: true`.
+- Ennemis dans `enemies`, décrits par les fiches `ENEMIES` : `walker` (W), `shooter` (S, laser après un temps de visée), `drone` (D, vole vers le joueur). Champs d'une fiche : `letter` (caractère des cartes), `w`, `h`, `spawn(c, r, fiche)` (position d'apparition, `ground` = posé sur le sol), `update(e, p, dt)`, `draw(e)`, `defeat` (clé de `DEFEATS` : effet de disparition, étincelles et boulons pour les robots). `makeEnemy(type, x, y)` crée un ennemi. Un nouvel ennemi (singe, monstre, ninja…) = une fiche, sa lettre dans `GROUND_ENEMIES` de `worlds.py` et `GROUND` de `verifier_niveaux.py` s'il marche au sol, et un effet de défaite sans violence. Les drones de la mère-drone ont `minion: true`.
 - `lasers` : tirs ennemis renvoyables au sabre (deviennent `owner: "player"`). Les ondes de choc des boss ont `kind: "wave"` et ne se renvoient pas.
 - `pickups` : cœurs à ramasser (absents en mode Doom).
 - Dégâts : `hitEnemy(e, source)` tue un ennemi normal ; un boss perd 1 PV par coup de sabre ou dash (une seule fois par attaque) et 2 PV par laser renvoyé. `checkDoor()` ouvre la sortie quand tout est détruit.
-- Pouvoirs : `setTimeFx(slow, fast)` gère le ralenti de Lune (`slowOn`, le temps du jeu passe à 0,35) et la super vitesse d'Hélio (`fastOn`, joueur ×1,75 et images fantômes). Une seule jauge partagée : `powerGauge`.
+- Pouvoirs : chaque joueur a sa jauge `p.gauge` et `p.powerOn`. `setTimeFx(slow, fast)` applique les effets globaux : ralenti (`slowOn`, le temps du jeu passe à 0,35 pour tous) et super vitesse (`fastOn`, son et effets d'écran ; le joueur concerné va ×1,75 avec images fantômes `ghosts`).
 
-**Boss** (`updateBoss`) : intro de 1,8 s, puis machine à états selon le mode. `brute` : télégraphe, charge, étourdi contre un mur, saut avec ondes de choc. `canon` : vole entre 6 positions (`canonSpots()`, alignées sur les plateformes des arènes), vise puis tire des rafales. `mother` : survole, lâche des drones, plonge vers le joueur. `final` (Dr. Boulon) : alterne les trois modes.
+**Boss** (`updateBoss`) : intro de 1,8 s, puis le mode d'attaque en cours. `BOSS_MODES` décrit chaque mode (`flying`, `update`, `start` après l'intro, `enter` en cours de combat, `actions` avant de changer, phrase `say`) : `brute` (télégraphe, charge, étourdi contre un mur, saut avec ondes de choc), `canon` (vole entre 6 positions `canonSpots()`, alignées sur les plateformes des arènes, vise puis tire des rafales), `mother` (survole, lâche des drones, plonge vers le joueur). `BOSS_KINDS` donne la taille et la suite de modes de chaque type : `final` (Dr. Boulon) enchaîne les trois. Un nouveau boss = une entrée dans `BOSSES`, et si besoin un nouveau kind ou mode (et son dessin dans `drawBoss`).
 
 **Options** (`OPT`, sauvegardé dans `lunelio-options`) : `music`, `sfx`, `voice`, `buddy` (mode copain, ignoré en Doom via `buddyOn()`), `rumble`, `kb` (codes clavier par action, défauts `KB_DEFAULT`), `pad` (indices de boutons par action, défauts `PAD_DEFAULT`), `labels` (nom affiché des touches choisies). `loadOptions()` valide tout ce qui est relu. Écrans dans la section « Écran des options » : `OPT_ROWS`, `keysRows()`, `assign()` (une touche prise à une autre action lui est retirée). Touches réservées : `KB_RESERVED`.
 
@@ -103,7 +105,8 @@ Un seul `<script>`, organisé en sections commentées `/* ---------------- Nom -
 **Audio** (objet `audio`, Web Audio)
 - Bruitages fichiers : `attack.mp3` (coup de sabre), `laser.mp3` (tir ennemi), `gameover.mp3` (mort). Les autres bruitages sont synthétisés dans `audio.sfx()`.
 - Musiques détectées au démarrage par `audio.discover()` (requêtes `HEAD`) : `backgroundhelio`, `backgroundhelio2`… jusqu'à 9, idem `backgroundlune`, `doombackground`, `bossbackground`. Les numéros doivent se suivre.
-- `musicKey()` choisit la piste : celle du personnage (ou Doom), une différente par monde en tournant dans la liste ; `bossbackground` en salle de boss si elle existe. Chargement à la demande, fondu enchaîné.
+- Listes détectées (`MUSIC_BASES`) : `char:<id>` pour chaque personnage (champ `music`), `doom`, `boss`, et les musiques déclarées par les mondes (`music`, `bossMusic` dans `worlds.py`).
+- `musicKey()` choisit la piste. En salle : `bossMusic` du monde en salle de boss, puis `music` du monde (une piste par salle, hors Doom), puis `bossbackground` en salle de boss, puis Doom ou la liste du personnage (une piste différente par monde). Une liste absente ou vide est sautée, jamais d'erreur. Chargement à la demande, fondu enchaîné.
 - Le contexte audio ne démarre qu'après une interaction (touche, clic ou toucher) : appeler `audio.init()` dans tout nouveau gestionnaire d'entrée.
 
 **Appli installable (PWA)** : `manifest.json` et `icons/` à la racine, service worker `sw.js` enregistré à la fin du script (mode `files` seulement). `build.py` écrit `sw.js` depuis `src/sw.js` avec `VERSION` (empreinte du jeu, du service worker, des icônes et de la liste des sons) et `AUDIO_FILES` (les `.mp3` de `audio/`). Toute nouvelle version change donc `sw.js`, que le navigateur installe tout seul (`skipWaiting` + `clients.claim`), en supprimant l'ancien cache `lunelio-jeu-…`. Stratégies : réseau d'abord pour le jeu (cache seulement hors ligne ou si le serveur ne répond pas en 4 s) ; sons dans le cache `lunelio-audio`, rafraîchis en arrière-plan ; requêtes `HEAD` de `audio.discover()` répondues depuis le cache hors ligne. Un fichier ajouté au jeu et nécessaire hors ligne doit être ajouté à `GAME_FILES` dans `src/sw.js`.
@@ -134,7 +137,9 @@ Règles de conception :
 - Difficulté progressive au fil des mondes ; les premières salles d'un monde introduisent la nouveauté.
 - Lancer `worlds.py` puis `verifier_niveaux.py` après chaque modification.
 
-Mondes et décors disponibles : `bar`, `immeuble`, `ruelle` (extérieur), `cinema` (option `screen=True` pour le grand écran), `avion` (option `windows=[y, …]` pour les hublots), `parking`, `metro` (option `wagon=True` pour l'intérieur d'une rame), `labo`. Un nouveau monde demande une entrée dans `WORLD_STYLE`, `BG`, `PROPS` et `BOSSES`, un cas dans `makeTiles()` si besoin, et une adaptation de la grille de `WUI` sur l'écran de choix des mondes (actuellement 4 colonnes × 2 lignes).
+Ennemis au sol : leurs lettres sont dans `GROUND_ENEMIES` (doivent être posés sur `#` ou `-`). Musiques facultatives d'un monde : `music="nom"` et `bossMusic="nom"` dans le `dict` du monde.
+
+Mondes et décors disponibles : `bar`, `immeuble`, `ruelle` (extérieur), `cinema` (option `screen=True` pour le grand écran), `avion` (option `windows=[y, …]` pour les hublots), `parking`, `metro` (option `wagon=True` pour l'intérieur d'une rame), `labo`. Un nouveau monde demande une entrée dans `WORLD_STYLE`, `BG`, `PROPS` et `BOSSES`, un cas dans `makeTiles()` si besoin, et sa vignette sur l'écran de choix des mondes se place toute seule (pages de 4 × 2, `WPAGE`).
 
 ## Style visuel
 
@@ -147,6 +152,7 @@ Validées par le parent, dans cet ordre conseillé :
 1. ~~Support des manettes (Gamepad API), en plus du clavier et du tactile.~~ Fait.
 2. ~~Installation comme une appli (PWA) : manifeste, icônes, service worker pour jouer hors ligne.~~ Fait (actif seulement en HTTPS).
    - ~~Options : musique, bruitages, voix qui lit les consignes, mode copain, vibration de la manette, choix des touches.~~ Fait.
+   - Restructuration (branche `restructuration`) : personnages, ennemis et boss en fiches, liste de joueurs, musiques par monde, pages de mondes.
 3. Éditeur de niveaux dans le jeu : poser tuiles, robots, cœurs, départ et sortie, tester, sauvegarder dans `localStorage`, et pouvoir partager une salle (code texte).
 4. Coop à deux sur le même écran (Hélio et Lune ensemble).
 5. Étoiles cachées dans les salles, médailles chrono bronze/argent/or, costumes et succès à débloquer.

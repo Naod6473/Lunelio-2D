@@ -1,6 +1,7 @@
 """Vérifie que chaque robot et la sortie sont atteignables dans toutes les salles. Lancer après worlds.py."""
 import json, os
 from collections import deque
+GROUND = "WS"   # ennemis au sol, comme GROUND_ENEMIES dans worlds.py
 W=json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)),'worlds.json'), encoding='utf-8'))
 def check(m):
     R,C=17,30
@@ -28,7 +29,7 @@ def check(m):
     for r in range(R):
         for c in range(C):
             ch=m[r][c]
-            if ch in 'WSE':
+            if ch in GROUND + 'E':
                 if not any((r,cc) in seen for cc in (c-1,c,c+1)): bad.append((ch,r,c))
     return bad
 for w in W:
