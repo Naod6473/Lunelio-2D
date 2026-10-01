@@ -134,38 +134,39 @@ const POWERS = {
 // Personnages. Un nouveau personnage = une fiche ici + sa planche (atlas perso_<id> préparé par src/preparer_pack.py ;
 // Hélio et Lune gardent leur planche d'origine src/assets/images/<id>_spritesheet.png) + son portrait (atlas portraits).
 // special / power : clés de SPECIALS / POWERS (ou null). music : nom de base de ses musiques dans audio/ (<music>.mp3, <music>2.mp3…),
-// utilisées pour l'écran de choix (la première), les salles (une par monde) ; theme : boucle WebAudio provisoire (SYNTH_THEMES)
-// jouée si aucun fichier n'existe. unlock : null = disponible dès le début. desc : phrase de l'écran de choix.
+// utilisées pour l'écran de choix (la première), les salles (une par monde) ; theme : boucle WebAudio (SYNTH_THEMES) jouée
+// seulement si aucun fichier n'existe. logo : logo animé du titre (atlas logo_<logo>_anime, sinon logo_<logo>.webp).
+// unlock : null = disponible dès le début. desc : phrase de l'écran de choix.
 const CHARS = [
-  { id: "helio", name: "Hélio", special: "dash", power: "fast", music: "backgroundhelio", theme: null, unlock: null,
+  { id: "helio", name: "Hélio", special: "dash", power: "fast", music: "backgroundhelio", logo: "helio", theme: null, unlock: null,
     desc: "Rapide comme un rayon de soleil.",
     color: "#5ef0ff", glow: "94,240,255", ui: "#ffb43c", ui2: "#ff6a1a", atkW: 26,
     sky: ["#1c0a26", "#6e1e3c", "#e0602a"], moon: ["#fff1a8", "#ff9a2e"], stripe: "#6a1f3a", stars: "255,236,190", city: ["#2a0f2a", "#1c0a22"] },
-  { id: "lune", name: "Lune", special: "doublejump", power: "slow", music: "backgroundlune", theme: null, unlock: null,
+  { id: "lune", name: "Lune", special: "doublejump", power: "slow", music: "backgroundlune", logo: "lune", theme: null, unlock: null,
     desc: "Légère comme la nuit, elle ralentit le temps.",
     color: "#de6eff", glow: "222,110,255", ui: "#de6eff", ui2: "#ff6ec7", atkW: 34,
     sky: ["#120828", "#2f0f4a", "#5a1650"], moon: ["#ffe8f6", "#c98cff"], stripe: "#3a1252", stars: "255,230,255", city: ["#1e0b38", "#160830"] },
-  { id: "robot", name: "Robot", special: "dash", power: "shield", music: "backgroundrobot", theme: "robot", unlock: null,
+  { id: "robot", name: "Robot", special: "dash", power: "shield", music: "backgroundhelio", logo: "helio", theme: "robot", unlock: null,
     desc: "Un robot gentil avec un bouclier d'énergie.",
     color: "#5ef0ff", glow: "94,240,255", ui: "#9fe8ff", ui2: "#4a7ad8", atkW: 28,
     sky: ["#08121e", "#123a52", "#2a7a9a"], moon: ["#e8fbff", "#7ad8ff"], stripe: "#1a3a52", stars: "200,240,255", city: ["#0c1c2c", "#081420"] },
-  { id: "singe", name: "Singe", special: "dash", power: "superjump", music: "backgroundsinge", theme: "singe", unlock: null,
+  { id: "singe", name: "Singe", special: "dash", power: "superjump", music: "backgroundhelio", logo: "helio", theme: "singe", unlock: null,
     desc: "Il saute plus haut que tout le monde.",
     color: "#ffc23c", glow: "255,194,60", ui: "#ffb46a", ui2: "#c8742a", atkW: 34,
     sky: ["#140e06", "#3a2a0e", "#7a5a1a"], moon: ["#fff4c8", "#ffb43c"], stripe: "#4a3010", stars: "255,236,190", city: ["#1e160a", "#140e06"] },
-  { id: "ninja", name: "Ninja", special: "dash", power: "invisible", music: "backgroundninja", theme: "ninja", unlock: null,
+  { id: "ninja", name: "Ninja", special: "dash", power: "invisible", music: "backgroundhelio", logo: "helio", theme: "ninja", unlock: null,
     desc: "Silencieux : il devient invisible.",
     color: "#7ad8ff", glow: "122,216,255", ui: "#ff3b5c", ui2: "#8a1a3a", atkW: 26,
     sky: ["#0c0610", "#2a0a1a", "#5a1028"], moon: ["#ffe0e6", "#ff6a7a"], stripe: "#3a0a1a", stars: "255,210,220", city: ["#16080e", "#0e0408"] },
-  { id: "rumi", name: "Rumi des Huntrix", special: "dash", power: "stun", music: "backgroundrumi", theme: "rumi", unlock: null,
+  { id: "rumi", name: "Rumi des Huntrix", special: "dash", power: "stun", music: "backgroundlune", logo: "lune", theme: "rumi", unlock: null,
     desc: "Sa chanson endort les ennemis.",
     color: "#de6eff", glow: "222,110,255", ui: "#c98cff", ui2: "#ffd23c", atkW: 30,
     sky: ["#120620", "#3a0a4a", "#7a1a6a"], moon: ["#fff0fa", "#ff8ad8"], stripe: "#4a0a4a", stars: "255,220,250", city: ["#1e0a2a", "#14061e"] },
-  { id: "steve", name: "Steve", special: "dash", power: "block", music: "backgroundsteve", theme: "steve", unlock: null,
+  { id: "steve", name: "Steve", special: "dash", power: "block", music: "backgroundhelio", logo: "helio", theme: "steve", unlock: null,
     desc: "Il pose des blocs pour grimper.",
     color: "#5ef0ff", glow: "94,240,255", ui: "#3fd0c0", ui2: "#2a4ac8", atkW: 28,
     sky: ["#081410", "#0e3a2a", "#2a7a4a"], moon: ["#f0fff0", "#8aff9a"], stripe: "#103a20", stars: "220,255,230", city: ["#0c1e14", "#08140e"] },
-  { id: "homme", name: "Randonneur", special: "dash", power: "heal", music: "backgroundhomme", theme: "homme", unlock: null,
+  { id: "homme", name: "Randonneur", special: "dash", power: "heal", music: "backgroundhelio", logo: "helio", theme: "homme", unlock: null,
     desc: "Toujours prêt : son pique-nique rend un cœur.",
     color: "#cfd8ff", glow: "207,216,255", ui: "#ff8a3c", ui2: "#8a5a3a", atkW: 30,
     sky: ["#100c08", "#3a2412", "#8a4a1e"], moon: ["#fff4e0", "#ffb46a"], stripe: "#4a2a12", stars: "255,236,210", city: ["#1e140c", "#140c06"] },
@@ -439,7 +440,7 @@ const AUDIO_EMBED = __AUDIO_EMBED__;
 const AUDIO_DIR = "audio/";
 // Listes de musiques : une par personnage (CHARS[].music), Doom, boss, et celles que les mondes déclarent (WORLDS[].music, bossMusic)
 const MUSIC_BASES = { doom: "doombackground", boss: "bossbackground" };
-for (const C of CHARS) if (C.music) MUSIC_BASES["char:" + C.id] = C.music;
+for (const C of CHARS) if (C.music) MUSIC_BASES["char:" + C.id] = C.music;   // plusieurs héros peuvent partager les mêmes musiques
 for (const W of WORLDS) for (const b of [W.music, W.bossMusic]) if (b) MUSIC_BASES[b] = b;
 function b64ToBuf(dataUrl) { const b = atob(dataUrl.split(",")[1]); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u.buffer; }
 const audio = {
@@ -1979,8 +1980,23 @@ function updateMenu() {
   if (hit(...K.ok)) startGame();
 }
 let menuFade = CHARS.map((C, i) => i === 0 ? 1 : 0), menuBgs = null;   // fondu du décor et du logo vers le personnage choisi
+// Logo du titre selon le héros : logo animé (4 images, durées de animation.json), sinon logo fixe, sinon le titre écrit.
+// L'animation suit le temps du jeu (elle s'arrête quand l'onglet est caché) ; image fixe si l'appareil demande moins d'animations.
+const reducedMotion = window.matchMedia ? matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
+function logoFrame(A, t) {
+  const ms = A.frameMs || [240], total = ms.reduce((a, b) => a + b, 0);
+  let r = reducedMotion.matches ? 0 : (t * 1000) % total;
+  for (let i = 0; i < ms.length; i++) { if (r < ms[i]) return i; r -= ms[i]; }
+  return 0;
+}
 function drawLogo(C, a, cx, cy, bw, bh) {
-  const img = IMG["logo_" + C.id];
+  const aid = `logo_${C.logo || C.id}_anime`, A = ATL[aid];
+  if (A && atlasImg(aid)) {
+    const sc = Math.min(bw / A.cw, bh / A.ch);   // « contain » dans l'emplacement, ancré au centre
+    drawFrame(aid, logoFrame(A, time), Math.round(cx), Math.round(cy), 1, a, sc);
+    return;
+  }
+  const img = IMG["logo_" + (C.logo || C.id)];
   ctx.globalAlpha = a;
   if (img) {
     const sc = Math.min(bw / img.width, bh / img.height), w = img.width * sc, h = img.height * sc;
@@ -2005,12 +2021,15 @@ function drawMenu() {
   R(0, 0, VW, VH, "rgba(13,8,32,0.28)");
   // logos en fondu selon le personnage choisi
   const bob = Math.sin(time * 2) * 1.5;
-  CHARS.forEach((C, i) => { if (menuFade[i] > 0.01) drawLogo(C, menuFade[i], VW / 2, 50 + bob, 262, 92); });
+  // un seul logo par planche : les héros qui partagent un logo ne le dessinent pas deux fois en fondu
+  const logoFade = {};
+  CHARS.forEach((C, i) => { const k = C.logo || C.id; logoFade[k] = Math.max(logoFade[k] || 0, menuFade[i]); });
+  for (const k in logoFade) if (logoFade[k] > 0.01) drawLogo(CHARS.find(C => (C.logo || C.id) === k), Math.min(1, logoFade[k]), VW / 2, 56 + bob, 300, 106);
   // héros choisi : il court sur place
-  R(VW / 2 - 70, 104, 140, 94, "rgba(20,12,40,0.6)"); ctx.strokeStyle = C0.ui; ctx.lineWidth = 1; ctx.strokeRect(VW / 2 - 69.5, 104.5, 139, 93);
-  drawChar(C0, 6 + Math.floor(time * 12) % 6, VW / 2, 170, 1, 1.5);
-  text(C0.name, VW / 2, 180, 11, C0.ui, "center", C0.ui);
-  text(abilityText(C0), VW / 2, 191, 7, "#e8dcff", "center");
+  R(VW / 2 - 70, 112, 140, 88, "rgba(20,12,40,0.6)"); ctx.strokeStyle = C0.ui; ctx.lineWidth = 1; ctx.strokeRect(VW / 2 - 69.5, 112.5, 139, 87);
+  drawChar(C0, 6 + Math.floor(time * 12) % 6, VW / 2, 172, 1, 1.4);
+  text(C0.name, VW / 2, 182, 11, C0.ui, "center", C0.ui);
+  text(abilityText(C0), VW / 2, 193, 7, "#e8dcff", "center");
   DIFFS.forEach((D, i) => {
     const r = UI.diffs[i], sel = i === diffIdx;
     R(r.x, r.y, r.w, r.h, sel ? D.color : "rgba(20,12,40,0.8)");

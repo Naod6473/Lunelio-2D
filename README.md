@@ -17,7 +17,7 @@ Chaque héros a un dash ou un double saut, et un pouvoir qui utilise la jauge.
 - **Steve** : dash et blocs à poser sous ses pieds pour grimper.
 - **Randonneur** : dash et pique-nique qui rend un cœur.
 
-Les pouvoirs des six nouveaux héros sont une première proposition. Le dernier héros choisi est retenu, et la progression est enregistrée séparément pour chacun.
+Les pouvoirs des six nouveaux héros sont une première proposition. Le dernier héros choisi est retenu, et la progression est enregistrée séparément pour chacun. Le logo animé du titre suit le héros : celui d'Hélio pour la plupart, celui de Lune pour Lune et Rumi.
 
 ## Les mondes
 
@@ -124,12 +124,12 @@ Les musiques sont dans `audio/` et suivent une convention de nom. Le jeu détect
 | --- | --- |
 | `backgroundhelio.mp3`, `backgroundhelio2.mp3`, `backgroundhelio3.mp3`… | Musiques d'Hélio |
 | `backgroundlune.mp3`, `backgroundlune2.mp3`… | Musiques de Lune |
-| `backgroundrobot.mp3`, `backgroundsinge.mp3`, `backgroundninja.mp3`, `backgroundrumi.mp3`, `backgroundsteve.mp3`, `backgroundhomme.mp3` (et leurs numéros 2, 3…) | Musiques des six nouveaux héros |
+| | Le robot, le singe, le ninja, Steve et le randonneur utilisent les musiques d'Hélio ; Rumi celles de Lune (champ `music` de chaque héros dans `src/template.html`) |
 | `doombackground.mp3`, `doombackground2.mp3`… | Musiques du mode Doom |
 | `bossbackground.mp3`, `bossbackground2.mp3`… | Musiques des combats de boss (facultatif) |
 | `attack.mp3`, `laser.mp3`, `gameover.mp3` | Bruitages |
 
-La première musique d'un héros est aussi son thème sur l'écran de choix. Tant qu'un nouveau héros n'a pas de fichier, le jeu joue un thème provisoire composé en WebAudio (même chose pour les boss sans `bossbackground.mp3`). Chaque monde prend une musique différente dans la liste du personnage, en boucle : avec deux musiques, les mondes 1, 3, 5, 7 jouent la première et les mondes 2, 4, 6, 8 la seconde. Les numéros doivent se suivre (2, 3, 4…), jusqu'à 9. Il suffit de déposer le fichier dans `audio/`, puis de faire `git add`, `git commit` et `git push` : le serveur se met à jour tout seul.
+La première musique d'un héros est aussi son thème sur l'écran de choix : elle change dès qu'un autre héros est mis en avant. Si un fichier manque, le jeu joue un thème composé en WebAudio (même chose pour les boss sans `bossbackground.mp3`). Chaque monde prend une musique différente dans la liste du personnage, en boucle : avec deux musiques, les mondes 1, 3, 5, 7 jouent la première et les mondes 2, 4, 6, 8 la seconde. Les numéros doivent se suivre (2, 3, 4…), jusqu'à 9. Il suffit de déposer le fichier dans `audio/`, puis de faire `git add`, `git commit` et `git push` : le serveur se met à jour tout seul.
 
 ## Modifier le jeu
 

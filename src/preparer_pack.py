@@ -311,6 +311,37 @@ fr = frames(P("assets", "interface", "portraits_boss.png"), 1, 6)
 pack("portraits_boss", [shrink(x[0], 40 / max(x[0].shape)) if x else None for line in fr for x in line],
      {k: [i, 1] for i, k in enumerate(BOSSES)}, 6, anchor="bottom")
 
+# ---------------------------------------------------------------- logos animés (assets/Lunelio_logos_animes)
+# Quatre images par logo, recalées dans le cadre commun displaySize avec leur drawOffset (animation.json),
+# puis réduites à 3 × leur taille d'affichage dans le menu (LOGO_H pixels logiques de haut) : le canvas du jeu
+# étant 3 × plus grand, elles s'affichent pixel pour pixel, sans lissage.
+LOGO_DIR = os.path.join(ROOT, "assets", "Lunelio_logos_animes")
+LOGO_H = 106
+LOGOS = {}
+if os.path.exists(os.path.join(LOGO_DIR, "animation.json")):
+    meta = json.load(open(os.path.join(LOGO_DIR, "animation.json"), encoding="utf-8"))
+    for lg in meta["logos"]:
+        sheet = Image.open(os.path.join(LOGO_DIR, lg["file"])).convert("RGBA")
+        dw, dh = lg["displaySize"]["width"], lg["displaySize"]["height"]
+        sc = LOGO_H * 3 / dh; tw, th = round(dw * sc), round(dh * sc)
+        frames_out = []
+        for fr in lg["frames"]:
+            r = fr["sourceRect"]
+            assert r["x"] + r["w"] <= sheet.width and r["y"] + r["h"] <= sheet.height and fr["durationMs"] > 0
+            cell = Image.new("RGBA", (dw, dh)); cell.paste(sheet.crop((r["x"], r["y"], r["x"] + r["w"], r["y"] + r["h"])), (fr["drawOffset"]["x"], fr["drawOffset"]["y"]))
+            f = np.array(cell).astype(np.float64); f[:, :, :3] *= f[:, :, 3:] / 255
+            z = np.array(Image.fromarray(f.clip(0, 255).astype(np.uint8)).resize((tw, th), Image.LANCZOS)).astype(np.float64)
+            al = z[:, :, 3:]; z[:, :, :3] = np.where(al > 0, z[:, :, :3] * 255 / np.maximum(al, 1), 0)
+            frames_out.append(Image.fromarray(z.clip(0, 255).astype(np.uint8)))
+        out = Image.new("RGBA", (tw * len(frames_out), th))
+        for i, f in enumerate(frames_out): out.paste(f, (i * tw, 0))
+        aid = f"logo_{lg['id']}_anime"
+        out.save(os.path.join(OUT_SPR, aid + ".png"), optimize=True)
+        ATLAS[aid] = {"src": f"assets/sprites/{aid}.png", "cw": tw, "ch": th, "ax": tw // 2, "ay": th // 2, "cols": len(frames_out),
+                      "anims": {"play": [0, len(frames_out)]}, "frameMs": [fr["durationMs"] for fr in lg["frames"]], "scale": 1 / 3,
+                      "note": "logo animé, images à 3 × leur taille d'affichage"}
+        PREVIEW.append((aid, out))
+
 # ---------------------------------------------------------------- mondes et salles
 WORLDS = [("01_centrale", "centrale", "Centrale électrique", "roi_slime", "slime"),
           ("02_usine", "usine", "Usine robotique", "drone_titan", "drone"),
@@ -377,7 +408,7 @@ json.dump(data, open(os.path.join(HERE, "campagne.json"), "w", encoding="utf-8")
 W = 1400; y = 0; rowsimg = []
 for aid, sh in PREVIEW:
     if aid.startswith("decor_"): continue
-    s = max(1, min(4, int(600 / max(sh.width, 1)) or 1))
+    s = max(1, min(4, int(600 / max(sh.width, 1))))
     rowsimg.append((aid, sh.resize((sh.width * s, sh.height * s), Image.NEAREST)))
 H = sum(im.height + 14 for _, im in rowsimg)
 prev = Image.new("RGBA", (W, H), (46, 40, 70, 255)); y = 0
