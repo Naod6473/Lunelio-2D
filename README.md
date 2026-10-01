@@ -2,7 +2,7 @@
 
 Jeu d'action en pixel art néon, jouable dans le navigateur, sur ordinateur, tablette et téléphone. Hélio et Lune, deux ninjas au sabre lumineux, traversent huit mondes envahis par les robots du Dr. Boulon.
 
-Le jeu se compose de `index.html` (code, sprites, logos et niveaux) et du dossier `audio/` (musiques et bruitages). Il doit être servi par un serveur web pour que les sons fonctionnent.
+Le jeu se compose de `index.html` (code, sprites, logos et niveaux) et du dossier `audio/` (musiques et bruitages). Il doit être servi par un serveur web pour que les sons fonctionnent. Il se joue au clavier, à la souris, au tactile ou à la manette, et peut s'installer comme une appli.
 
 ## Les personnages
 
@@ -32,21 +32,37 @@ Chaque monde compte trois salles puis un combat de boss. Les mondes se débloque
 
 ## Commandes
 
-| Action | Clavier | Souris |
-| --- | --- | --- |
-| Se déplacer | Flèches ou ZQSD | |
-| Sauter (deux fois pour le double saut de Lune) | Espace | |
-| Trancher | J | Clic gauche |
-| Dash d'Hélio | K | Clic droit |
-| Super vitesse (Hélio) ou ralenti (Lune) | Maj ou L | |
-| Descendre d'une plateforme | Flèche bas ou S | |
-| Recommencer la salle | R | |
-| Pause | Échap ou P | |
-| Couper le son | M | |
+| Action | Clavier | Souris | Manette Xbox | Manette PlayStation |
+| --- | --- | --- | --- | --- |
+| Se déplacer | Flèches ou ZQSD | | Stick gauche ou croix | Stick gauche ou croix |
+| Sauter (deux fois pour le double saut de Lune) | Espace | | A | ✕ |
+| Trancher | J | Clic gauche | X ou Y | □ ou △ |
+| Dash d'Hélio | K | Clic droit | B | ○ |
+| Super vitesse (Hélio) ou ralenti (Lune) | Maj ou L | | Gâchettes (LB, RB, LT, RT) | Gâchettes (L1, R1, L2, R2) |
+| Descendre d'une plateforme | Flèche bas ou S | | Bas | Bas |
+| Recommencer la salle | R | | Vue (Select) | Share / Create |
+| Pause | Échap ou P | | Menu (Start) | Options |
+| Couper le son | M | | | |
+
+Dans les menus, la manette se pilote avec la croix ou le stick : **A / ✕** pour valider, **B / ○** pour revenir. Sur l'écran de pause et l'écran de fin de monde, la croix choisit le bouton et A / ✕ le valide. Dès qu'une manette est utilisée, les consignes à l'écran affichent ses boutons (lettres Xbox ou symboles PlayStation selon la manette détectée) ; une touche du clavier ou un toucher de l'écran remet les consignes habituelles.
+
+Avec deux manettes branchées, c'est la première sur laquelle on appuie qui joue ; l'autre est ignorée. Si elle est débranchée en pleine partie, le jeu se met en pause. Les autres manettes (Switch Pro, 8BitDo…) fonctionnent avec la disposition Xbox. Le navigateur ne laisse démarrer le son qu'après un clic, un toucher ou une touche : si le menu affiche « Clic : activer le son », un clic dans le jeu suffit.
 
 Sur téléphone et tablette, des commandes tactiles apparaissent automatiquement : une croix à gauche, et à droite les boutons saut, coup, dash et pouvoir. Le jeu se joue en mode paysage.
 
 Astuce parent : **Maj + D** sur l'écran de choix des mondes débloque tous les mondes.
+
+## Installer comme une appli
+
+Lunelio peut s'installer sur l'écran d'accueil d'un téléphone ou d'une tablette, ou comme une application sur ordinateur, et se lancer en plein écran. Une fois ouvert une première fois, le jeu et ses sons restent sur l'appareil : on peut y jouer hors ligne.
+
+- **Android (Chrome)** : menu ⋮, puis « Installer l'application » ou « Ajouter à l'écran d'accueil ».
+- **iPhone et iPad (Safari)** : bouton Partager, puis « Sur l'écran d'accueil ».
+- **Ordinateur (Chrome, Edge)** : icône d'installation à droite de la barre d'adresse.
+
+Les mises à jour arrivent toutes seules : à chaque lancement avec du réseau, le jeu demande d'abord la dernière version au serveur, et ne se sert de la copie enregistrée que hors ligne. Il n'y a jamais de cache à vider.
+
+**Important** : les navigateurs n'autorisent l'installation et le jeu hors ligne que sur une adresse en **HTTPS** (ou `localhost`). Sur `http://IP_DU_CONTENEUR`, le jeu fonctionne normalement, manettes comprises, mais sans installation ni mode hors ligne. Il faut pour cela un certificat devant Nginx, par exemple avec un proxy inverse qui gère HTTPS ou avec Tailscale (`tailscale serve`).
 
 ## Installation sur Proxmox (LXC Debian)
 
@@ -84,12 +100,14 @@ Chaque monde prend une musique différente dans la liste du personnage, en boucl
 Les sources sont dans `src/` :
 
 - `template.html` : le code du jeu (moteur, menus, effets, sons).
-- `worlds.py` : les 18 salles, dessinées en texte.
-- `verifier_niveaux.py` : vérifie que chaque robot et chaque sortie sont atteignables.
+- `worlds.py` : les 32 salles, dessinées en texte.
+- `verifier_niveaux.py` : vérifie que chaque robot marcheur, chaque robot-canon et chaque sortie sont atteignables.
 - `generateur_sprites.py` : génère les planches de sprites d'Hélio et Lune.
+- `generer_icones.py` : génère les icônes de l'appli dans `icons/` à partir des sprites (Pillow nécessaire, à relancer seulement si les sprites changent).
+- `sw.js` : modèle du service worker de l'appli ; `build.py` écrit le vrai `sw.js` à la racine.
 - `assets/images/` : sprites et logos.
 
-Pour reconstruire `index.html` après une modification (Python 3 suffit) :
+Pour reconstruire `index.html` et `sw.js` après une modification (Python 3 suffit) :
 
 ```bash
 cd src

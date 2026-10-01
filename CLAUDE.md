@@ -17,12 +17,17 @@ Toute l'interface et tous les textes du jeu sont **en français**. Réponds-moi 
 
 ```
 index.html               Jeu construit (généré par src/build.py, commité)
+sw.js                    Service worker de l'appli (généré par src/build.py, commité)
+manifest.json            Manifeste de l'appli installable (PWA)
+icons/                   Icônes de l'appli (générées par src/generer_icones.py, commitées)
 audio/                   Musiques et bruitages, servis à côté de index.html
 src/template.html        Code source du jeu (HTML + CSS + JS) avec des marqueurs à remplacer
+src/sw.js                Modèle du service worker (marqueurs __VERSION__ et __AUDIO__)
 src/worlds.py            Les 8 mondes et 32 salles, décrits en texte ; valide et écrit worlds.json
-src/verifier_niveaux.py  Vérifie que robots, boss et sortie sont atteignables dans chaque salle
-src/build.py             Assemble index.html à partir du template, des images et des niveaux
+src/verifier_niveaux.py  Vérifie que robots marcheurs, robots-canons et sortie sont atteignables dans chaque salle
+src/build.py             Assemble index.html à partir du template, des images et des niveaux, et écrit sw.js
 src/generateur_sprites.py  Génère les planches de sprites d'Hélio et Lune (Pillow)
+src/generer_icones.py    Génère les icônes de icons/ à partir des sprites (Pillow) ; à relancer si les sprites changent
 src/assets/images/       helio_spritesheet.png, lune_spritesheet.png, logo_helio.webp, logo_lune.webp
 deploy/                  Config Nginx et scripts pour le conteneur LXC
 README.md                Présentation pour GitHub
@@ -36,13 +41,15 @@ README.md                Présentation pour GitHub
 cd src
 python3 worlds.py            # valide les salles et écrit worlds.json
 python3 verifier_niveaux.py  # chaque salle doit afficher OK
-python3 build.py             # écrit ../index.html (sons lus dans ../audio/)
-python3 build.py --embed --out ../lunelio-autonome.html   # version tout-en-un, sons intégrés (≈ 11 Mo)
+python3 build.py             # écrit ../index.html (sons lus dans ../audio/) et ../sw.js
+python3 build.py --embed --out ../lunelio-autonome.html   # version tout-en-un, sons intégrés (≈ 11 Mo), sans PWA
 ```
+
+`build.py` est reproductible : relancé sans modification, `git status` doit rester propre (`index.html` et `sw.js` identiques).
 
 Pour tester, servir la racine du dépôt avec un serveur HTTP : `python3 -m http.server 8000` puis ouvrir `http://localhost:8000`. En ouvrant `index.html` directement depuis le disque (`file://`), les sons ne se chargent pas.
 
-Tests à faire après une modification de gameplay : les deux personnages, les trois difficultés, au moins une salle normale et une salle de boss, au clavier et en mode tactile (outils de développement du navigateur, émulation mobile en paysage). La console ne doit afficher aucune erreur JavaScript (les 404 sur `audio/backgroundhelio2.mp3` etc. sont normaux : c'est la détection des musiques).
+Tests à faire après une modification de gameplay : les deux personnages, les trois difficultés, au moins une salle normale et une salle de boss, au clavier, en mode tactile (outils de développement du navigateur, émulation mobile en paysage) et à la manette si possible. La console ne doit afficher aucune erreur JavaScript (les 404 sur `audio/backgroundhelio2.mp3` etc. sont normaux : c'est la détection des musiques).
 
 ## Le serveur (contexte)
 
@@ -53,13 +60,15 @@ Conteneur LXC Debian sur Proxmox, Nginx sert `/var/www/lunelio` (clone Git du d�
 - Timer systemd `lunelio-update.timer` toutes les 5 minutes.
 - `deploy/nginx-lunelio.conf` bloque `/.git`, `/src/` et `/deploy/`, et envoie `Cache-Control: no-cache`.
 
-Toute nouvelle ressource servie au navigateur doit donc être à la racine ou dans un dossier non bloqué (comme `audio/`).
+Toute nouvelle ressource servie au navigateur doit donc être à la racine ou dans un dossier non bloqué (comme `audio/` ou `icons/`).
+
+Le site est servi en `http://` sur l'IP du conteneur. Les navigateurs n'activent le service worker (installation et hors ligne) qu'en HTTPS ou sur `localhost` : sans HTTPS devant Nginx, le jeu marche mais sans la partie PWA.
 
 ## Architecture de `src/template.html`
 
 Un seul `<script>`, organisé en sections commentées `/* ---------------- Nom ---------------- */`.
 
-**Marqueurs remplacés par `build.py`** : `__HELIO__`, `__LUNE__` (sprites PNG en base64), `__LOGO_HELIO__`, `__LOGO_LUNE__` (WebP en base64), `__WORLDS__` (JSON des mondes), `__AUDIO_MODE__` (`files` ou `embed`), `__AUDIO_EMBED__` (dictionnaire de data URLs, vide en mode `files`). Ne pas les renommer sans adapter `build.py`.
+**Marqueurs remplacés par `build.py`** : `__HELIO__`, `__LUNE__` (sprites PNG en base64), `__LOGO_HELIO__`, `__LOGO_LUNE__` (WebP en base64), `__WORLDS__` (JSON des mondes), `__AUDIO_MODE__` (`files` ou `embed`), `__AUDIO_EMBED__` (dictionnaire de data URLs, vide en mode `files`), `__PWA_HEAD__` (liens vers le manifeste et les icônes, vide en mode `embed`). Ne pas les renommer sans adapter `build.py`.
 
 **Rendu** : résolution logique 480×272 (`VW`, `VH`), dessinée sur un canvas 3× plus grand (`SC = 3`) avec `imageSmoothingEnabled = false`. Tuiles de 16 px (`T`), salles de 30×17 tuiles. Scanlines et vignette par-dessus tout (`scanCanvas`).
 
@@ -68,7 +77,7 @@ Un seul `<script>`, organisé en sections commentées `/* ---------------- Nom -
 **Données principales**
 - `DIFFS` : facile (5 cœurs), normal (3), doom (1). Champs : `eSpeed`, `laser`, `cd`, `tele`, `power`, `drain`, `regen`, `bossHp`.
 - `CHARS` : Hélio (`ui` orange/or, sabre cyan, dash, super vitesse) et Lune (`ui` violet/rose, double saut, ralenti, attaque plus large `atkW`). Chaque personnage a ses couleurs de ciel, utilisées dans les décors.
-- `HINTS` : consignes à afficher, chacune en version clavier et tactile (`hintText(tok)` choisit). Dans `worlds.py`, les consignes peuvent être des jetons : `MOVE`, `ATTACK`, `SPECIAL`, `POWER`.
+- `HINTS` : consignes à afficher, chacune en version clavier, tactile et manette (`hintText(tok)` choisit). Dans la version manette, `{A}`, `{B}`, `{X}`, `{RT}`, `{START}`, `{SELECT}` sont remplacés par le nom du bouton (Xbox ou PlayStation). Pour tout autre texte qui dépend de la commande, utiliser `say(clavier, tactile, manette)`. Dans `worlds.py`, les consignes peuvent être des jetons : `MOVE`, `ATTACK`, `SPECIAL`, `POWER`.
 - `WORLDS` / `ROOMS` : `ROOMS` est la liste à plat de toutes les salles, avec `w` (index du monde) et `ri` (index dans le monde). La dernière salle de chaque monde a `boss: true`.
 - `WORLD_STYLE` : couleurs des tuiles et enseignes par monde. `BG` dessine le fond de chaque monde, `PROPS` dessine les décors (lettres minuscules des cartes). Fonds et décors sont pré-rendus une fois par salle dans `makeWorldBg()`, les tuiles dans `makeTiles()`.
 - `BOSSES` : un boss par monde avec `kind` (`brute`, `canon`, `mother`, `final`), `name`, `hp`, couleurs et options (`fast`, `spread`, `lasers`).
@@ -83,13 +92,17 @@ Un seul `<script>`, organisé en sections commentées `/* ---------------- Nom -
 
 **Boss** (`updateBoss`) : intro de 1,8 s, puis machine à états selon le mode. `brute` : télégraphe, charge, étourdi contre un mur, saut avec ondes de choc. `canon` : vole entre 6 positions (`canonSpots()`, alignées sur les plateformes des arènes), vise puis tire des rafales. `mother` : survole, lâche des drones, plonge vers le joueur. `final` (Dr. Boulon) : alterne les trois modes.
 
-**Entrées** : `K` regroupe les touches par action. Les codes clavier sont des codes physiques (`e.code`), donc `KeyW`/`KeyA`/`KeyS`/`KeyD` correspondent à ZQSD sur un clavier AZERTY. Les commandes tactiles produisent des touches virtuelles (`TLeft`, `TRight`, `TDown`, `TJump`, `TAtk`, `TSpec`, `TPow`, `TPause`). Elles ne s'affichent que sur appareil tactile (`TOUCH`, classe `touch` sur `body`) et seulement en jeu (classe `playing`, gérée par `syncTouchUI()`). Sur tactile, toucher le canvas en jeu n'attaque pas : seuls les boutons comptent. En mode portrait, un écran demande de tourner l'appareil.
+**Entrées** : `K` regroupe les touches par action (`up`, `down`, `ok` pour les menus). Les codes clavier sont des codes physiques (`e.code`), donc `KeyW`/`KeyA`/`KeyS`/`KeyD` correspondent à ZQSD sur un clavier AZERTY. Les commandes tactiles produisent des touches virtuelles (`TLeft`, `TRight`, `TDown`, `TJump`, `TAtk`, `TSpec`, `TPow`, `TPause`). Elles ne s'affichent que sur appareil tactile (`TOUCH`, classe `touch` sur `body`) et seulement en jeu (classe `playing`, gérée par `syncTouchUI()`). Sur tactile, toucher le canvas en jeu n'attaque pas : seuls les boutons comptent. En mode portrait, un écran demande de tourner l'appareil.
+
+**Manettes** (Gamepad API, disposition `standard`) : `readPads()` est appelé au début de chaque image et produit des touches virtuelles (`GLeft`, `GRight`, `GUp`, `GDown`, `GA`, `GB`, `GX`, `GY`, `GPow`, `GStart`, `GSelect`), ajoutées aux listes de `K` et aux tests des menus. Correspondance : A/✕ saut et valider, B/○ dash et retour, X/□ et Y/△ coup, toutes les gâchettes pouvoir, Start/Options pause, Select/Share recommencer. La première manette sur laquelle on appuie est retenue (`padIdx`) ; les autres sont ignorées, en attendant la coop. `padStyle` (`xbox` ou `ps`, d'après l'identifiant) choisit les noms de boutons de `PAD_LABELS`. `PAD` vaut `true` dès qu'une manette sert (classe `pad` sur `body`, qui masque les boutons tactiles) et repasse à `false` au clavier, à la souris ou au toucher. Pause et fin de monde ont une sélection à la croix (`pauseSel`, `wcSel`), affichée seulement en mode manette. Débrancher la manette en jeu met en pause. Une pression de manette ne compte pas comme interaction pour le son : `audio.init()` n'est appelé que si la page a déjà eu un clic ou une touche, et le menu affiche « Clic : activer le son » sinon.
 
 **Audio** (objet `audio`, Web Audio)
 - Bruitages fichiers : `attack.mp3` (coup de sabre), `laser.mp3` (tir ennemi), `gameover.mp3` (mort). Les autres bruitages sont synthétisés dans `audio.sfx()`.
 - Musiques détectées au démarrage par `audio.discover()` (requêtes `HEAD`) : `backgroundhelio`, `backgroundhelio2`… jusqu'à 9, idem `backgroundlune`, `doombackground`, `bossbackground`. Les numéros doivent se suivre.
 - `musicKey()` choisit la piste : celle du personnage (ou Doom), une différente par monde en tournant dans la liste ; `bossbackground` en salle de boss si elle existe. Chargement à la demande, fondu enchaîné.
 - Le contexte audio ne démarre qu'après une interaction (touche, clic ou toucher) : appeler `audio.init()` dans tout nouveau gestionnaire d'entrée.
+
+**Appli installable (PWA)** : `manifest.json` et `icons/` à la racine, service worker `sw.js` enregistré à la fin du script (mode `files` seulement). `build.py` écrit `sw.js` depuis `src/sw.js` avec `VERSION` (empreinte du jeu, du service worker, des icônes et de la liste des sons) et `AUDIO_FILES` (les `.mp3` de `audio/`). Toute nouvelle version change donc `sw.js`, que le navigateur installe tout seul (`skipWaiting` + `clients.claim`), en supprimant l'ancien cache `lunelio-jeu-…`. Stratégies : réseau d'abord pour le jeu (cache seulement hors ligne ou si le serveur ne répond pas en 4 s) ; sons dans le cache `lunelio-audio`, rafraîchis en arrière-plan ; requêtes `HEAD` de `audio.discover()` répondues depuis le cache hors ligne. Un fichier ajouté au jeu et nécessaire hors ligne doit être ajouté à `GAME_FILES` dans `src/sw.js`.
 
 **Sauvegardes** (`localStorage`, toujours dans un `try/catch`) : `lunelio-progress-<perso>` (nombre de mondes débloqués) et `lunelio-best-<perso>-<difficulté>-<monde>` (meilleur temps). **Maj + D** sur l'écran des mondes débloque tout (astuce parent).
 
@@ -127,8 +140,8 @@ Néon synthwave : fonds sombres violets et bleu nuit, lueurs colorées, contours
 
 Validées par le parent, dans cet ordre conseillé :
 
-1. Support des manettes (Gamepad API), en plus du clavier et du tactile.
-2. Installation comme une appli (PWA) : manifeste, icônes, service worker pour jouer hors ligne.
+1. ~~Support des manettes (Gamepad API), en plus du clavier et du tactile.~~ Fait.
+2. ~~Installation comme une appli (PWA) : manifeste, icônes, service worker pour jouer hors ligne.~~ Fait (actif seulement en HTTPS).
 3. Éditeur de niveaux dans le jeu : poser tuiles, robots, cœurs, départ et sortie, tester, sauvegarder dans `localStorage`, et pouvoir partager une salle (code texte).
 4. Coop à deux sur le même écran (Hélio et Lune ensemble).
 5. Étoiles cachées dans les salles, médailles chrono bronze/argent/or, costumes et succès à débloquer.
