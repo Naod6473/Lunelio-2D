@@ -209,17 +209,19 @@ function setBest(k, v) { SAVE.best[k] = v; saveGame(); }
 function updateToasts(rdt) {
   const t = toasts[0]; if (!t) return;
   if (t.t === 0 && t.snd) audio.sfx(t.snd);
-  t.t += rdt; if (t.t > 2.6) toasts.shift();
+  t.dur = t.dur || (toasts.length > 3 ? 1.3 : 2.4);   // plusieurs annonces à la suite : chacune reste moins longtemps
+  t.t += rdt; if (t.t > t.dur) toasts.shift();
 }
 function drawToasts() {
   const t = toasts[0]; if (!t) return;
-  const k = Math.min(1, t.t / 0.25, (2.6 - t.t) / 0.3), y = 24 + (1 - k) * -30;
-  ctx.font = `700 9px ${FONT}`; const w = Math.max(120, ctx.measureText(t.sub).width + 24);
+  const k = Math.min(1, t.t / 0.25, ((t.dur || 2.4) - t.t) / 0.3), y = VH - 64 + (1 - k) * 30;
+  ctx.font = `700 9px ${FONT}`; const big = ctx.measureText(t.sub).width < 200, fs = big ? 9 : 7;
+  ctx.font = `700 ${fs}px ${FONT}`; const w = Math.max(120, ctx.measureText(t.sub).width + 24);
   ctx.globalAlpha = Math.max(0, k);
   R(Math.round(VW - w - 8), Math.round(y), Math.round(w), 26, "rgba(10,6,24,0.92)");
   ctx.strokeStyle = t.col; ctx.lineWidth = 1; ctx.strokeRect(Math.round(VW - w - 8) + 0.5, Math.round(y) + 0.5, Math.round(w) - 1, 25);
   text(t.title, VW - w / 2 - 8, y + 8, 7, t.col, "center");
-  text(t.sub, VW - w / 2 - 8, y + 18, 9, "#ffffff", "center");
+  text(t.sub, VW - w / 2 - 8, y + 18, fs, "#ffffff", "center");
   ctx.globalAlpha = 1;
 }
 loadGame();

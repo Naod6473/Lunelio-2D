@@ -29,9 +29,10 @@ function preloadAtlases(timeout = 8000) {
   return Promise.race([all, new Promise(r => setTimeout(r, timeout))]);
 }
 // Dessine l'image i d'un atlas, son point d'ancrage (pieds, centre ou base selon l'atlas) en (x, y). face < 0 : retournée.
-function drawFrame(aid, i, x, y, face = 1, alpha = 1, scale = 1) {
+// cos : identifiant d'un cosmétique de couleurs (planche recolorée, laverie.js)
+function drawFrame(aid, i, x, y, face = 1, alpha = 1, scale = 1, cos = null) {
   const A = ATL[aid]; if (!A) return;
-  const img = atlasImg(aid); if (!img) return;
+  const img = cos ? atlasImgCos(aid, cos) : atlasImg(aid); if (!img) return;
   const sx = (i % A.cols) * A.cw, sy = Math.floor(i / A.cols) * A.ch, w = A.cw * scale, h = A.ch * scale;
   if (alpha <= 0) return;
   ctx.globalAlpha = alpha;
@@ -46,7 +47,8 @@ function animFrame(aid, name, t, fps = 10, loop = true) {
   return a[0] + k;
 }
 const charAtlas = C => "perso_" + C.id;
-function drawChar(C, frame, x, y, face = 1, scale = 1, alpha = 1) { drawFrame(charAtlas(C), frame, x, y, face, alpha, scale); }
+// Héros avec ses cosmétiques équipés (couleurs, accessoire) ; voir drawCharCos dans laverie.js
+function drawChar(C, frame, x, y, face = 1, scale = 1, alpha = 1) { drawCharCos(C, frame, x, y, face, scale, alpha); }
 
 /* ---------------- Nouvelle campagne : fiches ---------------- */
 // Ennemis des nouveaux mondes. ground : marche avec la gravité ; contact : "always", "attack" (pendant l'attaque) ou "never".
@@ -169,6 +171,7 @@ function addRoomExtras(L, R) {
   if (chal && chal.C.prog === "solitaire") {
     const t = AJOUTS.challengeTargets[chal.C.id];
     if (t && R.id === chal.C.rooms[chal.C.rooms.length - 1]) L.sock = { x: t[0], y: t[1], w: 12, h: 12, type: "cible", alive: true, found: false, hidden: false, target: true, t: 0 };
+    for (const x of L.exits) x.locked = true;   // on cherche la chaussette, pas la sortie
   }
 }
 let terrainCanvas = null, terrainFor = null;
@@ -247,7 +250,7 @@ function loadCampRoom(wi, ri, opts = {}) {
 }
 function startCampWorld(wi) {
   curWorld = wi; runTime = 0; deaths = 0; msg = null; spokenRoom = -1; audio.sfx("start");
-  const done = wi < campProgress(), r = done ? 0 : campResume(wi);
+  const r = campResume(wi);
   camp.ckpt = 0; camp.fromStart = r === 0;
   if (r > 0) camp.ckpt = r;
   loadCampRoom(wi, r);
@@ -680,6 +683,7 @@ function campVictory(e) {
   audio.sfx("piece");
   if (lvl.sock && lvl.sock.type === "apres_boss" && lvl.sock.hidden) { lvl.sock.hidden = false; lvl.sock.pop = 0.4; burst(lvl.sock.x + 6, lvl.sock.y + 6, 20, ["#7dffb0", "#ffffff"], 120, 0.6, 0, 1); }
   emit("roomDone", { room: campRoom().id, char: ch().id, doom: df().id === "doom" });
+  emit("worldDone", { wi: camp.wi });
   for (const x of lvl.exits) x.locked = false;
   const mx = lvl.exits.find(x => x.kind === "machine");
   if (mx) startMachine(mx.x + mx.w / 2, mx.y + mx.h);
@@ -722,12 +726,8 @@ function machInteract(p) {
   setTimeFx(false, false); audio.sfx("door");
   return true;
 }
-function campNextWorld() {
-  const wi = camp.wi;
-  if (wi + 1 >= CWORLDS.length) { state = "campwin"; winT = 0; voice.say(`Cycle terminé ! ${ch().name} est de retour. Bravo !`, true); return; }
-  curWorld = wi + 1; runTime = 0; deaths = 0; camp.ckpt = 0; camp.fromStart = true;
-  loadCampRoom(wi + 1, 0, { arrive: true, fadeIn: true });
-}
+// Après le boss, la machine ramène le héros à la laverie (la pièce y est remise en place)
+function campNextWorld() { enterHub({ arrive: true }); }
 function updateArrival(dt) {
   if (!arrival || arrival.done) return;
   arrival.t += dt;
@@ -736,16 +736,7 @@ function updateArrival(dt) {
   if (arrival.t >= 1.0 && p.hidden) { p.hidden = false; p.inv = 0.6; addFx("fx_teleport", p.x + 5, p.y + p.h); burst(p.x + 5, p.y + 16, 16, MACHINE_FX[CWORLDS[camp.wi].id], 140, 0.5, 100, 1); audio.sfx("heal"); }
   if (arrival.t >= 1.4) arrival.done = true;
 }
-function drawMachineAt(x, y, st, t) {
-  let fr;
-  if (st === "activating") fr = animFrame("machine", "activate", t, 5 / 0.9, false);
-  else if (st === "ready") fr = ATL.machine.anims.activate[0] + 4;
-  else if (st === "entering") fr = ATL.machine.anims.activate[0] + 4;
-  else if (st === "departing" || st === "loading") fr = animFrame("machine", "depart", t, 5 / 0.8, false);
-  else fr = animFrame("machine", "idle", t, 4);
-  const jx = st === "departing" ? Math.round((Math.random() - 0.5) * 2) : 0;
-  drawFrame("machine", fr, x + jx, y);
-}
+function drawMachineAt(x, y, st, t) { drawMachineSkin(x, y, st, t); }
 // Personnage aspiré : entre le vortex (dans le dessin de la machine) et le rebord du hublot (redessiné par-dessus)
 function drawEntering(p) {
   const k = Math.min(1, mach.t / 0.7), sc = 1 - 0.85 * k, rot = k * Math.PI;
@@ -887,8 +878,9 @@ function drawCollectibles(behind) {
   if (k && k.alive && !k.hidden && (k.type === "decor") === behind) {
     const bob = Math.sin(time * 3 + (k.t || 0)) * 1.5, cx = k.x + 6, cy = k.y + 6 + bob;
     if (k.found) drawSock(cx, cy, { ghost: true, alpha: 0.35 });   // déjà trouvée : discrète
+    else if (k.target) { const a = chalTargetAlpha(k); if (a > 0.01) { ctx.globalAlpha = a * 0.3; R(Math.round(k.x - 2), Math.round(k.y - 2 + bob), 16, 16, "#c86eff"); ctx.globalAlpha = 1; drawSock(cx, cy, { t: k.t, alpha: a }); } }
     else {
-      ctx.globalAlpha = 0.18 + 0.1 * Math.sin(time * 5); R(Math.round(k.x - 2), Math.round(k.y - 2 + bob), 16, 16, k.target ? "#c86eff" : "#7dffb0"); ctx.globalAlpha = 1;
+      ctx.globalAlpha = 0.18 + 0.1 * Math.sin(time * 5); R(Math.round(k.x - 2), Math.round(k.y - 2 + bob), 16, 16, "#7dffb0"); ctx.globalAlpha = 1;
       drawSock(cx, cy, { t: k.t });
     }
   }
@@ -1184,6 +1176,7 @@ function drawCampPlayer(p) {
   const fr = playerFrame(p), x = p.x + 5, y = p.y + p.h;
   if (p.dashT > 0) for (let i = 1; i <= 3; i++) drawChar(p.C, fr, x - p.face * i * 9, y, p.face, 1, 0.18 * (4 - i) * a);
   drawChar(p.C, fr, x, y, p.face, 1, a);
+  drawSlash(p);
   if (p.powerOn && powerOf(p.C) && powerOf(p.C).shield) drawFrame("fx_bouclier", animFrame("fx_bouclier", "play", time, 8), x, p.y + 16, 1, 0.8, 0.9);
 }
 function drawCampWorld() {
@@ -1306,27 +1299,21 @@ function drawCampHUD() {
 }
 
 /* ---------------- Nouvelle campagne : fin ---------------- */
+// « Retour à la maison » : la machine réparée ramène le héros ; les chaussettes volent comme des confettis.
 let winT = 0;
 function drawCampWin(rdt) {
   winT += rdt;
-  const C = ch(), last = CWORLDS[CWORLDS.length - 1].rooms[0];
-  const bg = getImg(CWORLDS[0].rooms[0].bg);
-  if (bg.ok) ctx.drawImage(bg.img, 0, 0, VW, VH); else R(0, 0, VW, VH, "#120a22");
-  R(0, 0, VW, VH, "rgba(13,8,32,0.6)");
-  void last;
-  text("Cycle terminé", VW / 2, 36, 24, C.ui, "center", C.ui);
-  text(`${C.name} a vaincu les six boss et rentre enfin à la maison !`, VW / 2, 60, 9, "#e8dcff", "center");
-  // la machine s'ouvre, une chaussette propre sort, puis le héros
-  const mx = VW / 2 + 50, my = 200;
-  drawMachineAt(mx, my, winT < 0.9 ? "activating" : "ready", winT);
-  if (winT > 1.0) {
-    const k = Math.min(1, (winT - 1.0) / 0.6), sx = mx - 6 - k * 60, sy = my - 34 + Math.sin(k * Math.PI) * -30 + k * 30;
-    R(Math.round(sx), Math.round(sy), 4, 9, "#ffffff"); R(Math.round(sx), Math.round(sy + 7), 7, 3, "#ffffff"); R(Math.round(sx + 1), Math.round(sy + 1), 2, 2, "#5ef0ff");
-  }
-  if (winT > 1.7) {
-    const k = Math.min(1, (winT - 1.7) / 0.5);
-    drawChar(C, k < 1 ? 18 : Math.floor(time * 5) % 4, VW / 2 - 70 + k * 10, my, 1, 2, k);
-  }
-  text(say("Entrée ou clic pour revenir au choix des mondes", "Touche l'écran pour revenir au choix des mondes", "{A} pour revenir au choix des mondes"), VW / 2, 240, 9, "#b9a6e0", "center");
-  if (winT > 1.5 && hit("Enter", "Space", "Mouse0", "Escape", "GA", "GB", "GStart")) openWorlds();
+  const C = ch();
+  drawHub();
+  const dawn = ctx.createLinearGradient(0, 0, 0, VH); dawn.addColorStop(0, "rgba(255,180,90,0.25)"); dawn.addColorStop(1, "rgba(255,120,200,0.1)");
+  ctx.fillStyle = dawn; ctx.fillRect(0, 0, VW, VH);
+  R(0, 0, VW, 74, "rgba(13,8,32,0.6)");
+  text("Retour à la maison", VW / 2, 30, 22, C.ui, "center", C.ui);
+  text(`${C.name} a réparé la machine et rentre enfin chez lui !`, VW / 2, 54, 9, "#e8dcff", "center");
+  // chaussettes propres en confettis
+  for (let i = 0; i < 24; i++) { const k = (winT * 0.4 + i * 0.137) % 1, x = (i * 53 + Math.sin(winT + i) * 20) % VW; if (winT > 1) drawSock(x, -10 + k * 250, { t: i }); }
+  if (winT > 1.0) { const k = Math.min(1, (winT - 1.0) / 0.6); drawChar(C, k < 1 ? 18 : Math.floor(time * 5) % 4, 240 - 50 * k, HUB_FLOOR, -1, 1, k); }
+  if (winT > 2.5) text(`Chaussettes : ${socksCount()}/${socksTotal()}    Cartes : ${CARDS.filter(c => has("card:" + c.id)).length}/${CARDS.length}`, VW / 2, 92, 9, "#7dffb0", "center");
+  text(say("Entrée ou clic pour revenir à la laverie", "Touche l'écran pour revenir à la laverie", "{A} pour revenir à la laverie"), VW / 2, 182, 9, "#ffffff", "center");
+  if (winT > 1.5 && hit("Enter", "Space", "Mouse0", "Escape", "GA", "GB", "GStart")) enterHub({ msg: "La laverie reste ouverte : il reste des chaussettes à retrouver !" });
 }

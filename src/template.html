@@ -274,7 +274,7 @@ cv.addEventListener("pointermove", toWorld);
 cv.addEventListener("pointerdown", e => {
   toWorld(e); audio.init(); setPad(false);
   if (e.pointerType === "touch") setTouch(true); else cv.focus();
-  if (e.pointerType === "touch" && state === "play") return;   // en jeu, le tactile passe par les boutons
+  if (e.pointerType === "touch" && state === "play") return;   // en jeu, le tactile passe par les boutons (dans la laverie, toucher un objet l'utilise)
   const k = "Mouse" + e.button;
   if (!keys[k]) pressed[k] = true;
   keys[k] = true;
@@ -338,15 +338,16 @@ let uiShown = "";
 function syncTouchUI() {
   const key = state + ch().id + df().id + PAD;
   if (key === uiShown) return; uiShown = key;
-  document.body.classList.toggle("playing", state === "play");
+  const moving = state === "play" || state === "hub";
+  document.body.classList.toggle("playing", moving);
   const sp = specialOf(ch()), pw = powerOf(ch());
   const bs = document.getElementById("bSpec");
-  bs.style.display = state === "play" && sp && sp.button ? "" : "none";
+  bs.style.display = moving && sp && sp.button ? "" : "none";
   if (sp && sp.button) bs.innerHTML = `${sp.icon}<small>${sp.label}</small>`;
   const pow = document.getElementById("bPow");
   pow.style.display = state === "play" && df().power && pw ? "" : "none";
   if (pw) { document.getElementById("powIcon").textContent = pw.icon; document.getElementById("powLbl").textContent = pw.label; }
-  if (state !== "play") for (const k of ["TLeft", "TRight", "TDown", "TJump", "TAtk", "TSpec", "TPow"]) keys[k] = false;
+  if (!moving) for (const k of ["TLeft", "TRight", "TDown", "TJump", "TAtk", "TSpec", "TPow"]) keys[k] = false;
 }
 /* ---- Manettes (Gamepad API) ---- */
 // Disposition « standard » : 0 A/✕, 1 B/○, 2 X/□, 3 Y/△, 4-7 gâchettes, 8 Select/Share, 9 Start/Options, 12-15 croix.
@@ -1258,6 +1259,7 @@ function hurtPlayer(p, srcX) {
     p.inv = 0.35; audio.sfx("deflect"); burst(p.x + 5, p.y + 16, 12, ["#5ef0ff", "#ffffff"], 140, 0.3, 0, 1); return;
   }
   p.hp--; if (lvl) lvl.hurt = true;
+  if (chal) chalHurt();
   shake = 6; hitstop = 0.08; audio.sfx("hurt");
   burst(p.x + 5, p.y + 14, 14, ["#ff3b5c", "#ffffff", p.C.color], 180, 0.5, 300, 2);
   if (p.hp <= 0 && buddyOn()) {
@@ -1301,11 +1303,11 @@ function updatePlayer(p, dt) {
 
   if (p.dashT > 0) {
     p.dashT -= dt; p.vx = p.face * 430; p.vy = 0;
-    if (Math.random() < 0.8) parts.push({ x: p.x + 5, y: p.y + 6 + Math.random() * 24, vx: -p.face * 30, vy: 0, life: 0.25, max: 0.25, color: C.color, size: 2, grav: 0 });
+    if (Math.random() < 0.8) parts.push({ x: p.x + 5, y: p.y + 6 + Math.random() * 24, vx: -p.face * 30, vy: 0, life: 0.25, max: 0.25, color: fxCol(p), size: 2, grav: 0 });
     for (const e of enemies) if (e.alive && ov(p, e)) hitEnemy(e, "dash", p);
     if (lvl.json) campAttack(p, p, "dash");
   } else {
-    const target = dir * RUN, acc = (p.onGround ? 1400 : 900) * boost;
+    const target = dir * RUN, acc = (p.onGround ? 1400 : 900) * boost * chalGrip(p);
     if (p.inv > 1.0) { /* recul après un coup */ }
     else if (p.vx < target) p.vx = Math.min(target, p.vx + acc * dt);
     else if (p.vx > target) p.vx = Math.max(target, p.vx - acc * dt);
@@ -1343,9 +1345,9 @@ function updatePlayer(p, dt) {
       for (const e of enemies) if (e.alive && ov(box, e)) hitEnemy(e, "atk", p);
       if (lvl.json) campAttack(p, box, "atk");
       for (const l of lasers) if (l.alive && l.owner === "enemy" && l.kind !== "wave" && !l.noReflect && ov(box, l)) {
-        l.owner = "player"; l.color = C.color; l.vx = -l.vx * 1.6; l.vy = -(l.vy || 0) * 1.6; l.g = 0; l.y = Math.round(l.y);
+        l.owner = "player"; l.color = fxCol(p); l.vx = -l.vx * 1.6; l.vy = -(l.vy || 0) * 1.6; l.g = 0; l.y = Math.round(l.y);
         audio.sfx("deflect"); hitstop = 0.05; shake = Math.max(shake, 3);
-        burst(l.x + 5, l.y, 12, ["#ffffff", C.color], 160, 0.3, 0, 1);
+        burst(l.x + 5, l.y, 12, ["#ffffff", fxCol(p)], 160, 0.3, 0, 1);
       }
     }
     if (p.atkT > 0.3) p.atkT = -1;
@@ -1615,6 +1617,7 @@ function updatePlay(rdt) {
   for (const p of players) if (!(lvl.json && campLocked(p))) updatePlayer(p, dt);
   if (lvl.json) updateCamp(dt); else updateEnemies(dt);
   updateLasers(dt); updateParts(dt);
+  if (chal) { chalUpdate(dt, rdt); if (state !== "play") return; }
   if (allDead()) {
     deathT -= rdt;
     if (deathT <= 0) {
@@ -1656,15 +1659,28 @@ function burstPower(p, pw) {
   p.gauge = Math.max(0, p.gauge - pw.burst);
 }
 let pauseSel = 0;
-const PUI = { resume: { x: 170, y: 104, w: 140, h: 24 }, options: { x: 170, y: 134, w: 140, h: 24 }, quit: { x: 170, y: 164, w: 140, h: 24 } };
-function pauseGame() { state = "pause"; pauseSel = 0; setTimeFx(false, false); audio.sfx("select"); }
+const PUI = { resume: { x: 170, y: 98, w: 140, h: 24 }, options: { x: 170, y: 128, w: 140, h: 24 }, quit: { x: 170, y: 158, w: 140, h: 24 } };
+function pauseGame() { state = "pause"; pauseSel = 0; setTimeFx(false, false); audio.sfx("pause"); }
+// Où reprendra-t-on en revenant dans ce monde ? Salle en cours ; en mode Doom, le drapeau s'il a été touché, sinon le début du monde.
+function resumeInfo() {
+  if (chal) return "Le programme de lavage sera abandonné";
+  if (!lvl.json) return `Ancienne aventure : tu reprendras au début de « ${WORLDS[ROOMS[lvlIdx].w].name} »`;
+  const W = CWORLDS[camp.wi], r = df().id === "doom" ? camp.ckpt : camp.ri;
+  return `Tu reprendras : ${W.name}, salle ${r + 1}` + (df().id === "doom" ? (camp.ckpt ? " (au drapeau)" : " (début du monde, mode Doom)") : "");
+}
+function leaveToHub() {
+  if (chal) { chalAbandon(); return; }
+  let m = "";
+  if (lvl.json) { const r = df().id === "doom" ? camp.ckpt : camp.ri; setCampResume(camp.wi, r); m = `Tu reprendras ${CWORLDS[camp.wi].name}, salle ${r + 1}`; }
+  enterHub({ x: 214, msg: m });
+}
 function updatePause() {
   if (hit("GUp")) { pauseSel = (pauseSel + 2) % 3; audio.sfx("select"); }
   if (hit("GDown")) { pauseSel = (pauseSel + 1) % 3; audio.sfx("select"); }
-  if (hit("GA")) { if (pauseSel === 2) openWorlds(); else if (pauseSel === 1) openOptions("pause"); else state = "play"; return; }
+  if (hit("GA")) { if (pauseSel === 2) leaveToHub(); else if (pauseSel === 1) openOptions("pause"); else state = "play"; return; }
   if (hit("KeyO") || (hit("Mouse0") && inside(PUI.options))) { openOptions("pause"); return; }
   if (hit("Escape", "KeyP", "TPause", "Enter", "Space", "GStart", "GB") || (hit("Mouse0") && inside(PUI.resume))) { state = "play"; return; }
-  if (hit("Backspace") || (hit("Mouse0") && inside(PUI.quit))) openWorlds();
+  if (hit("Backspace") || (hit("Mouse0") && inside(PUI.quit))) leaveToHub();
 }
 
 /* ---------------- Dessin ---------------- */
@@ -1910,12 +1926,13 @@ function drawPause() {
   if (lvl.json) { drawCampWorld(); drawCampHUD(); } else { drawWorld(); drawHUD(); }
   R(0, 0, VW, VH, "rgba(10,6,24,0.65)");
   text("Pause", VW / 2, 78, 26, ch().ui, "center", ch().ui);
-  [["resume", "Reprendre", ch().ui], ["options", "Options", "#e8dcff"], ["quit", "Quitter le monde", "#b9a6e0"]].forEach(([k, label, col], i) => {
+  [["resume", "Reprendre", ch().ui], ["options", "Options", "#e8dcff"], ["quit", chal ? "Abandonner" : "Retour à la laverie", "#b9a6e0"]].forEach(([k, label, col], i) => {
     const r = PUI[k], hov = PAD ? pauseSel === i : inside(r);
     R(r.x, r.y, r.w, r.h, hov ? "#ffffff" : "rgba(20,12,40,0.9)"); ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
     text(label, r.x + r.w / 2, r.y + r.h / 2 + 1, 10, hov ? "#120828" : col, "center");
   });
-  if (!TOUCH || PAD) text(say("Échap : reprendre    O : options    Retour arrière : quitter", "", "Croix et {A} pour choisir    {B} : reprendre"), VW / 2, 206, 8, "#b9a6e0", "center");
+  text(resumeInfo(), VW / 2, 196, 8, "#fccc28", "center");
+  if (!TOUCH || PAD) text(say("Échap : reprendre    O : options    Retour arrière : laverie", "", "Croix et {A} pour choisir    {B} : reprendre"), VW / 2, 214, 8, "#b9a6e0", "center");
 }
 function drawOverlays() {
   if (slowOn) { R(0, 0, VW, VH, "rgba(120,60,255,0.16)"); }
@@ -1939,7 +1956,7 @@ const UI = {
 };
 const inside = (r) => mouse.x >= r.x && mouse.x <= r.x + r.w && mouse.y >= r.y && mouse.y <= r.y + r.h;
 function goMenu() { state = "menu"; setTimeFx(false, false); }
-function startGame() { audio.sfx("start"); openChars(); }
+function startGame() { audio.sfx("start"); openChars("menu"); }
 let worldSel = 0, thumbs = null, thumbsFor = null, curWorld = 0;
 // Choix des mondes : pages de 4 × 2 ; au-delà de 8 mondes, d'autres pages apparaissent (← → passent d'une page à l'autre)
 const WCOLS = 4, WPAGE = 8;
@@ -2011,7 +2028,7 @@ function updateCampWorlds() {
   const prog = campProgress(), n = CWORLDS.length + 1;
   const open = i => i === CWORLDS.length || i <= prog;
   const go = i => { if (i === CWORLDS.length) { mode = "bonus"; audio.sfx("select"); openWorlds(); } else startCampWorld(i); };
-  if (hit("Escape", "GB") || (hit("Mouse0") && inside({ x: 8, y: 6, w: 50, h: 20 }))) { openChars(); return; }
+  if (hit("Escape", "GB") || (hit("Mouse0") && inside({ x: 8, y: 6, w: 50, h: 20 }))) { audio.sfx("back"); enterHub({ x: 214 }); return; }
   if ((keys.ShiftLeft || keys.ShiftRight) && hit("KeyD")) { setCampProgress(CWORLDS.length); msg = { text: "Tous les mondes sont débloqués", t: 2 }; audio.sfx("door"); }
   if (hit(...K.left)) { worldSel = (worldSel + n - 1) % n; audio.sfx("select"); }
   if (hit(...K.right)) { worldSel = (worldSel + 1) % n; audio.sfx("select"); }
@@ -2052,8 +2069,8 @@ function drawCampWorlds() {
     ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1); ctx.shadowBlur = 0;
   }
   const lockedSel = worldSel < CWORLDS.length && worldSel > prog;
-  text(lockedSel ? "Termine le monde précédent pour débloquer celui-ci" : say("Flèches pour choisir, Entrée pour jouer, Échap : changer de héros", "Touche un monde, puis touche-le encore pour jouer", "Croix pour choisir, {A} pour jouer, {B} : changer de héros"), VW / 2, 254, 8, lockedSel ? "#ff8ab0" : "#b9a6e0", "center");
-  drawBackBtn("◀ Héros");
+  text(lockedSel ? "Termine le monde précédent pour débloquer celui-ci" : say("Flèches pour choisir, Entrée pour partir, Échap : laverie", "Touche un monde, puis touche-le encore pour partir", "Croix pour choisir, {A} pour partir, {B} : laverie"), VW / 2, 254, 8, lockedSel ? "#ff8ab0" : "#b9a6e0", "center");
+  drawBackBtn("◀ Laverie");
   if (msg && msg.t > 0) text(msg.text, VW / 2, 244, 9, "#7dffb0", "center");
 }
 function updateMenu() {
@@ -2149,16 +2166,18 @@ const CUI = {
   const i = CHARS.findIndex(C => C.id === SAVE.lastChar); if (i >= 0) charIdx = i;
   charSel = charIdx;
 })();
-function openChars() { state = "chars"; charSel = charIdx; charSelT = 0; audio.sfx("select"); }
+// charsFrom : "menu" (après Jouer) ou "hub" (vestiaire de la laverie) ; on arrive ou on revient dans la laverie
+let charsFrom = "menu";
+function openChars(from = "menu") { charsFrom = from; state = "chars"; charSel = charIdx; charSelT = 0; audio.sfx("select"); }
 function confirmChar() {
   charIdx = charSel; SAVE.lastChar = CHARS[charIdx].id; saveGame();
-  audio.sfx("start"); mode = "camp"; openWorlds();
+  audio.sfx("start"); enterHub({ x: charsFrom === "hub" ? 18 : undefined });
 }
 function moveCharSel(i) { if (i !== charSel) { charSel = i; charSelT = 0; audio.sfx("select"); } }
 function updateChars(rdt) {
   charSelT += rdt;
   const n = CHARS.length, cols = 4;
-  if (hit("Escape", "GB", "Backspace") || (hit("Mouse0") && inside(CUI.back))) { goMenu(); audio.sfx("select"); return; }
+  if (hit("Escape", "GB", "Backspace") || (hit("Mouse0") && inside(CUI.back))) { if (charsFrom === "hub") enterHub({ x: 18 }); else goMenu(); audio.sfx("back"); return; }
   if (hit(...K.left)) moveCharSel((charSel + n - 1) % n);
   if (hit(...K.right)) moveCharSel((charSel + 1) % n);
   if (hit(...K.up, ...K.down)) moveCharSel((charSel + cols) % n);
@@ -2241,7 +2260,7 @@ function hoverRow(n, step, cur) {
   return cur;
 }
 function openOptions(from) { optFrom = from; optSel = 0; lastMouse = mouse.x + "," + mouse.y; state = "options"; audio.sfx("select"); }
-function closeOptions() { saveOptions(); state = optFrom === "pause" ? "pause" : "menu"; audio.sfx("select"); }
+function closeOptions() { saveOptions(); state = optFrom === "pause" ? "pause" : optFrom === "hub" ? "hub" : "menu"; audio.sfx("back"); }
 function optActivate(i) {
   const r = OPT_ROWS[i]; optSel = i;
   if (r.k === "back") { closeOptions(); return; }
@@ -2260,7 +2279,8 @@ function updateOptions() {
   if (hit("Mouse0")) for (let i = 0; i < n; i++) if (inside(rowRect(i, 21))) { optActivate(i); return; }
 }
 function drawOptBg() {
-  if (optFrom === "pause" && lvl) { if (lvl.json) drawCampWorld(); else drawWorld(); R(0, 0, VW, VH, "rgba(10,6,24,0.82)"); }
+  if (optFrom === "hub") { drawHub(); R(0, 0, VW, VH, "rgba(10,6,24,0.82)"); }
+  else if (optFrom === "pause" && lvl) { if (lvl.json) drawCampWorld(); else drawWorld(); R(0, 0, VW, VH, "rgba(10,6,24,0.82)"); }
   else { if (!menuBgs) menuBgs = CHARS.map(C => makeBackground(C.ui, C)); ctx.drawImage(menuBgs[charIdx], 0, 0); R(0, 0, VW, VH, "rgba(13,8,32,0.72)"); }
 }
 function drawRow(b, sel, label, value, valueCol) {
@@ -2369,6 +2389,7 @@ function updateClear(rdt) {
   clearT -= rdt; updateParts(rdt);
   if (clearT <= 0 || hit("Enter", "Space", "Mouse0", "GA", "GStart")) {
     const r = ROOMS[lvlIdx], next = ROOMS[lvlIdx + 1];
+    if (!SAVE.seen.char[ch().id]) { SAVE.seen.char[ch().id] = 1; checkUnlocks(false); }   // carte du héros : une salle terminée avec lui
     if (!(next && next.w === r.w)) voice.say(r.w + 1 < WORLDS.length ? `Monde terminé ! ${WORLDS[r.w].name} est sauvé. Bravo !` : `Victoire ! ${ch().name} a vaincu Dr. Boulon. Bravo !`, true);
     if (next && next.w === r.w) loadLevel(lvlIdx + 1);
     else {
@@ -2442,6 +2463,9 @@ function frame(now) {
   else if (state === "pause") { updatePause(); if (state === "pause") drawPause(); }
   else if (state === "options") { updateOptions(); if (state === "options") drawOptions(); }
   else if (state === "keys") { updateKeys(); if (state === "keys") drawKeys(); }
+  else if (SCREENS[state]) { const st = state; SCREENS[st].update(rdt); if (state === st) SCREENS[st].draw(); }
+  if (state !== "loading" && state !== "menu") { updateToasts(rdt); drawToasts(); }
+  hubAmbience();
   const mk = OPT.music ? musicKey() : null;
   if (state !== "loading" && audio.ready && audio.wanted !== mk) audio.playMusic(mk);
   synthTick();

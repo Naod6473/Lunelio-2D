@@ -276,7 +276,7 @@ cv.addEventListener("pointermove", toWorld);
 cv.addEventListener("pointerdown", e => {
   toWorld(e); audio.init(); setPad(false);
   if (e.pointerType === "touch") setTouch(true); else cv.focus();
-  if (e.pointerType === "touch" && state === "play") return;   // en jeu, le tactile passe par les boutons
+  if (e.pointerType === "touch" && state === "play") return;   // en jeu, le tactile passe par les boutons (dans la laverie, toucher un objet l'utilise)
   const k = "Mouse" + e.button;
   if (!keys[k]) pressed[k] = true;
   keys[k] = true;
@@ -340,15 +340,16 @@ let uiShown = "";
 function syncTouchUI() {
   const key = state + ch().id + df().id + PAD;
   if (key === uiShown) return; uiShown = key;
-  document.body.classList.toggle("playing", state === "play");
+  const moving = state === "play" || state === "hub";
+  document.body.classList.toggle("playing", moving);
   const sp = specialOf(ch()), pw = powerOf(ch());
   const bs = document.getElementById("bSpec");
-  bs.style.display = state === "play" && sp && sp.button ? "" : "none";
+  bs.style.display = moving && sp && sp.button ? "" : "none";
   if (sp && sp.button) bs.innerHTML = `${sp.icon}<small>${sp.label}</small>`;
   const pow = document.getElementById("bPow");
   pow.style.display = state === "play" && df().power && pw ? "" : "none";
   if (pw) { document.getElementById("powIcon").textContent = pw.icon; document.getElementById("powLbl").textContent = pw.label; }
-  if (state !== "play") for (const k of ["TLeft", "TRight", "TDown", "TJump", "TAtk", "TSpec", "TPow"]) keys[k] = false;
+  if (!moving) for (const k of ["TLeft", "TRight", "TDown", "TJump", "TAtk", "TSpec", "TPow"]) keys[k] = false;
 }
 /* ---- Manettes (Gamepad API) ---- */
 // Disposition « standard » : 0 A/✕, 1 B/○, 2 X/□, 3 Y/△, 4-7 gâchettes, 8 Select/Share, 9 Start/Options, 12-15 croix.
@@ -1260,6 +1261,7 @@ function hurtPlayer(p, srcX) {
     p.inv = 0.35; audio.sfx("deflect"); burst(p.x + 5, p.y + 16, 12, ["#5ef0ff", "#ffffff"], 140, 0.3, 0, 1); return;
   }
   p.hp--; if (lvl) lvl.hurt = true;
+  if (chal) chalHurt();
   shake = 6; hitstop = 0.08; audio.sfx("hurt");
   burst(p.x + 5, p.y + 14, 14, ["#ff3b5c", "#ffffff", p.C.color], 180, 0.5, 300, 2);
   if (p.hp <= 0 && buddyOn()) {
@@ -1303,11 +1305,11 @@ function updatePlayer(p, dt) {
 
   if (p.dashT > 0) {
     p.dashT -= dt; p.vx = p.face * 430; p.vy = 0;
-    if (Math.random() < 0.8) parts.push({ x: p.x + 5, y: p.y + 6 + Math.random() * 24, vx: -p.face * 30, vy: 0, life: 0.25, max: 0.25, color: C.color, size: 2, grav: 0 });
+    if (Math.random() < 0.8) parts.push({ x: p.x + 5, y: p.y + 6 + Math.random() * 24, vx: -p.face * 30, vy: 0, life: 0.25, max: 0.25, color: fxCol(p), size: 2, grav: 0 });
     for (const e of enemies) if (e.alive && ov(p, e)) hitEnemy(e, "dash", p);
     if (lvl.json) campAttack(p, p, "dash");
   } else {
-    const target = dir * RUN, acc = (p.onGround ? 1400 : 900) * boost;
+    const target = dir * RUN, acc = (p.onGround ? 1400 : 900) * boost * chalGrip(p);
     if (p.inv > 1.0) { /* recul après un coup */ }
     else if (p.vx < target) p.vx = Math.min(target, p.vx + acc * dt);
     else if (p.vx > target) p.vx = Math.max(target, p.vx - acc * dt);
@@ -1345,9 +1347,9 @@ function updatePlayer(p, dt) {
       for (const e of enemies) if (e.alive && ov(box, e)) hitEnemy(e, "atk", p);
       if (lvl.json) campAttack(p, box, "atk");
       for (const l of lasers) if (l.alive && l.owner === "enemy" && l.kind !== "wave" && !l.noReflect && ov(box, l)) {
-        l.owner = "player"; l.color = C.color; l.vx = -l.vx * 1.6; l.vy = -(l.vy || 0) * 1.6; l.g = 0; l.y = Math.round(l.y);
+        l.owner = "player"; l.color = fxCol(p); l.vx = -l.vx * 1.6; l.vy = -(l.vy || 0) * 1.6; l.g = 0; l.y = Math.round(l.y);
         audio.sfx("deflect"); hitstop = 0.05; shake = Math.max(shake, 3);
-        burst(l.x + 5, l.y, 12, ["#ffffff", C.color], 160, 0.3, 0, 1);
+        burst(l.x + 5, l.y, 12, ["#ffffff", fxCol(p)], 160, 0.3, 0, 1);
       }
     }
     if (p.atkT > 0.3) p.atkT = -1;
@@ -1617,6 +1619,7 @@ function updatePlay(rdt) {
   for (const p of players) if (!(lvl.json && campLocked(p))) updatePlayer(p, dt);
   if (lvl.json) updateCamp(dt); else updateEnemies(dt);
   updateLasers(dt); updateParts(dt);
+  if (chal) { chalUpdate(dt, rdt); if (state !== "play") return; }
   if (allDead()) {
     deathT -= rdt;
     if (deathT <= 0) {
@@ -1658,15 +1661,28 @@ function burstPower(p, pw) {
   p.gauge = Math.max(0, p.gauge - pw.burst);
 }
 let pauseSel = 0;
-const PUI = { resume: { x: 170, y: 104, w: 140, h: 24 }, options: { x: 170, y: 134, w: 140, h: 24 }, quit: { x: 170, y: 164, w: 140, h: 24 } };
-function pauseGame() { state = "pause"; pauseSel = 0; setTimeFx(false, false); audio.sfx("select"); }
+const PUI = { resume: { x: 170, y: 98, w: 140, h: 24 }, options: { x: 170, y: 128, w: 140, h: 24 }, quit: { x: 170, y: 158, w: 140, h: 24 } };
+function pauseGame() { state = "pause"; pauseSel = 0; setTimeFx(false, false); audio.sfx("pause"); }
+// Où reprendra-t-on en revenant dans ce monde ? Salle en cours ; en mode Doom, le drapeau s'il a été touché, sinon le début du monde.
+function resumeInfo() {
+  if (chal) return "Le programme de lavage sera abandonné";
+  if (!lvl.json) return `Ancienne aventure : tu reprendras au début de « ${WORLDS[ROOMS[lvlIdx].w].name} »`;
+  const W = CWORLDS[camp.wi], r = df().id === "doom" ? camp.ckpt : camp.ri;
+  return `Tu reprendras : ${W.name}, salle ${r + 1}` + (df().id === "doom" ? (camp.ckpt ? " (au drapeau)" : " (début du monde, mode Doom)") : "");
+}
+function leaveToHub() {
+  if (chal) { chalAbandon(); return; }
+  let m = "";
+  if (lvl.json) { const r = df().id === "doom" ? camp.ckpt : camp.ri; setCampResume(camp.wi, r); m = `Tu reprendras ${CWORLDS[camp.wi].name}, salle ${r + 1}`; }
+  enterHub({ x: 214, msg: m });
+}
 function updatePause() {
   if (hit("GUp")) { pauseSel = (pauseSel + 2) % 3; audio.sfx("select"); }
   if (hit("GDown")) { pauseSel = (pauseSel + 1) % 3; audio.sfx("select"); }
-  if (hit("GA")) { if (pauseSel === 2) openWorlds(); else if (pauseSel === 1) openOptions("pause"); else state = "play"; return; }
+  if (hit("GA")) { if (pauseSel === 2) leaveToHub(); else if (pauseSel === 1) openOptions("pause"); else state = "play"; return; }
   if (hit("KeyO") || (hit("Mouse0") && inside(PUI.options))) { openOptions("pause"); return; }
   if (hit("Escape", "KeyP", "TPause", "Enter", "Space", "GStart", "GB") || (hit("Mouse0") && inside(PUI.resume))) { state = "play"; return; }
-  if (hit("Backspace") || (hit("Mouse0") && inside(PUI.quit))) openWorlds();
+  if (hit("Backspace") || (hit("Mouse0") && inside(PUI.quit))) leaveToHub();
 }
 
 /* ---------------- Dessin ---------------- */
@@ -1912,12 +1928,13 @@ function drawPause() {
   if (lvl.json) { drawCampWorld(); drawCampHUD(); } else { drawWorld(); drawHUD(); }
   R(0, 0, VW, VH, "rgba(10,6,24,0.65)");
   text("Pause", VW / 2, 78, 26, ch().ui, "center", ch().ui);
-  [["resume", "Reprendre", ch().ui], ["options", "Options", "#e8dcff"], ["quit", "Quitter le monde", "#b9a6e0"]].forEach(([k, label, col], i) => {
+  [["resume", "Reprendre", ch().ui], ["options", "Options", "#e8dcff"], ["quit", chal ? "Abandonner" : "Retour à la laverie", "#b9a6e0"]].forEach(([k, label, col], i) => {
     const r = PUI[k], hov = PAD ? pauseSel === i : inside(r);
     R(r.x, r.y, r.w, r.h, hov ? "#ffffff" : "rgba(20,12,40,0.9)"); ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
     text(label, r.x + r.w / 2, r.y + r.h / 2 + 1, 10, hov ? "#120828" : col, "center");
   });
-  if (!TOUCH || PAD) text(say("Échap : reprendre    O : options    Retour arrière : quitter", "", "Croix et {A} pour choisir    {B} : reprendre"), VW / 2, 206, 8, "#b9a6e0", "center");
+  text(resumeInfo(), VW / 2, 196, 8, "#fccc28", "center");
+  if (!TOUCH || PAD) text(say("Échap : reprendre    O : options    Retour arrière : laverie", "", "Croix et {A} pour choisir    {B} : reprendre"), VW / 2, 214, 8, "#b9a6e0", "center");
 }
 function drawOverlays() {
   if (slowOn) { R(0, 0, VW, VH, "rgba(120,60,255,0.16)"); }
@@ -1962,9 +1979,10 @@ function preloadAtlases(timeout = 8000) {
   return Promise.race([all, new Promise(r => setTimeout(r, timeout))]);
 }
 // Dessine l'image i d'un atlas, son point d'ancrage (pieds, centre ou base selon l'atlas) en (x, y). face < 0 : retournée.
-function drawFrame(aid, i, x, y, face = 1, alpha = 1, scale = 1) {
+// cos : identifiant d'un cosmétique de couleurs (planche recolorée, laverie.js)
+function drawFrame(aid, i, x, y, face = 1, alpha = 1, scale = 1, cos = null) {
   const A = ATL[aid]; if (!A) return;
-  const img = atlasImg(aid); if (!img) return;
+  const img = cos ? atlasImgCos(aid, cos) : atlasImg(aid); if (!img) return;
   const sx = (i % A.cols) * A.cw, sy = Math.floor(i / A.cols) * A.ch, w = A.cw * scale, h = A.ch * scale;
   if (alpha <= 0) return;
   ctx.globalAlpha = alpha;
@@ -1979,7 +1997,8 @@ function animFrame(aid, name, t, fps = 10, loop = true) {
   return a[0] + k;
 }
 const charAtlas = C => "perso_" + C.id;
-function drawChar(C, frame, x, y, face = 1, scale = 1, alpha = 1) { drawFrame(charAtlas(C), frame, x, y, face, alpha, scale); }
+// Héros avec ses cosmétiques équipés (couleurs, accessoire) ; voir drawCharCos dans laverie.js
+function drawChar(C, frame, x, y, face = 1, scale = 1, alpha = 1) { drawCharCos(C, frame, x, y, face, scale, alpha); }
 
 /* ---------------- Nouvelle campagne : fiches ---------------- */
 // Ennemis des nouveaux mondes. ground : marche avec la gravité ; contact : "always", "attack" (pendant l'attaque) ou "never".
@@ -2102,6 +2121,7 @@ function addRoomExtras(L, R) {
   if (chal && chal.C.prog === "solitaire") {
     const t = AJOUTS.challengeTargets[chal.C.id];
     if (t && R.id === chal.C.rooms[chal.C.rooms.length - 1]) L.sock = { x: t[0], y: t[1], w: 12, h: 12, type: "cible", alive: true, found: false, hidden: false, target: true, t: 0 };
+    for (const x of L.exits) x.locked = true;   // on cherche la chaussette, pas la sortie
   }
 }
 let terrainCanvas = null, terrainFor = null;
@@ -2180,7 +2200,7 @@ function loadCampRoom(wi, ri, opts = {}) {
 }
 function startCampWorld(wi) {
   curWorld = wi; runTime = 0; deaths = 0; msg = null; spokenRoom = -1; audio.sfx("start");
-  const done = wi < campProgress(), r = done ? 0 : campResume(wi);
+  const r = campResume(wi);
   camp.ckpt = 0; camp.fromStart = r === 0;
   if (r > 0) camp.ckpt = r;
   loadCampRoom(wi, r);
@@ -2613,6 +2633,7 @@ function campVictory(e) {
   audio.sfx("piece");
   if (lvl.sock && lvl.sock.type === "apres_boss" && lvl.sock.hidden) { lvl.sock.hidden = false; lvl.sock.pop = 0.4; burst(lvl.sock.x + 6, lvl.sock.y + 6, 20, ["#7dffb0", "#ffffff"], 120, 0.6, 0, 1); }
   emit("roomDone", { room: campRoom().id, char: ch().id, doom: df().id === "doom" });
+  emit("worldDone", { wi: camp.wi });
   for (const x of lvl.exits) x.locked = false;
   const mx = lvl.exits.find(x => x.kind === "machine");
   if (mx) startMachine(mx.x + mx.w / 2, mx.y + mx.h);
@@ -2655,12 +2676,8 @@ function machInteract(p) {
   setTimeFx(false, false); audio.sfx("door");
   return true;
 }
-function campNextWorld() {
-  const wi = camp.wi;
-  if (wi + 1 >= CWORLDS.length) { state = "campwin"; winT = 0; voice.say(`Cycle terminé ! ${ch().name} est de retour. Bravo !`, true); return; }
-  curWorld = wi + 1; runTime = 0; deaths = 0; camp.ckpt = 0; camp.fromStart = true;
-  loadCampRoom(wi + 1, 0, { arrive: true, fadeIn: true });
-}
+// Après le boss, la machine ramène le héros à la laverie (la pièce y est remise en place)
+function campNextWorld() { enterHub({ arrive: true }); }
 function updateArrival(dt) {
   if (!arrival || arrival.done) return;
   arrival.t += dt;
@@ -2669,16 +2686,7 @@ function updateArrival(dt) {
   if (arrival.t >= 1.0 && p.hidden) { p.hidden = false; p.inv = 0.6; addFx("fx_teleport", p.x + 5, p.y + p.h); burst(p.x + 5, p.y + 16, 16, MACHINE_FX[CWORLDS[camp.wi].id], 140, 0.5, 100, 1); audio.sfx("heal"); }
   if (arrival.t >= 1.4) arrival.done = true;
 }
-function drawMachineAt(x, y, st, t) {
-  let fr;
-  if (st === "activating") fr = animFrame("machine", "activate", t, 5 / 0.9, false);
-  else if (st === "ready") fr = ATL.machine.anims.activate[0] + 4;
-  else if (st === "entering") fr = ATL.machine.anims.activate[0] + 4;
-  else if (st === "departing" || st === "loading") fr = animFrame("machine", "depart", t, 5 / 0.8, false);
-  else fr = animFrame("machine", "idle", t, 4);
-  const jx = st === "departing" ? Math.round((Math.random() - 0.5) * 2) : 0;
-  drawFrame("machine", fr, x + jx, y);
-}
+function drawMachineAt(x, y, st, t) { drawMachineSkin(x, y, st, t); }
 // Personnage aspiré : entre le vortex (dans le dessin de la machine) et le rebord du hublot (redessiné par-dessus)
 function drawEntering(p) {
   const k = Math.min(1, mach.t / 0.7), sc = 1 - 0.85 * k, rot = k * Math.PI;
@@ -2820,8 +2828,9 @@ function drawCollectibles(behind) {
   if (k && k.alive && !k.hidden && (k.type === "decor") === behind) {
     const bob = Math.sin(time * 3 + (k.t || 0)) * 1.5, cx = k.x + 6, cy = k.y + 6 + bob;
     if (k.found) drawSock(cx, cy, { ghost: true, alpha: 0.35 });   // déjà trouvée : discrète
+    else if (k.target) { const a = chalTargetAlpha(k); if (a > 0.01) { ctx.globalAlpha = a * 0.3; R(Math.round(k.x - 2), Math.round(k.y - 2 + bob), 16, 16, "#c86eff"); ctx.globalAlpha = 1; drawSock(cx, cy, { t: k.t, alpha: a }); } }
     else {
-      ctx.globalAlpha = 0.18 + 0.1 * Math.sin(time * 5); R(Math.round(k.x - 2), Math.round(k.y - 2 + bob), 16, 16, k.target ? "#c86eff" : "#7dffb0"); ctx.globalAlpha = 1;
+      ctx.globalAlpha = 0.18 + 0.1 * Math.sin(time * 5); R(Math.round(k.x - 2), Math.round(k.y - 2 + bob), 16, 16, "#7dffb0"); ctx.globalAlpha = 1;
       drawSock(cx, cy, { t: k.t });
     }
   }
@@ -3117,6 +3126,7 @@ function drawCampPlayer(p) {
   const fr = playerFrame(p), x = p.x + 5, y = p.y + p.h;
   if (p.dashT > 0) for (let i = 1; i <= 3; i++) drawChar(p.C, fr, x - p.face * i * 9, y, p.face, 1, 0.18 * (4 - i) * a);
   drawChar(p.C, fr, x, y, p.face, 1, a);
+  drawSlash(p);
   if (p.powerOn && powerOf(p.C) && powerOf(p.C).shield) drawFrame("fx_bouclier", animFrame("fx_bouclier", "play", time, 8), x, p.y + 16, 1, 0.8, 0.9);
 }
 function drawCampWorld() {
@@ -3239,29 +3249,23 @@ function drawCampHUD() {
 }
 
 /* ---------------- Nouvelle campagne : fin ---------------- */
+// « Retour à la maison » : la machine réparée ramène le héros ; les chaussettes volent comme des confettis.
 let winT = 0;
 function drawCampWin(rdt) {
   winT += rdt;
-  const C = ch(), last = CWORLDS[CWORLDS.length - 1].rooms[0];
-  const bg = getImg(CWORLDS[0].rooms[0].bg);
-  if (bg.ok) ctx.drawImage(bg.img, 0, 0, VW, VH); else R(0, 0, VW, VH, "#120a22");
-  R(0, 0, VW, VH, "rgba(13,8,32,0.6)");
-  void last;
-  text("Cycle terminé", VW / 2, 36, 24, C.ui, "center", C.ui);
-  text(`${C.name} a vaincu les six boss et rentre enfin à la maison !`, VW / 2, 60, 9, "#e8dcff", "center");
-  // la machine s'ouvre, une chaussette propre sort, puis le héros
-  const mx = VW / 2 + 50, my = 200;
-  drawMachineAt(mx, my, winT < 0.9 ? "activating" : "ready", winT);
-  if (winT > 1.0) {
-    const k = Math.min(1, (winT - 1.0) / 0.6), sx = mx - 6 - k * 60, sy = my - 34 + Math.sin(k * Math.PI) * -30 + k * 30;
-    R(Math.round(sx), Math.round(sy), 4, 9, "#ffffff"); R(Math.round(sx), Math.round(sy + 7), 7, 3, "#ffffff"); R(Math.round(sx + 1), Math.round(sy + 1), 2, 2, "#5ef0ff");
-  }
-  if (winT > 1.7) {
-    const k = Math.min(1, (winT - 1.7) / 0.5);
-    drawChar(C, k < 1 ? 18 : Math.floor(time * 5) % 4, VW / 2 - 70 + k * 10, my, 1, 2, k);
-  }
-  text(say("Entrée ou clic pour revenir au choix des mondes", "Touche l'écran pour revenir au choix des mondes", "{A} pour revenir au choix des mondes"), VW / 2, 240, 9, "#b9a6e0", "center");
-  if (winT > 1.5 && hit("Enter", "Space", "Mouse0", "Escape", "GA", "GB", "GStart")) openWorlds();
+  const C = ch();
+  drawHub();
+  const dawn = ctx.createLinearGradient(0, 0, 0, VH); dawn.addColorStop(0, "rgba(255,180,90,0.25)"); dawn.addColorStop(1, "rgba(255,120,200,0.1)");
+  ctx.fillStyle = dawn; ctx.fillRect(0, 0, VW, VH);
+  R(0, 0, VW, 74, "rgba(13,8,32,0.6)");
+  text("Retour à la maison", VW / 2, 30, 22, C.ui, "center", C.ui);
+  text(`${C.name} a réparé la machine et rentre enfin chez lui !`, VW / 2, 54, 9, "#e8dcff", "center");
+  // chaussettes propres en confettis
+  for (let i = 0; i < 24; i++) { const k = (winT * 0.4 + i * 0.137) % 1, x = (i * 53 + Math.sin(winT + i) * 20) % VW; if (winT > 1) drawSock(x, -10 + k * 250, { t: i }); }
+  if (winT > 1.0) { const k = Math.min(1, (winT - 1.0) / 0.6); drawChar(C, k < 1 ? 18 : Math.floor(time * 5) % 4, 240 - 50 * k, HUB_FLOOR, -1, 1, k); }
+  if (winT > 2.5) text(`Chaussettes : ${socksCount()}/${socksTotal()}    Cartes : ${CARDS.filter(c => has("card:" + c.id)).length}/${CARDS.length}`, VW / 2, 92, 9, "#7dffb0", "center");
+  text(say("Entrée ou clic pour revenir à la laverie", "Touche l'écran pour revenir à la laverie", "{A} pour revenir à la laverie"), VW / 2, 182, 9, "#ffffff", "center");
+  if (winT > 1.5 && hit("Enter", "Space", "Mouse0", "Escape", "GA", "GB", "GStart")) enterHub({ msg: "La laverie reste ouverte : il reste des chaussettes à retrouver !" });
 }
 
 /* ---------------- Registres : laverie, collections, histoire ---------------- */
@@ -3536,7 +3540,7 @@ const PROGRAMS = {
 // limit : temps (s) pour Express et Chaussette solitaire, calibré sans dash ni super vitesse.
 // win / lose : textes affichés avant le départ. record : "time" (plus petit = mieux).
 const CHALLENGES = [
-  { id: "express_centrale", prog: "express", world: "01_centrale", rooms: ["centrale_01", "centrale_02", "centrale_03"], limit: 50, unlock: { world: 1 },
+  { id: "express_centrale", prog: "express", world: "01_centrale", rooms: ["centrale_01", "centrale_02", "centrale_03"], limit: 40, unlock: { world: 1 },
     win: "Passer la porte de la salle 3 avant 0 s", lose: "Le chronomètre arrive à 0", reward: ["cos:acc_lunettes"], record: "time" },
   { id: "delicat_temple", prog: "delicat", world: "03_temple", rooms: ["temple_02"], unlock: { world: 3 },
     win: "Passer la porte sans être touché", lose: "Un seul coup reçu (le bouclier protège)", reward: ["cos:pal_nuit"], record: "time" },
@@ -3826,29 +3830,1232 @@ function setBest(k, v) { SAVE.best[k] = v; saveGame(); }
 function updateToasts(rdt) {
   const t = toasts[0]; if (!t) return;
   if (t.t === 0 && t.snd) audio.sfx(t.snd);
-  t.t += rdt; if (t.t > 2.6) toasts.shift();
+  t.dur = t.dur || (toasts.length > 3 ? 1.3 : 2.4);   // plusieurs annonces à la suite : chacune reste moins longtemps
+  t.t += rdt; if (t.t > t.dur) toasts.shift();
 }
 function drawToasts() {
   const t = toasts[0]; if (!t) return;
-  const k = Math.min(1, t.t / 0.25, (2.6 - t.t) / 0.3), y = 24 + (1 - k) * -30;
-  ctx.font = `700 9px ${FONT}`; const w = Math.max(120, ctx.measureText(t.sub).width + 24);
+  const k = Math.min(1, t.t / 0.25, ((t.dur || 2.4) - t.t) / 0.3), y = VH - 64 + (1 - k) * 30;
+  ctx.font = `700 9px ${FONT}`; const big = ctx.measureText(t.sub).width < 200, fs = big ? 9 : 7;
+  ctx.font = `700 ${fs}px ${FONT}`; const w = Math.max(120, ctx.measureText(t.sub).width + 24);
   ctx.globalAlpha = Math.max(0, k);
   R(Math.round(VW - w - 8), Math.round(y), Math.round(w), 26, "rgba(10,6,24,0.92)");
   ctx.strokeStyle = t.col; ctx.lineWidth = 1; ctx.strokeRect(Math.round(VW - w - 8) + 0.5, Math.round(y) + 0.5, Math.round(w) - 1, 25);
   text(t.title, VW - w / 2 - 8, y + 8, 7, t.col, "center");
-  text(t.sub, VW - w / 2 - 8, y + 18, 9, "#ffffff", "center");
+  text(t.sub, VW - w / 2 - 8, y + 18, fs, "#ffffff", "center");
   ctx.globalAlpha = 1;
 }
 loadGame();
 
-/* ---------------- laverie ---------------- */
+/* ---------------- Laverie : la scène centrale ---------------- */
+// Zone sûre où le héros se promène entre deux mondes. Chaque poste s'utilise avec Haut (▲ en tactile, {JUMP} à la manette)
+// quand on est devant, ou d'un clic / d'un toucher dessus. Les dessins sont provisoires (code) tant que les images
+// de assets/laverie/ n'existent pas (voir docs/prompt_sprites_chatgpt.md).
+// États : "hub" (on se promène), "hubmenu" (menu Échap), plus les écrans de ecrans.js et defis.js (SCREENS).
+const SCREENS = {};
+const HUB_FLOOR = 240;
+let hub = { lvl: null, msg: null, dlg: null, near: null, t: 0, arrive: null, queue: [], machShake: 0 };
+// Postes : x = centre au sol. need : condition pour que le poste s'allume (sinon « bientôt »), with lockText.
+const STATIONS = [
+  { id: "armoire", x: 28, w: 34, h: 58, label: "Vestiaire", open: () => openWardrobe() },
+  { id: "album", x: 72, w: 30, h: 36, label: "Collections", open: () => openAlbum() },
+  { id: "jukebox", x: 110, w: 30, h: 48, label: "Jukebox", open: () => openJukebox() },
+  { id: "souvenirs", x: 186, w: 28, h: 30, label: "Souvenirs", need: { memories: 1 }, lockText: "Ramène une pièce de la machine pour réveiller ses souvenirs", open: () => openMemories() },
+  { id: "machine", x: 240, w: 56, h: 64, label: "Machine temporelle", open: () => hubToMachine() },
+  { id: "defis", x: 338, w: 40, h: 50, label: "Programmes de lavage", need: { world: 1 }, lockText: "Termine la centrale pour allumer cette machine", open: () => openChallenges() },
+  { id: "deco", x: 420, w: 30, h: 40, label: "Décoration", open: () => openDeco() },
+  { id: "bulle", x: 460, w: 22, h: 38, label: "Mme Bulle", npc: "bulle" },
+];
+const stationOn = s => !s.need || testCond(s.need);
+// Clients présents : ceux dont la quête est apparue
+const hubNpcs = () => QUESTS.filter(q => testCond(q.appear)).map(q => ({ id: q.npc, x: q.x, w: 20, h: 38, label: NPCS[q.npc].name, npc: q.npc, quest: q }));
+function hubThings() { return [...STATIONS, ...hubNpcs()]; }
 
-/* ---------------- ecrans ---------------- */
+/* ---- Entrée dans la laverie ---- */
+// opts.arrive : retour par la machine (après un boss : pièce réparée, souvenir) ; opts.msg : message affiché en arrivant
+function enterHub(opts = {}) {
+  mode = "camp"; chal = null;
+  hub.lvl = { json: true, hub: true, solids: [{ x: -40, y: HUB_FLOOR, w: VW + 80, h: 40 }], plats: [], blocks: [], hazards: [], dest: [], items: [],
+    exits: [], decor: [], covers: [], gold: [], qitems: [], sock: null, start: { x: opts.x ?? 214, y: HUB_FLOOR - 32 }, lastSafe: null, W: CWORLDS[0], R: { id: "laverie", bg: "" }, leaving: false };
+  lvl = hub.lvl; mach = null; arrival = null; campTrans = null; campFade = 0;
+  players = [makePlayer(ch(), K, 0)]; players[0].inv = 0;
+  enemies = []; lasers = []; parts = []; pickups = []; ghosts = []; fxs = [];
+  setTimeFx(false, false);
+  hub.t = 0; hub.dlg = null; hub.msg = opts.msg ? { text: opts.msg, t: 5 } : null;
+  hub.arrive = opts.arrive ? { t: 0 } : null;
+  if (hub.arrive) { players[0].hidden = true; players[0].x = 230; }
+  state = "hub"; voice.stop();
+  // à faire en arrivant : prologue, réparation d'une pièce, souvenir, fin de la campagne
+  hub.queue = [];
+  if (!SAVE.flags.prologue) hub.queue.push(() => startDialog(STORY.prologue, () => { SAVE.flags.prologue = 1; emit("met", { npc: "bulle" }); hub.msg = { text: say("Approche-toi de la machine et appuie sur Haut", "Approche-toi de la machine et appuie sur ▲", "Approche-toi de la machine et appuie sur {JUMP}"), t: 6 }; }, { prologue: true }));
+  for (const W of CWORLDS.slice(0, SAVE.camp.done)) if (!SAVE.repaired[W.id]) {
+    hub.queue.push(() => { audio.sfx("repair"); hub.repairFx = { wid: W.id, t: 0 }; startDialog(STORY.repair[W.id], () => { SAVE.repaired[W.id] = 1; saveGame(); }); });
+    const M = MEMORIES.find(m => m.world === W.id);
+    if (M) hub.queue.push(() => { if (has("mem:" + M.id) && !SAVE.memSeen[M.id]) openMemory(M.id, true); });
+  }
+  if (SAVE.camp.done >= CWORLDS.length && !SAVE.flags.ending) hub.queue.push(() => startDialog(STORY.ending, () => { startEnding(); }));
+}
+function hubToMachine() {
+  audio.sfx("machine"); hub.machShake = 0.5;
+  openWorlds();
+}
 
-/* ---------------- defis ---------------- */
-function chalRoomDone() { return false; }
-function chalWin() {}
-function drawChalHUD() {}
+/* ---- Dialogues ---- */
+// lines : [[qui, texte]…]. Avancer : Entrée, Espace, clic, toucher, {A}. Passer : Échap, {B}. La voix lit chaque réplique.
+function startDialog(lines, onEnd, o = {}) {
+  hub.dlg = { lines, i: 0, t: 0, onEnd, o };
+  speakLine();
+}
+const lineWho = l => l[0] === "hero" ? ch().name : l[0] === "machine" ? "La machine" : NPCS[l[0]].name;
+const lineText = l => l[1];
+function speakLine() { const d = hub.dlg; if (d && OPT.voice) voice.say(lineText(d.lines[d.i]), true); }
+function endDialog() { const d = hub.dlg; hub.dlg = null; hub.cool = 0.3; voice.stop(); if (d && d.onEnd) d.onEnd(); }
+function updateDialog(rdt) {
+  const d = hub.dlg; if (!d) return false;
+  const L = d.lines[d.i], full = lineText(L).length;
+  const before = Math.floor(d.t * 40); d.t += rdt; const now = Math.floor(d.t * 40);
+  if (now > before && now <= full && now % 3 === 0 && L[0] !== "hero") audio.sfx(L[0] === "machine" ? "dial" : NPCS[L[0]].talk);
+  if (d.o.prologue && d.i === 2 && d.t < 0.05) { hub.machShake = 1.5; audio.sfx("spin"); }
+  if (hit("Escape", "GB")) { audio.sfx("back"); endDialog(); return true; }
+  if (hit("Enter", "Space", "NumpadEnter", "Mouse0", "GA", "GStart", "TJump", "TAtk", ...K.attack)) {
+    if (d.t * 40 < full) d.t = full / 40;
+    else if (d.i + 1 < d.lines.length) { d.i++; d.t = 0; audio.sfx("select"); speakLine(); }
+    else { audio.sfx("select"); endDialog(); }
+  }
+  return true;
+}
+// Retour à la ligne pour un texte dans une largeur donnée (police du jeu)
+function wrapText(s, w, size) {
+  ctx.font = `700 ${size}px ${FONT}`;
+  const out = []; let cur = "";
+  for (const word of s.split(" ")) { const t = cur ? cur + " " + word : word; if (ctx.measureText(t).width > w && cur) { out.push(cur); cur = word; } else cur = t; }
+  if (cur) out.push(cur); return out;
+}
+function drawDialog() {
+  const d = hub.dlg; if (!d) return;
+  const L = d.lines[d.i], who = L[0], s = lineText(L).slice(0, Math.floor(d.t * 40));
+  const y = VH - 74;
+  R(8, y, VW - 16, 66, "rgba(10,6,24,0.94)");
+  const col = who === "hero" ? ch().ui : who === "machine" ? "#7dffb0" : NPCS[who].color;
+  ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.strokeRect(8.5, y + 0.5, VW - 17, 65);
+  R(14, y + 6, 52, 54, "rgba(30,20,56,0.9)");
+  ctx.save(); ctx.beginPath(); ctx.rect(14, y + 6, 52, 54); ctx.clip();
+  if (who === "hero") drawFrame("portraits", ATL.portraits.anims[ch().id][0], 40, y + 58, 1, 1, 1.2);
+  else if (who === "machine") drawMachineIcon(40, y + 33, 1.6);
+  else drawNpcPortrait(who, 40, y + 33, 1.25, Math.floor(d.t * 10) % 2 && d.t * 40 < lineText(L).length);
+  ctx.restore();
+  text(lineWho(L), 74, y + 12, 9, col);
+  wrapText(s, VW - 100, 9).forEach((l, i) => text(l, 74, y + 28 + i * 13, 9, "#ffffff"));
+  const done = d.t * 40 >= lineText(L).length;
+  if (done && Math.floor(time * 3) % 2) text("▼", VW - 20, y + 56, 8, col, "center");
+  text(say("Entrée : suite   Échap : passer", "Touche : suite", "{A} : suite   {B} : passer"), VW - 14, y - 6, 7, "#b9a6e0", "right");
+}
+
+/* ---- Mise à jour ---- */
+function hubInteract(it) {
+  const p = players[0];
+  if (it.npc) { talkTo(it); return; }
+  if (!stationOn(it)) { audio.sfx("nope"); hub.msg = { text: it.lockText || "Pas encore…", t: 2.5 }; return; }
+  audio.sfx("start"); p.vx = 0;
+  it.open();
+}
+function talkTo(it) {
+  const q = it.quest, id = it.npc;
+  if (!q) {   // Mme Bulle : une phrase selon l'avancée, plus un conseil
+    const lines = [...(STORY.bulle.filter(b => testCond(b.cond)).pop() || STORY.bulle[0]).lines];
+    const waiting = QUESTS.find(q2 => testCond(q2.appear) && !SAVE.quests[q2.id]);
+    if (waiting) lines.push(["bulle", `${NPCS[waiting.npc].name} a besoin d'aide. Va lui parler !`]);
+    startDialog(lines, () => emit("met", { npc: "bulle" })); return;
+  }
+  const st = SAVE.quests[q.id];
+  if (!st) startDialog(q.intro, () => {
+    SAVE.quests[q.id] = { st: "active", items: {} }; emit("met", { npc: id });
+    toast("Nouvelle quête", q.goal.text, "quest_start", "#ff8ab0"); checkUnlocks(false);
+  });
+  else if (st.st === "active") {
+    const g = q.goal, n = g.items ? g.items.filter(i => st.items && st.items[i]).length : 0;
+    startDialog([[id, g.items && g.items.length > 1 ? `${g.text}. Tu en as ${n} sur ${g.items.length}.` : g.text + "."]]);
+  } else if (st.st === "ready") startDialog(q.outro, () => {
+    st.st = "done"; for (const k of q.reward) grant(k); audio.sfx("quest_done"); checkUnlocks(false);
+  });
+  else startDialog(q.after.filter(a => testCond(a.cond)).pop().lines);
+}
+function updateHub(rdt) {
+  hub.t += rdt; if (hub.msg && hub.msg.t > 0) hub.msg.t -= rdt;
+  hub.machShake = Math.max(0, hub.machShake - rdt);
+  if (hub.repairFx) { hub.repairFx.t += rdt; if (hub.repairFx.t > 2.5) hub.repairFx = null; }
+  const p = players[0];
+  if (hub.arrive) {
+    const a = hub.arrive; a.t += rdt;
+    if (a.t > 0.9 && p.hidden) { p.hidden = false; p.inv = 0.4; p.vy = -200; p.vx = -60; addFx("fx_teleport", p.x + 5, p.y + p.h); burst(240, 200, 24, ["#7dffb0", "#ffffff", "#c86eff"], 160, 0.6, 100, 1); audio.sfx("arrive"); }
+    if (a.t > 1.4) hub.arrive = null;
+  }
+  if (updateDialog(rdt)) { updateParts(rdt); updateFx(rdt); return; }
+  if (!hub.arrive && hub.queue.length) { hub.queue.shift()(); if (state !== "hub") return; }
+  if (hit("Escape", "KeyP", "GStart", "TPause")) { openHubMenu(); return; }
+  if (hit("KeyO", "GY")) { openOptions("hub"); return; }
+  // le poste le plus proche devant lequel on se tient
+  const things = hubThings();
+  hub.near = null; let bd = 18;
+  for (const it of things) { const d = Math.abs(p.x + 5 - it.x); if (d < Math.max(bd, it.w / 2) && p.onGround && !p.hidden) { bd = d; hub.near = it; } }
+  hub.cool = Math.max(0, (hub.cool || 0) - rdt);   // juste après un dialogue, Entrée ne relance pas un poste
+  if (hub.near && hub.cool <= 0 && (hit(...K.jump) || hit("Enter", "NumpadEnter"))) { for (const k of [...K.jump, "Enter", "NumpadEnter"]) delete pressed[k]; p.jumpBuf = 0; hubInteract(hub.near); return; }
+  // clic ou toucher sur un poste ou un client
+  if (hit("Mouse0")) for (const it of things) if (inside({ x: it.x - it.w / 2, y: HUB_FLOOR - it.h, w: it.w, h: it.h })) { delete pressed.Mouse0; hubInteract(it); return; }
+  if (!hub.arrive) updatePlayer(p, rdt);
+  updateParts(rdt); updateFx(rdt);
+}
+function openHubMenu() { state = "hubmenu"; hubMenuSel = 0; audio.sfx("pause"); }
+let hubMenuSel = 0;
+const HUB_MENU = [["Reprendre", () => { state = "hub"; }], ["Options", () => openOptions("hub")], ["Changer de héros", () => openChars("hub")], ["Écran titre", () => goMenu()]];
+const hubMenuRect = i => ({ x: 170, y: 92 + i * 28, w: 140, h: 22 });
+SCREENS.hubmenu = {
+  update() {
+    const n = HUB_MENU.length;
+    if (hit("Escape", "KeyP", "GStart", "GB", "TPause")) { state = "hub"; audio.sfx("back"); return; }
+    if (hit(...K.up)) { hubMenuSel = (hubMenuSel + n - 1) % n; audio.sfx("select"); }
+    if (hit(...K.down)) { hubMenuSel = (hubMenuSel + 1) % n; audio.sfx("select"); }
+    if (hit(...K.ok)) { audio.sfx("select"); HUB_MENU[hubMenuSel][1](); return; }
+    if (hit("Mouse0")) HUB_MENU.forEach(([, f], i) => { if (state === "hubmenu" && inside(hubMenuRect(i))) { audio.sfx("select"); f(); } });
+  },
+  draw() {
+    drawHub(); R(0, 0, VW, VH, "rgba(10,6,24,0.7)");
+    text("Laverie", VW / 2, 66, 22, ch().ui, "center", ch().ui);
+    HUB_MENU.forEach(([label], i) => { const r = hubMenuRect(i); drawButton(r, label, i === hubMenuSel || (!PAD && !TOUCH && inside(r)), i ? "#e8dcff" : ch().ui); });
+  },
+};
+// Bouton générique des écrans de la laverie
+function drawButton(r, label, hov, col = "#e8dcff", size = 9) {
+  R(r.x, r.y, r.w, r.h, hov ? "#ffffff" : "rgba(20,12,40,0.92)");
+  ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+  text(label, r.x + r.w / 2, r.y + r.h / 2 + 1, size, hov ? "#120828" : col, "center");
+}
+SCREENS.hub = { update: updateHub, draw: () => { drawHub(); drawHubHUD(); drawDialog(); } };
+
+/* ---- Dessin de la laverie (provisoire) ---- */
+const hubDeco = () => SAVE.cos.hub;
+const decoOf = slot => DECOR_BY_ID[hubDeco()[slot]] || DECOR.find(d => d.slot === slot);
+const showOn = k => hubDeco().show[k] !== false;
+let hubBg = null, hubBgKey = "";
+function hubBgCanvas() {
+  const D = hubDeco(), key = [D.tile, D.light, D.sign, SAVE.camp.done].join("|");
+  if (hubBg && key === hubBgKey) return hubBg;
+  hubBgKey = key;
+  const [c, x] = mkCanvas(VW, VH);
+  const F = (col, a, b, w, h) => { x.fillStyle = col; x.fillRect(a, b, w, h); };
+  const L = decoOf("light").color;
+  // mur
+  F("#1c1430", 0, 0, VW, HUB_FLOOR);
+  for (let y = 60; y < 200; y += 10) for (let bx = (y / 10 % 2) * 10; bx < VW; bx += 20) F("#221a3a", bx, y, 19, 9);
+  F("#2a2046", 0, 196, VW, 44); for (let bx = 0; bx < VW; bx += 24) F("#241c3e", bx, 196, 1, 44); F("#3a2c5c", 0, 194, VW, 3);
+  F("#140e24", 0, 0, VW, 18);
+  // grande vitrine sur la rue, la nuit
+  const sky = x.createLinearGradient(0, 56, 0, 150); sky.addColorStop(0, "#0c0820"); sky.addColorStop(1, "#3a1a4a");
+  x.fillStyle = sky; x.fillRect(140, 58, 200, 92);
+  seed = 5; for (let i = 0; i < 30; i++) { x.fillStyle = `rgba(255,240,255,${0.3 + rnd() * 0.5})`; x.fillRect(140 + Math.floor(rnd() * 200), 60 + Math.floor(rnd() * 40), 1, 1); }
+  let bx = 140; while (bx < 340) { const w = 12 + Math.floor(rnd() * 22), h = 20 + Math.floor(rnd() * 40); F("#160c28", bx, 150 - h, w, h); for (let wy = 150 - h + 4; wy < 148; wy += 6) for (let wx = bx + 2; wx < bx + w - 2; wx += 5) if (rnd() < 0.3) F(["#5ef0ff55", "#ff4fd855", "#fccc2855"][Math.floor(rnd() * 3)], wx, wy, 2, 2); bx += w + 1; }
+  F("#0e0a1a", 136, 54, 208, 4); F("#0e0a1a", 136, 150, 208, 4); F("#0e0a1a", 136, 54, 4, 100); F("#0e0a1a", 340, 54, 4, 100); F("#0e0a1a", 238, 54, 4, 100);
+  x.fillStyle = "rgba(255,255,255,0.06)"; x.beginPath(); x.moveTo(150, 60); x.lineTo(180, 60); x.lineTo(150, 110); x.fill();
+  // néons du plafond, couleur de l'éclairage choisi
+  for (const lx of [60, 240, 420]) { F(`rgb(${L})`, lx - 22, 18, 44, 3); cone(x, lx - 22, lx + 22, 21, 40, 200, L, 0.07); glow(x, lx, 20, 40, L, 0.25); }
+  // sol en carrelage
+  const [a, b2] = decoOf("tile").colors, tid = hubDeco().tile;
+  for (let ty = HUB_FLOOR; ty < VH; ty += 8) for (let tx = 0; tx < VW; tx += 8) {
+    const k = (tx / 8 + ty / 8) % 2;
+    if (tid === "tile_losanges") { F(k ? a : b2, tx, ty, 8, 8); F(k ? b2 : a, tx + 3, ty + 3, 2, 2); }
+    else if (tid === "tile_neon") { F(a, tx, ty, 8, 8); F(b2, tx, ty, 8, 1); F(b2, tx, ty, 1, 8); }
+    else if (tid === "tile_bleu") { F(k ? a : b2, tx, ty, 8, 8); F("#ffffff22", tx, ty, 8, 1); }
+    else F(k ? a : b2, tx, ty, 8, 8);
+  }
+  F("#0e0a1a", 0, HUB_FLOOR, VW, 2); x.fillStyle = "rgba(10,6,24,0.45)"; x.fillRect(0, HUB_FLOOR + 2, VW, VH - HUB_FLOOR);
+  // le décor reste plus sombre que les éléments avec lesquels on joue
+  F("rgba(6,3,16,0.18)", 0, 0, VW, HUB_FLOOR);
+  hubBg = c; return c;
+}
+function drawSign() {
+  const col = decoOf("sign").color, flick = Math.floor(time * 8) % 37 === 0;
+  ctx.globalAlpha = flick ? 0.5 : 1;
+  neon(ctx, "LAVERIE LUNELIO", VW / 2, 34, col, 12);
+  ctx.globalAlpha = 1;
+  drawSock(VW / 2 - 66, 34, {}); drawSock(VW / 2 + 66, 34, {});
+}
+function drawHub() {
+  ctx.drawImage(hubBgCanvas(), 0, 0);
+  drawSign();
+  drawShowcase(false);
+  for (const s of STATIONS) drawStation(s);
+  for (const n of hubNpcs()) drawNpc(n.npc, n.x, HUB_FLOOR, n.x > players[0].x ? -1 : 1, hub.dlg && hub.dlg.lines[hub.dlg.i][0] === n.npc, n.quest);
+  drawShowcase(true);
+  drawFxList(true);
+  drawGhosts(); for (const p of players) drawCampPlayer(p);
+  drawFxList(false);
+  for (const q of parts) { ctx.globalAlpha = Math.min(1, q.life / q.max * 1.5); R(Math.round(q.x), Math.round(q.y), q.size, q.size, q.color); }
+  ctx.globalAlpha = 1;
+  // invite au-dessus du poste le plus proche
+  const n = hub.near;
+  if (n && !hub.dlg && state === "hub") drawPrompt(n.x, HUB_FLOOR - (n.h || 40) - 12, stationOn(n) || n.npc ? n.label : n.label + " (bientôt)");
+}
+// Éléments qui reflètent les progrès : affiches, vitrine, présentoir, étendoir, coin détente
+function drawShowcase(front) {
+  const items = hubDeco().items;
+  if (!front) {
+    // étendoir : une corde au mur avec les chaussettes trouvées
+    if (showOn("etendoir")) {
+      const n = socksCount(), y0 = 64;
+      ctx.strokeStyle = "#8a80a8"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(20, y0); ctx.quadraticCurveTo(70, y0 + 8, 124, y0); ctx.stroke();
+      R(18, y0 - 2, 3, 4, "#5a4a80"); R(123, y0 - 2, 3, 4, "#5a4a80");
+      const shown = Math.min(n, 13);
+      for (let i = 0; i < shown; i++) { const sx = 26 + i * 7.5, sy = y0 + 2 + Math.sin(i / 12 * Math.PI) * 4 + 5; drawSock(sx, sy + Math.sin(time * 2 + i) * 0.5, { t: i }); R(Math.round(sx - 1), Math.round(sy - 7), 2, 2, ["#ff4fd8", "#5ef0ff", "#fccc28"][i % 3]); }
+      if (n > shown) text(`+${n - shown}`, 112, y0 + 16, 7, "#7dffb0", "center");
+      if (!n) text("Étendoir vide", 72, y0 + 10, 6, "#6a5a88", "center");
+    }
+    // affiches des boss vaincus
+    if (showOn("affiches")) CWORLDS.forEach((W, i) => {
+      const x = 356 + (i % 3) * 22, y = 58 + Math.floor(i / 3) * 30, ok = SAVE.seen.boss[W.boss];
+      R(x, y, 18, 24, "#0e0a1a");
+      if (ok) { R(x + 1, y + 1, 16, 22, BIG[W.boss].color + "55"); ctx.save(); ctx.beginPath(); ctx.rect(x + 1, y + 1, 16, 22); ctx.clip(); drawFrame("portraits_boss", Object.keys(BIG).indexOf(W.boss), x + 9, y + 28, 1, 1, 0.55); ctx.restore(); R(x + 7, y - 1, 4, 2, "#e8e0c8"); }
+      else { R(x + 1, y + 1, 16, 22, "#2a2244"); text("?", x + 9, y + 12, 8, "#4a3a68", "center"); }
+    });
+    // présentoir à badges (au mur, au-dessus de la décoration)
+    if (showOn("presentoir")) {
+      R(426, 58, 48, 36, "#0e0a1a"); R(427, 59, 46, 34, "#8a5a3a"); R(429, 61, 42, 30, "#c89a6a");
+      BADGES.filter(b => has("badge:" + b.id)).slice(0, 15).forEach((b, i) => drawBadgeIcon(b, 434 + (i % 5) * 8, 67 + Math.floor(i / 5) * 9, 0.55));
+    }
+    // coin détente
+    // vitrine à trophées (accrochée au mur, au-dessus des clients)
+    if (showOn("vitrine")) {
+      const x = 362, y = 122;
+      R(x, y, 46, 54, "#0e0a1a"); R(x + 1, y + 1, 44, 52, "rgba(160,220,255,0.12)"); R(x + 1, y + 26, 44, 2, "#5a4a80"); R(x + 1, y + 44, 44, 9, "#3a2a5c");
+      CWORLDS.forEach((W, i) => { if (!SAVE.seen.boss[W.boss]) return; const tx = x + 8 + (i % 3) * 15, ty = y + (i < 3 ? 24 : 42); R(tx - 3, ty - 2, 7, 2, "#c8a020"); R(tx - 2, ty - 9, 5, 7, "#ffd23c"); R(tx - 4, ty - 10, 9, 2, "#ffd23c"); R(tx - 1, ty - 7, 1, 3, BIG[W.boss].color); });
+      ctx.globalAlpha = 0.15; R(x + 4, y + 3, 3, 46, "#ffffff"); ctx.globalAlpha = 1;
+    }
+    if (items.item_plante) { R(2, 222, 10, 18, "#8a4a2a"); R(0, 204, 4, 18, "#2fa85a"); R(5, 198, 4, 24, "#3fd070"); R(9, 206, 4, 16, "#2fa85a"); }
+    if (items.item_canape) { R(150, 216, 50, 24, "#0e0a1a"); R(152, 218, 46, 12, "#6a3a8a"); R(150, 226, 50, 10, "#5a2a7a"); R(152, 236, 4, 4, "#2a1a3a"); R(194, 236, 4, 4, "#2a1a3a"); }
+    if (items.item_table) { R(262, 230, 26, 3, "#8a5a3a"); R(264, 233, 2, 7, "#5a3a2a"); R(284, 233, 2, 7, "#5a3a2a"); R(266, 226, 8, 4, "#5ef0ff"); }
+    if (items.item_distributeur) { R(364, 192, 22, 48, "#0e0a1a"); R(365, 193, 20, 46, "#c8302a"); R(368, 197, 14, 22, "#ffd0a0"); for (let i = 0; i < 3; i++) R(370 + i * 4, 200, 2, 16, ["#ff8a3c", "#7dffb0", "#ff4fd8"][i]); R(368, 226, 14, 4, "#0e0a1a"); }
+    if (items.item_panier) { R(126, 228, 22, 12, "#0e0a1a"); R(127, 229, 20, 10, "#c89a5a"); R(129, 225, 6, 5, "#5ef0ff"); R(137, 224, 7, 6, "#ff8ab0"); }
+    if (items.item_drapeau) { R(150, 70, 1, 40, "#8a8070"); R(151, 72, 24, 16, "#0e0a1a"); R(152, 73, 22, 14, "#1a1a24"); drawSock(163, 80, {}); }
+    if (items.item_affiche_bobine) { R(98, 92, 24, 30, "#0e0a1a"); R(99, 93, 22, 28, "#ff8a3c"); drawNpc("bobine", 110, 120, 1, false, null, 0.6); }
+    if (items.item_lanterne) { R(30, 96, 1, 14, "#3a2a2a"); R(25, 110, 12, 16, "#0e0a1a"); R(26, 111, 10, 14, "#c8302a"); glow(ctx, 31, 118, 18, "255,120,80", 0.35 + 0.1 * Math.sin(time * 3)); }
+  } else {
+  }
+}
+function drawStation(s) {
+  const on = stationOn(s), x = s.x, by = HUB_FLOOR, near = hub.near === s;
+  ctx.save(); if (!on) ctx.globalAlpha = 0.45;
+  switch (s.id) {
+    case "armoire": {
+      R(x - 17, by - 58, 34, 58, "#0e0a1a"); R(x - 16, by - 57, 32, 56, "#4a6aa8"); R(x - 16, by - 57, 32, 3, "#6a8ac8");
+      R(x - 1, by - 54, 2, 52, "#2a3a6a"); for (const dx of [-12, 4]) for (let i = 0; i < 3; i++) R(x + dx, by - 50 + i * 3, 8, 1, "#2a3a6a");
+      R(x - 4, by - 30, 2, 5, "#fccc28"); R(x + 2, by - 30, 2, 5, "#fccc28");
+      // autocollants soleil et lune
+      R(x - 12, by - 22, 5, 5, "#ffb43c"); R(x + 7, by - 22, 5, 5, "#de6eff"); R(x + 9, by - 22, 3, 3, "#4a6aa8");
+      break;
+    }
+    case "album": {
+      R(x - 3, by - 22, 6, 22, "#0e0a1a"); R(x - 2, by - 22, 4, 22, "#8a5a3a"); R(x - 10, by - 2, 20, 2, "#5a3a2a");
+      R(x - 14, by - 32, 28, 12, "#0e0a1a"); R(x - 13, by - 31, 12, 10, "#f4f0ff"); R(x + 1, by - 31, 12, 10, "#e8e0ff"); R(x - 1, by - 32, 2, 12, "#c8302a");
+      for (let i = 0; i < 3; i++) { R(x - 11, by - 29 + i * 3, 8, 1, "#8a80a8"); R(x + 3, by - 29 + i * 3, 8, 1, "#8a80a8"); }
+      if (on) { ctx.globalAlpha = 0.3 + 0.2 * Math.sin(time * 3); R(x - 9, by - 36, 2, 2, "#fccc28"); ctx.globalAlpha = 1; }
+      break;
+    }
+    case "jukebox": {
+      const playing = !!SAVE.jukebox;
+      R(x - 15, by - 48, 30, 48, "#0e0a1a"); R(x - 14, by - 47, 28, 46, "#8a2a6a");
+      ctx.fillStyle = "#c8408a"; ctx.beginPath(); ctx.arc(x, by - 34, 13, Math.PI, 0); ctx.fill();
+      for (let i = 0; i < 5; i++) R(x - 12 + i * 5, by - 34 + Math.sin(time * 4 + i) * (playing ? 2 : 0.5), 3, 18, ["#ff4fd8", "#fccc28", "#5ef0ff", "#7dffb0", "#ff8a3c"][(i + Math.floor(time * (playing ? 4 : 1))) % 5]);
+      // petit hublot de machine à laver à la place des disques
+      R(x - 6, by - 14, 12, 10, "#0e0a1a"); R(x - 5, by - 13, 10, 8, "#5ef0ff"); R(x - 3 + Math.round(Math.sin(time * 6) * 2), by - 11, 3, 3, "#ffffff");
+      if (playing) for (let i = 0; i < 2; i++) { const k = (time * 0.7 + i * 0.5) % 1; ctx.globalAlpha = 1 - k; text("♪", x - 6 + i * 12, by - 50 - k * 16, 8, "#fccc28", "center"); ctx.globalAlpha = 1; }
+      break;
+    }
+    case "souvenirs": {
+      // cadre photo au mur et petit coffre au sol
+      R(x - 14, by - 92, 28, 22, "#0e0a1a"); R(x - 13, by - 91, 26, 20, "#c89a5a"); R(x - 11, by - 89, 22, 16, "#2a1a3a");
+      if (on) { R(x - 5, by - 85, 6, 6, "#f0c8a0"); R(x - 6, by - 87, 8, 3, "#ffffff"); R(x - 4, by - 79, 4, 4, "#4a6aa8"); drawMachineIcon(x + 6, by - 81, 0.35); }
+      R(x - 12, by - 18, 24, 18, "#0e0a1a"); R(x - 11, by - 17, 22, 16, "#7a4a24"); R(x - 11, by - 12, 22, 2, "#c89a5a"); R(x - 2, by - 13, 4, 4, "#fccc28");
+      if (on && memoriesCount() > Object.keys(SAVE.memSeen).length) { ctx.globalAlpha = 0.5 + 0.5 * Math.sin(time * 6); R(x - 1, by - 24, 2, 4, "#ff8ab0"); ctx.globalAlpha = 1; }
+      break;
+    }
+    case "machine": drawHubMachine(x, by); break;
+    case "defis": {
+      const sh = on ? Math.round(Math.sin(time * 30) * 0.6) : 0;
+      R(x - 20 + sh, by - 50, 40, 50, "#0e0a1a"); R(x - 19 + sh, by - 49, 38, 48, "#d8dce8"); R(x - 19 + sh, by - 49, 38, 10, "#a8b0c8");
+      // cadran à cinq programmes
+      CHALLENGES.forEach((c, i) => { const P = PROGRAMS[c.prog]; R(x - 16 + i * 7 + sh, by - 46, 5, 4, (SAVE.chal[c.id] || {}).done ? "#7dffb0" : on ? P.color : "#6a6a7a"); });
+      R(x - 13 + sh, by - 34, 26, 26, "#0e0a1a"); R(x - 11 + sh, by - 32, 22, 22, on ? "#2a6aa8" : "#3a3a4a");
+      if (on) for (let i = 0; i < 4; i++) { const a = time * 5 + i * 1.6; R(Math.round(x + sh + Math.cos(a) * 6 - 1), Math.round(by - 21 + Math.sin(a) * 6 - 1), 3, 3, ["#ffffff", "#5ef0ff", "#ff8ab0", "#fccc28"][i]); }
+      break;
+    }
+    case "deco": {
+      // pot de peinture et rouleau : on décore !
+      R(x - 9, by - 16, 18, 16, "#0e0a1a"); R(x - 8, by - 15, 16, 14, "#c8d0dc"); R(x - 8, by - 15, 16, 4, decoOf("sign").color);
+      R(x + 6, by - 36, 2, 22, "#8a5a3a"); R(x - 2, by - 40, 16, 6, "#0e0a1a"); R(x - 1, by - 39, 14, 4, decoOf("sign").color);
+      break;
+    }
+    case "bulle": {
+      R(x - 22, by - 24, 30, 24, "#0e0a1a"); R(x - 21, by - 23, 28, 22, "#7a4a24"); R(x - 22, by - 26, 32, 3, "#c89a5a");
+      drawNpc("bulle", x + 6, by - 2, -1, hub.dlg && hub.dlg.lines[hub.dlg.i][0] === "bulle", null);
+      break;
+    }
+  }
+  ctx.restore();
+  if (near && on) { ctx.globalAlpha = 0.25 + 0.15 * Math.sin(time * 6); R(x - s.w / 2, by - 1, s.w, 2, "#7dffb0"); ctx.globalAlpha = 1; }
+}
+// Machine temporelle de la laverie : l'atlas du pack (couleurs au choix), avec les voyants des pièces déjà réparées
+function drawHubMachine(x, by) {
+  const n = SAVE.camp.done, sh = hub.machShake > 0 ? Math.round((Math.random() - 0.5) * 3) : 0;
+  const st = hub.arrive && hub.arrive.t < 1.1 ? "activating" : "idle";
+  drawMachineSkin(x + sh, by, st, hub.arrive ? hub.arrive.t : time);
+  // six voyants : les pièces récupérées
+  CWORLDS.forEach((W, i) => {
+    const lx = x - 15 + i * 6 + sh, ly = by - 70, ok = i < n, P = PIECES[W.id];
+    R(lx - 1, ly - 1, 5, 5, "#0e0a1a"); R(lx, ly, 3, 3, ok ? P.color : "#3a3450");
+    if (ok) { ctx.globalAlpha = 0.25 + 0.15 * Math.sin(time * 4 + i); R(lx - 2, ly - 2, 7, 7, P.color); ctx.globalAlpha = 1; }
+  });
+  // tant qu'elle n'est pas réparée : un peu de fumée
+  if (n < CWORLDS.length && Math.random() < 0.05) parts.push({ x: x + 20 + Math.random() * 6, y: by - 60, vx: (Math.random() - 0.5) * 10, vy: -20, life: 1, max: 1, color: "#8a80a8", size: 2, grav: -10 });
+  if (hub.repairFx) { const k = hub.repairFx.t; if (Math.random() < 0.5) burst(x + (Math.random() - 0.5) * 50, by - Math.random() * 60, 2, [PIECES[hub.repairFx.wid].color, "#ffffff"], 90, 0.5, 0, 1); ctx.globalAlpha = Math.max(0, 0.4 - k * 0.15); R(x - 40, by - 72, 80, 72, PIECES[hub.repairFx.wid].color); ctx.globalAlpha = 1; }
+}
+// Petite machine dessinée (icône) : x, y = centre
+function drawMachineIcon(x, y, s = 1) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  R(-10, -11, 20, 22, "#0e0a1a"); R(-9, -10, 18, 20, "#d8dce8"); R(-9, -10, 18, 4, "#a8b0c8");
+  ctx.fillStyle = "#0e0a1a"; ctx.beginPath(); ctx.arc(0, 2, 6.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#5ef0ff"; ctx.beginPath(); ctx.arc(0, 2, 5, 0, Math.PI * 2); ctx.fill();
+  R(-6, -9, 2, 2, "#ff4fd8"); R(-2, -9, 2, 2, "#7dffb0");
+  ctx.restore();
+}
+
+/* ---- Personnages non jouables (provisoires) ---- */
+// Dessin simple d'environ 36 px, regard vers la droite (face < 0 : retourné). talk : bouche qui bouge.
+function drawNpc(id, x, by, face = 1, talk = false, quest = null, alpha = 1) {
+  const N = NPCS[id], bob = Math.round(Math.sin(time * 2.5 + x) * 0.6), O = "#0e0a1a";
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(Math.round(x), by + bob); if (face < 0) ctx.scale(-1, 1);
+  if (N.robot) {
+    R(-6, -6, 4, 6, O); R(2, -6, 4, 6, O); R(-5, -6, 2, 5, "#8a92a8"); R(3, -6, 2, 5, "#8a92a8");
+    R(-9, -24, 18, 19, O); R(-8, -23, 16, 17, N.skin); R(-7, -18, 14, 9, N.cloth); R(-3, -15, 6, 5, "#5ef0ff"); R(-2, -14, 2, 2, "#ffffff");
+    R(-7, -34, 14, 11, O); R(-6, -33, 12, 9, "#a8b0c8"); R(-4, -31, 8, 4, "#0a2a3a"); R(-3, -30, 2, 2, N.hair); R(1, -30, 2, 2, N.hair);
+    if (talk) R(-2, -26, 4, 1, N.hair);
+    R(0, -38, 1, 5, O); R(-1, -40, 3, 3, Math.floor(time * 4) % 2 ? "#fccc28" : "#ff8a3c");
+  } else {
+    R(-5, -9, 4, 9, O); R(1, -9, 4, 9, O); R(-4, -9, 2, 8, "#2a2348"); R(2, -9, 2, 8, "#2a2348");
+    if (id === "capitaine") { R(1, -3, 4, 3, "#ffffff"); R(1, -2, 4, 1, "#d02a2a"); }
+    R(-8, -25, 16, 17, O); R(-7, -24, 14, 15, N.cloth); R(-7, -14, 14, 2, N.accent);
+    if (id === "bulle") { R(-6, -20, 12, 10, "#bfefff"); R(2, -18, 4, 4, "#7dd8ff"); }
+    if (id === "kage") { R(-7, -16, 14, 2, Math.floor(time * 2) % 2 ? N.cloth : "#3a1a5a"); }
+    R(-6, -36, 12, 12, O); R(-5, -35, 10, 10, N.skin);
+    R(1, -32, 2, 2, O); if (talk && Math.floor(time * 10) % 2) R(1, -28, 3, 2, "#8a2a2a"); else R(1, -28, 3, 1, "#8a2a2a");
+    if (id === "bulle") { R(-6, -38, 11, 5, N.hair); for (let i = 0; i < 3; i++) R(-6 + i * 4, -40, 3, 3, ["#ff8ab0", "#5ef0ff", "#fccc28"][i]); R(0, -33, 5, 3, O); R(1, -32, 3, 1, "#bfefff"); }
+    else if (id === "capitaine") { R(-9, -41, 18, 4, O); R(-7, -44, 14, 4, "#2a1a24"); drawSock(0, -42, {}); R(-6, -28, 10, 6, N.hair); R(-5, -22, 8, 3, N.hair); if (Math.floor(time * 3) % 3 === 0) R(-2, -19, 1, 2, "#5ef0ff"); }
+    else if (id === "kage") { R(-6, -37, 12, 4, N.hair); R(-5, -30, 10, 4, "#2a1a3a"); R(-7, -36, 2, 8, N.hair); }
+    else if (id === "firmin") { R(-6, -37, 11, 3, N.hair); R(-1, -29, 6, 2, "#ffffff"); R(-6, -38, 11, 2, "#fccc28"); }
+  }
+  ctx.restore();
+  // bulle au-dessus : quête à prendre (!), en cours (…), à rendre (✓)
+  if (quest) {
+    const st = SAVE.quests[quest.id], sy = by - 52 + Math.sin(time * 4) * 2;
+    const [sym, col] = !st ? ["!", "#fccc28"] : st.st === "ready" ? ["✓", "#7dffb0"] : st.st === "active" ? ["…", "#9fe8ff"] : [null];
+    if (sym) { R(Math.round(x - 6), Math.round(sy - 6), 12, 11, "#0e0a1a"); R(Math.round(x - 5), Math.round(sy - 5), 10, 9, col); text(sym, x, sy, 8, "#120828", "center"); }
+  }
+}
+function drawNpcPortrait(id, cx, cy, s = 1, talk = false) {
+  const A = ATL["portrait_" + id];
+  if (A && atlasImg("portrait_" + id)) { drawFrame("portrait_" + id, 0, cx, cy + 20 * s, 1, 1, s); return; }
+  ctx.save(); ctx.translate(cx, cy + 40 * s * 0.55); ctx.scale(s * 1.4, s * 1.4); drawNpc(id, 0, 0, 1, talk, null); ctx.restore();
+}
+
+/* ---- Interface de la laverie ---- */
+function drawHubHUD() {
+  R(0, 0, VW, 16, "rgba(10,6,24,0.7)");
+  text("Laverie", 6, 8, 9, "#7dd8ff");
+  drawSock(62, 8, {}); text(`${socksCount()}/${socksTotal()}`, 70, 8, 8, "#7dffb0");
+  const cards = CARDS.filter(c => has("card:" + c.id)).length;
+  text(`Cartes ${cards}/${CARDS.length}`, 112, 8, 8, "#e8dcff");
+  text(`Badges ${BADGES.filter(b => has("badge:" + b.id)).length}/${BADGES.length}`, 180, 8, 8, "#fccc28");
+  text(`Pièces ${SAVE.camp.done}/6`, 252, 8, 8, "#ff8ab0");
+  text(`${ch().name}  ·  ${df().label}`, VW - 6, 8, 8, ch().ui, "right");
+  if (hub.msg && hub.msg.t > 0) { ctx.globalAlpha = Math.min(1, hub.msg.t); R(VW / 2 - 170, 162, 340, 16, "rgba(10,6,24,0.8)"); text(hub.msg.text, VW / 2, 170, 8, "#7dffb0", "center"); ctx.globalAlpha = 1; }
+  if (!hub.dlg) text(say("← → : marcher   Haut devant un objet : l'utiliser   Échap : menu", "Croix : marcher   ▲ devant un objet (ou touche-le)", "Croix : marcher   {JUMP} devant un objet   {START} : menu"), VW / 2, VH - 7, 7, "#b9a6e0", "center");
+}
+
+/* ---- Fin de la campagne : « Retour à la maison » ---- */
+function startEnding() { SAVE.flags.ending = 1; saveGame(); state = "campwin"; winT = 0; voice.say(`Programme Retour à la maison ! ${ch().name} rentre chez lui. Bravo !`, true); }
+
+/* ---- Musique et ambiance des écrans de la laverie ---- */
+const HUB_STATES = ["hub", "hubmenu", "album", "wardrobe", "deco", "jukebox", "memories", "chalsel"];
+// Piste choisie au jukebox (si elle est débloquée et présente), sinon la musique de la laverie, sinon celle du héros
+function hubMusic() {
+  const T = SAVE.jukebox && TRACK_BY_ID[SAVE.jukebox];
+  if (T && has("track:" + T.id) && trackAvailable(T)) return T.base;
+  const P = audio.playlists;
+  if (SAVE.camp.done >= CWORLDS.length && (P.laverie_nuit || []).length) return P.laverie_nuit[0];
+  if ((P.laverie || []).length) return P.laverie[0];
+  return charMusic(ch());
+}
+function screenMusic() {
+  if (HUB_STATES.includes(state) || ((state === "options" || state === "keys") && optFrom === "hub") || (state === "chars" && charsFrom === "hub" && false)) return hubMusic();
+  if (state === "memview") { const P = audio.playlists.souvenir || []; return P.length ? P[0] : hubMusic(); }
+  if (state === "campwin") { const P = audio.playlists.fin || []; return P.length ? P[0] : charMusic(ch()); }
+  if (state === "worlds" && mode === "camp") return hubMusic();
+  return undefined;
+}
+function hubAmbience() { audio.setAmbience(HUB_STATES.includes(state) && hasSound("sfx/laverie/ambiance") ? "sfx/laverie/ambiance" : null); }
+
+/* ---------------- Cosmétiques : rendu ---------------- */
+// Les cosmétiques changent l'apparence seulement. Couleurs : la planche est recolorée une fois (teinte, saturation,
+// luminosité ; « doré » : dégradé or), en gardant les contours sombres ; le résultat est gardé en cache.
+const cosCache = {};
+function recolor(img, C) {
+  if (!img.cosKey) img.cosKey = "i" + Object.keys(cosCache).length + Math.random().toString(36).slice(2, 6);
+  const key = img.cosKey + "|" + C.id; if (cosCache[key] !== undefined) return cosCache[key];
+  let out = img;
+  try {
+    const [c, x] = mkCanvas(img.width, img.height); x.drawImage(img, 0, 0);
+    const d = x.getImageData(0, 0, img.width, img.height), a = d.data;
+    for (let i = 0; i < a.length; i += 4) {
+      if (a[i + 3] < 8) continue;
+      let r = a[i] / 255, g = a[i + 1] / 255, b = a[i + 2] / 255;
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2;
+      if (mx < 0.16) continue;   // contour sombre gardé
+      let h = 0, s = 0; const dd = mx - mn;
+      if (dd > 1e-6) { s = l > 0.5 ? dd / (2 - mx - mn) : dd / (mx + mn); h = mx === r ? (g - b) / dd + (g < b ? 6 : 0) : mx === g ? (b - r) / dd + 2 : (r - g) / dd + 4; h *= 60; }
+      let L2 = l;
+      if (C.gold) { h = 42 + (l - 0.5) * 20; s = 0.85; L2 = 0.25 + l * 0.7; }
+      else { if (s < 0.12) { a[i + 3] = a[i + 3]; continue; } h = (h + (C.hue || 0) + 360) % 360; s = Math.min(1, s * (C.sat || 1)); L2 = Math.min(1, Math.max(0, l + (C.light || 0))); }
+      const q = L2 < 0.5 ? L2 * (1 + s) : L2 + s - L2 * s, p = 2 * L2 - q, hk = h / 360;
+      const t2 = t => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < 0.5 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };
+      a[i] = t2(hk + 1 / 3) * 255; a[i + 1] = t2(hk) * 255; a[i + 2] = t2(hk - 1 / 3) * 255;
+    }
+    x.putImageData(d, 0, 0); out = c;
+  } catch (e) { out = img; }   // image d'une autre origine (fichier ouvert sans serveur) : couleurs d'origine
+  return cosCache[key] = out;
+}
+function atlasImgCos(aid, cosId) { const img = atlasImg(aid), C = COS_BY_ID[cosId]; return img && C ? recolor(img, C) : img; }
+const charCos = C => SAVE.cos.char[C.id] || {};
+const cosOn = (C, slot) => { const id = charCos(C)[slot]; return id && has("cos:" + id) ? id : null; };
+// Haut de la tête dans une image de planche (premier rang opaque), mesuré une fois
+const headCache = {};
+function headOf(aid, frame) {
+  const k = aid + ":" + frame; if (headCache[k]) return headCache[k];
+  const A = ATL[aid], img = atlasImg(aid); if (!A || !img) return { dx: 0, dy: -38 };
+  let res = { dx: 0, dy: -(A.ay - 6) };
+  try {
+    const [c, x] = mkCanvas(A.cw, A.ch); x.drawImage(img, (frame % A.cols) * A.cw, Math.floor(frame / A.cols) * A.ch, A.cw, A.ch, 0, 0, A.cw, A.ch);
+    const d = x.getImageData(0, 0, A.cw, A.ch).data;
+    outer: for (let y = 0; y < A.ch; y++) { const xs = []; for (let xx = 0; xx < A.cw; xx++) if (d[(y * A.cw + xx) * 4 + 3] > 100) xs.push(xx);
+      if (xs.length >= 3) { const cx = (xs[0] + xs[xs.length - 1]) / 2; res = { dx: cx - A.ax, dy: y - A.ay }; break outer; } }
+  } catch (e) {}
+  return headCache[k] = res;
+}
+// Accessoire de tête (provisoire, dessiné par le code) : hx, hy = haut de la tête, face = sens
+function drawAccessory(id, hx, hy, face, s = 1, alpha = 1) {
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(Math.round(hx), Math.round(hy)); ctx.scale(face * s, s);
+  const O = "#0e0a1a";
+  switch (id) {
+    case "acc_chapeau_pirate": R(-9, -3, 18, 3, O); R(-8, -2, 16, 1, "#2a1a24"); R(-6, -8, 12, 6, O); R(-5, -7, 10, 5, "#2a1a24"); R(-1, -6, 3, 3, "#ffffff"); break;
+    case "acc_bandana": R(-6, -2, 12, 4, O); R(-5, -1, 10, 2, "#d02a2a"); R(-8, 0, 3, 4, "#d02a2a"); R(-1, -1, 1, 1, "#ffffff"); R(3, 0, 1, 1, "#ffffff"); break;
+    case "acc_echarpe": { const w = Math.sin(time * 8) * 2; R(-5, 9, 10, 3, "#4a2a7a"); R(-9, 10 + w * 0.3, 5, 2, "#c86eff"); R(-12, 11 + w * 0.6, 4, 2, "#4a2a7a"); break; }
+    case "acc_couronne_slime": R(-5, -4, 10, 4, O); R(-4, -3, 8, 3, "#5ef0ff"); R(-4, -6, 2, 3, "#5ef0ff"); R(-1, -7, 2, 4, "#5ef0ff"); R(2, -6, 2, 3, "#5ef0ff"); R(-1, -5, 1, 1, "#ffffff"); break;
+    case "acc_lunettes": R(-3, 5, 10, 3, O); R(-2, 5, 3, 2, "#ff4fd8"); R(3, 5, 3, 2, "#5ef0ff"); break;
+    case "acc_bonnet": R(-6, -5, 12, 6, O); R(-5, -4, 10, 5, "#3a8aff"); R(-5, -1, 10, 1, "#ffffff"); R(-2, -8, 4, 3, "#ffffff"); break;
+    case "acc_casque": R(-7, -4, 14, 5, O); R(-6, -3, 12, 4, "#fccc28"); R(5, -1, 4, 2, "#fccc28"); R(-1, -4, 2, 1, "#ffffff"); break;
+    case "acc_bigoudis": for (let i = 0; i < 3; i++) { R(-6 + i * 4, -3, 4, 4, O); R(-5 + i * 4, -2, 2, 2, ["#ff8ab0", "#5ef0ff", "#fccc28"][i]); } break;
+    case "acc_oreilles": R(-6, -6, 4, 7, O); R(-5, -5, 2, 5, "#ff4fd8"); R(2, -6, 4, 7, O); R(3, -5, 2, 5, "#ff4fd8"); break;
+    case "acc_fleurs": for (let i = 0; i < 4; i++) { R(-6 + i * 4, -2, 3, 3, ["#ff8ab0", "#fccc28", "#ffffff", "#c86eff"][i]); R(-5 + i * 4, -1, 1, 1, "#fccc28"); } break;
+    case "acc_helice": { R(-5, -3, 10, 4, O); R(-4, -2, 8, 3, "#ff3b5c"); R(-1, -6, 2, 3, O); const k = Math.sin(time * 30) * 6; R(Math.round(-Math.abs(k)), -7, Math.round(Math.abs(k) * 2) + 1, 1, "#fccc28"); break; }
+    case "acc_bulle": ctx.globalAlpha = alpha * 0.35; ctx.strokeStyle = "#bff4ff"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(0, 9, 13, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = alpha * 0.6; R(-7, 0, 2, 2, "#ffffff"); break;
+  }
+  ctx.restore();
+}
+// Dessin d'un héros avec ses cosmétiques (couleurs, accessoire, variante brillante)
+function drawCharCos(C, frame, x, y, face = 1, scale = 1, alpha = 1, opts = {}) {
+  const aid = charAtlas(C), pal = opts.pal !== undefined ? opts.pal : cosOn(C, "pal"), acc = opts.acc !== undefined ? opts.acc : cosOn(C, "acc");
+  drawFrame(aid, frame, x, y, face, alpha, scale, pal);
+  if (acc) { const h = headOf(aid, frame); drawAccessory(acc, x + face * h.dx * scale, y + h.dy * scale, face, scale, alpha); }
+  if (pal && COS_BY_ID[pal].shiny && Math.floor(time * 3 + x) % 4 === 0) { const h = headOf(aid, frame); R(Math.round(x + (Math.sin(time * 7) * 8) * scale), Math.round(y + (h.dy + 10 + Math.cos(time * 5) * 8) * scale), 2, 2, "#ffffff"); }
+}
+// Couleur du sabre et des effets du joueur (cosmétique « fx », sinon la couleur du héros)
+function fxCol(p, alt) {
+  const id = cosOn(p.C, "fx"); if (!id) return p.C.color;
+  const F = COS_BY_ID[id]; if (F.rainbow) return `hsl(${Math.floor(time * 360) % 360},100%,65%)`;
+  return alt ? F.color2 : F.color;
+}
+// Traînée du sabre (seulement avec un cosmétique d'effet)
+function drawSlash(p) {
+  if (!cosOn(p.C, "fx") || p.atkT < 0 || p.atkT > 0.2) return;
+  const k = p.atkT / 0.2, cx = p.x + 5 + p.face * 8, cy = p.y + 14, r = p.C.atkW * 0.8;
+  ctx.save(); ctx.globalAlpha = 0.75 * (1 - k); ctx.strokeStyle = fxCol(p); ctx.lineWidth = 3;
+  ctx.beginPath(); const a0 = p.face > 0 ? -1.3 : Math.PI + 1.3, a1 = p.face > 0 ? -1.3 + 2.6 * Math.min(1, k * 2) : Math.PI + 1.3 - 2.6 * Math.min(1, k * 2);
+  ctx.arc(cx, cy, r, Math.min(a0, a1), Math.max(a0, a1)); ctx.stroke();
+  ctx.strokeStyle = fxCol(p, true); ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
+}
+// Machine temporelle avec la couleur choisie dans la décoration
+function drawMachineSkin(x, y, st, t) {
+  const skin = SAVE.cos.machine && has("cos:" + SAVE.cos.machine) ? SAVE.cos.machine : null;
+  let fr;
+  if (st === "activating") fr = animFrame("machine", "activate", t, 5 / 0.9, false);
+  else if (st === "ready" || st === "entering") fr = ATL.machine.anims.activate[0] + 4;
+  else if (st === "departing" || st === "loading") fr = animFrame("machine", "depart", t, 5 / 0.8, false);
+  else fr = animFrame("machine", "idle", t, 4);
+  const jx = st === "departing" ? Math.round((Math.random() - 0.5) * 2) : 0;
+  drawFrame("machine", fr, x + jx, y, 1, 1, 1, skin);
+}
+
+/* ---------------- Écrans de la laverie ---------------- */
+// Collections (cartes, badges, chaussettes), vestiaire, décoration, jukebox et souvenirs.
+// Commandes communes : flèches (ou croix) pour choisir, Entrée / {A} pour valider, Échap / {B} pour revenir à la laverie ;
+// la souris et le toucher marchent partout (onglets, cases, bouton « ◀ Laverie »). Haut depuis la première ligne : les onglets.
+const BACK_RECT = { x: 6, y: 4, w: 58, h: 16 };
+function backToHub() { audio.sfx("back"); state = "hub"; }
+function uiBack() { return hit("Escape", "GB", "Backspace") || (hit("Mouse0") && inside(BACK_RECT)); }
+function drawBack(label = "◀ Laverie") { drawButton(BACK_RECT, label, !TOUCH && inside(BACK_RECT), "#b9a6e0", 8); }
+function drawPanel(x, y, w, h, col = "#3a2a5c", fill = "rgba(14,8,30,0.92)") { R(x, y, w, h, fill); ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1); }
+// Onglets : renvoie l'index cliqué (ou -1)
+const tabRect = (i, n, x0 = 72, w = VW - 80) => ({ x: x0 + i * Math.floor(w / n), y: 4, w: Math.floor(w / n) - 4, h: 16 });
+function drawTabs(tabs, cur, focus, x0, w) {
+  tabs.forEach((t, i) => { const r = tabRect(i, tabs.length, x0, w), on = i === cur;
+    R(r.x, r.y, r.w, r.h, on ? (focus ? "#ffffff" : ch().ui) : "rgba(20,12,40,0.9)"); ctx.strokeStyle = on ? "#ffffff" : "#3a2a5c"; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+    text(t, r.x + r.w / 2, r.y + 9, 8, on ? "#120828" : "#e8dcff", "center"); });
+}
+function clickTab(n, x0, w) { if (!hit("Mouse0")) return -1; for (let i = 0; i < n; i++) if (inside(tabRect(i, n, x0, w))) return i; return -1; }
+// Navigation dans une grille (cols colonnes) avec les onglets au-dessus. U : objet d'écran { tab, sel, focus }
+function gridNav(U, n, cols, ntabs) {
+  if (U.focus === "tabs") {
+    if (hit(...K.left)) { U.tab = (U.tab + ntabs - 1) % ntabs; U.sel = 0; audio.sfx("page"); return "tab"; }
+    if (hit(...K.right)) { U.tab = (U.tab + 1) % ntabs; U.sel = 0; audio.sfx("page"); return "tab"; }
+    if (hit(...K.down, ...K.ok) && n) { U.focus = "list"; audio.sfx("select"); }
+    return null;
+  }
+  if (hit(...K.left)) { if (U.sel % cols) U.sel--; else if (cols === 1) { U.tab = (U.tab + ntabs - 1) % ntabs; U.sel = 0; audio.sfx("page"); return "tab"; } audio.sfx("select"); }
+  if (hit(...K.right)) { if (U.sel % cols < cols - 1 && U.sel + 1 < n) U.sel++; else if (cols === 1) { U.tab = (U.tab + 1) % ntabs; U.sel = 0; audio.sfx("page"); return "tab"; } audio.sfx("select"); }
+  if (hit(...K.up)) { if (U.sel - cols >= 0) U.sel -= cols; else U.focus = "tabs"; audio.sfx("select"); }
+  if (hit(...K.down)) { if (U.sel + cols < n) U.sel += cols; else if (Math.floor(U.sel / cols) < Math.floor((n - 1) / cols)) U.sel = n - 1; audio.sfx("select"); }
+  return null;
+}
+const hoverable = () => !TOUCH && !PAD;
+
+/* ---------------- Collections : cartes, badges, chaussettes ---------------- */
+const ALB = { tab: 0, cat: 0, world: 0, sel: 0, focus: "list", page: 0 };
+const ALB_TABS = ["Cartes", "Badges", "Chaussettes"];
+const WORLD_FILTERS = [["all", "Tous les lieux"], ["laverie", "Laverie"], ...CWORLDS.map(W => [W.id, W.name]), ["bonus", "Ancienne aventure"]];
+function openAlbum() { state = "album"; ALB.sel = 0; ALB.focus = "list"; audio.sfx("page"); }
+function albumCards() {
+  const cat = CARD_CATS[ALB.cat][0], wf = WORLD_FILTERS[ALB.world][0];
+  return CARDS.filter(c => c.cat === cat && (wf === "all" || c.world === wf));
+}
+const heroOfCard = c => c.heroId ? CHARS.find(C => C.id === c.heroId) : null;
+const cardName = c => c.name || heroOfCard(c).name;
+const ALB_CARD = i => ({ x: 10 + (i % 5) * 46, y: 62 + Math.floor(i / 5) * 66, w: 42, h: 60 });
+const ALB_PAGE = 15;
+SCREENS.album = {
+  update() {
+    if (uiBack()) { backToHub(); return; }
+    const t = clickTab(3, 72, VW - 80); if (t >= 0) { ALB.tab = t; ALB.sel = 0; audio.sfx("page"); }
+    const n = ALB.tab === 0 ? Math.min(ALB_PAGE, albumCards().length - ALB.page * ALB_PAGE) : ALB.tab === 1 ? BADGES.length : 0;
+    if (ALB.tab === 0) {
+      // filtres : catégorie (4 boutons) et lieu (bouton qui change à chaque clic)
+      if (hit("Mouse0")) {
+        CARD_CATS.forEach((c, i) => { if (inside({ x: 10 + i * 58, y: 26, w: 54, h: 14 })) { ALB.cat = i; ALB.sel = 0; ALB.page = 0; audio.sfx("page"); } });
+        if (inside({ x: 246, y: 26, w: 120, h: 14 })) { ALB.world = (ALB.world + 1) % WORLD_FILTERS.length; ALB.sel = 0; ALB.page = 0; audio.sfx("page"); }
+        if (inside({ x: 372, y: 26, w: 46, h: 14 })) { ALB.page = Math.max(0, ALB.page - 1); ALB.sel = 0; audio.sfx("page"); }
+        if (inside({ x: 422, y: 26, w: 46, h: 14 })) { if ((ALB.page + 1) * ALB_PAGE < albumCards().length) { ALB.page++; ALB.sel = 0; audio.sfx("page"); } }
+        for (let i = 0; i < n; i++) if (inside(ALB_CARD(i))) { ALB.sel = i; ALB.focus = "list"; audio.sfx("select"); }
+      }
+      if (hit("KeyC", "GX")) { ALB.cat = (ALB.cat + 1) % CARD_CATS.length; ALB.sel = 0; ALB.page = 0; audio.sfx("page"); }
+      if (hit("KeyV", "GY")) { ALB.world = (ALB.world + 1) % WORLD_FILTERS.length; ALB.sel = 0; ALB.page = 0; audio.sfx("page"); }
+    } else if (ALB.tab === 1 && hit("Mouse0")) for (let i = 0; i < BADGES.length; i++) if (inside(badgeRect(i))) { ALB.sel = i; audio.sfx("select"); }
+    if (gridNav(ALB, n, ALB.tab === 0 ? 5 : ALB.tab === 1 ? 5 : 1, 3) === "tab") ALB.page = 0;
+    ALB.sel = clamp(ALB.sel, 0, Math.max(0, n - 1));
+  },
+  draw() {
+    drawHub(); R(0, 0, VW, VH, "rgba(10,6,24,0.86)");
+    drawTabs(ALB_TABS, ALB.tab, ALB.focus === "tabs", 72, VW - 80); drawBack();
+    if (ALB.tab === 0) drawAlbumCards(); else if (ALB.tab === 1) drawAlbumBadges(); else drawAlbumSocks();
+  },
+};
+function drawAlbumCards() {
+  CARD_CATS.forEach(([k, label], i) => { const r = { x: 10 + i * 58, y: 26, w: 54, h: 14 }, on = i === ALB.cat, n = cardsIn(k).filter(c => has("card:" + c.id)).length;
+    R(r.x, r.y, r.w, r.h, on ? "#e8dcff" : "rgba(20,12,40,0.9)"); text(`${label} ${n}/${cardsIn(k).length}`, r.x + r.w / 2, r.y + 7, 6, on ? "#120828" : "#b9a6e0", "center"); });
+  const wr = { x: 246, y: 26, w: 120, h: 14 }; R(wr.x, wr.y, wr.w, wr.h, "rgba(20,12,40,0.9)"); ctx.strokeStyle = "#5a4a80"; ctx.strokeRect(wr.x + 0.5, wr.y + 0.5, wr.w - 1, wr.h - 1);
+  text("Lieu : " + WORLD_FILTERS[ALB.world][1], wr.x + wr.w / 2, wr.y + 7, 6, "#e8dcff", "center");
+  const list = albumCards(), pages = Math.max(1, Math.ceil(list.length / ALB_PAGE));
+  if (pages > 1) { drawButton({ x: 372, y: 26, w: 46, h: 14 }, "◀", false, "#b9a6e0", 7); drawButton({ x: 422, y: 26, w: 46, h: 14 }, "▶", false, "#b9a6e0", 7); text(`${ALB.page + 1}/${pages}`, 420, 47, 6, "#b9a6e0", "center"); }
+  const total = CARDS.filter(c => has("card:" + c.id)).length;
+  text(`Album : ${total}/${CARDS.length} cartes`, 10, 50, 8, "#fccc28");
+  const page = list.slice(ALB.page * ALB_PAGE, ALB.page * ALB_PAGE + ALB_PAGE);
+  if (!page.length) text("Aucune carte ici", 120, 140, 9, "#6a5a88", "center");
+  page.forEach((c, i) => {
+    const r = ALB_CARD(i), own = has("card:" + c.id), sel = i === ALB.sel && ALB.focus === "list";
+    drawCardFrame(r, c, own, sel);
+  });
+  // détail de la carte choisie
+  const c = page[ALB.sel]; if (!c) return;
+  const own = has("card:" + c.id), px = 246, py = 52, pw = 226, ph = 202;
+  drawPanel(px, py, pw, ph, own ? catColor(c.cat) : "#3a2a5c");
+  R(px + 6, py + 6, 70, 70, "rgba(30,20,56,0.9)");
+  ctx.save(); ctx.beginPath(); ctx.rect(px + 6, py + 6, 70, 70); ctx.clip();
+  if (own) drawCardArt(c, px + 41, py + 41, 1.5); else text("?", px + 41, py + 41, 30, "#4a3a68", "center");
+  ctx.restore();
+  const C = heroOfCard(c);
+  text(own ? cardName(c) : "???", px + 82, py + 12, 9, own ? catColor(c.cat) : "#8a7aa8");
+  text(CARD_CATS.find(k => k[0] === c.cat)[1] + " · " + (WORLD_FILTERS.find(w => w[0] === c.world) || ["", ""])[1], px + 82, py + 25, 6, "#b9a6e0");
+  let y = py + 40;
+  const line = (s, col = "#e8dcff", size = 7) => { for (const l of wrapText(s, pw - (y < py + 80 ? 90 : 14), size)) { text(l, y < py + 80 ? px + 82 : px + 8, y, size, col); y += size + 3; } };
+  if (!own) { line("Comment l'obtenir :", "#fccc28"); line(c.how); return; }
+  line(C ? C.desc : c.desc);
+  y = Math.max(y, py + 84);
+  if (C) { line("Capacités : " + abilityText(C), "#7dffb0"); line(C.special === "doublejump" ? "Astuce : le double saut aide à attraper ce qui est très haut." : "Astuce : le dash traverse les ennemis."); }
+  if (c.tip) line(c.tip, "#7dffb0");
+  if (c.phases) {
+    const seen = SAVE.seen.phase[c.boss] || 1;
+    line(`Phases (${c.phases.length}) :`, "#fccc28");
+    c.phases.forEach((t, i) => line(i < seen ? t : `P${i + 1} : pas encore vue`, i < seen ? "#e8dcff" : "#6a5a88", 6));
+  }
+  line("Obtenue : " + c.how, "#b9a6e0", 6);
+}
+const catColor = cat => ({ pnj: "#7dffb0", heros: "#fccc28", monstres: "#5ef0ff", boss: "#ff4fd8" })[cat];
+function drawCardFrame(r, c, own, sel) {
+  const col = catColor(c.cat);
+  R(r.x, r.y, r.w, r.h, own ? "rgba(30,20,56,0.95)" : "rgba(20,12,36,0.95)");
+  ctx.strokeStyle = sel ? "#ffffff" : own ? col : "#3a2a5c"; ctx.lineWidth = sel ? 2 : 1; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+  if (own) {
+    R(r.x + 3, r.y + 3, r.w - 6, 38, hexA(col, 0.18));
+    ctx.save(); ctx.beginPath(); ctx.rect(r.x + 3, r.y + 3, r.w - 6, 38); ctx.clip(); drawCardArt(c, r.x + r.w / 2, r.y + 22, 0.85); ctx.restore();
+    const nm = cardName(c); text(nm.length > 10 ? nm.slice(0, 9) + "…" : nm, r.x + r.w / 2, r.y + r.h - 9, 6, col, "center");
+  } else {
+    // dos de carte : le hublot et un point d'interrogation
+    ctx.strokeStyle = "#3a2a5c"; ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + 24, 11, 0, Math.PI * 2); ctx.stroke();
+    text("?", r.x + r.w / 2, r.y + 24, 11, "#4a3a68", "center");
+    text("???", r.x + r.w / 2, r.y + r.h - 9, 6, "#4a3a68", "center");
+  }
+}
+// Illustration d'une carte : portrait du pack, client dessiné, ennemi ou boss de l'ancienne aventure (provisoires)
+function drawCardArt(c, cx, cy, s = 1) {
+  const a = c.art;
+  if (a.atlas) { const an = ATL[a.atlas].anims[a.anim]; drawFrame(a.atlas, an ? an[0] : 0, cx, cy + 20 * s, 1, 1, s); }
+  else if (a.npc) drawNpcPortrait(a.npc, cx, cy - 4, s * 0.8);
+  else if (a.foe) { const F = FOES[a.foe], A = ATL[F.atlas]; const sc = Math.min(1.3, 34 / Math.max(A.cw, A.ch)) * s * 1.5; drawFrame(F.atlas, A.anims.idle[0], cx, F.ground ? cy + 14 * s : cy, 1, 1, sc); }
+  else if (a.old) {
+    const d = ENEMIES[a.old], e = { type: a.old, x: 0, y: 0, w: d.w, h: d.h, face: 1, state: "idle", walkT: time, charging: false };
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(2 * s, 2 * s); ctx.translate(-d.w / 2, -d.h / 2); (d.draw)(e); ctx.restore();
+  } else if (a.oldBoss) {
+    const cfg = BOSSES[a.oldBoss], K0 = BOSS_KINDS[cfg.kind], [w, h] = K0.size;
+    const e = { cfg, kind: cfg.kind, mode: K0.modes[0], x: 0, y: 0, w, h, face: 1, state: "idle", walkT: time, flashT: 0, hp: 1, maxHp: 1 };
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(1.2 * s, 1.2 * s); ctx.translate(-w / 2, -h / 2); drawBoss(e); ctx.restore();
+  }
+}
+// Badges : médaille ronde avec un symbole (provisoire en attendant icones/badges.png)
+const BADGE_GLYPH = { socks: "2", basket: "▤", star: "★", home: "⌂", bubble: "…", heart: "♥", shield: "◈", bolt: "ϟ", swirl: "@", card: "▯", book: "▥", crown: "♛", crystal: "◆", trophy: "♜", skull: "☠", key: "⚷" };
+function drawBadgeIcon(b, cx, cy, s = 1, own = true) {
+  const col = own ? b.col : "#3a3450";
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
+  R(-5, 5, 4, 6, own ? "#c8302a" : "#2a2440"); R(1, 5, 4, 6, own ? "#3a6aff" : "#2a2440");
+  ctx.fillStyle = "#0e0a1a"; ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = col; ctx.beginPath(); ctx.arc(0, 0, 7.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = own ? "#ffffff44" : "#ffffff11"; ctx.beginPath(); ctx.arc(-2, -2, 3, 0, Math.PI * 2); ctx.fill();
+  if (b.icon === "sock" || b.icon === "gold") drawSock(0, 1, { ghost: !own, gold: b.icon === "gold" && own });
+  else if (b.icon === "machine") drawMachineIcon(0, 0, 0.5);
+  else text(BADGE_GLYPH[b.icon] || "★", 0, 1, 9, own ? "#120828" : "#5a4a80", "center");
+  ctx.restore();
+}
+const badgeRect = i => ({ x: 12 + (i % 5) * 46, y: 34 + Math.floor(i / 5) * 54, w: 42, h: 50 });
+function drawAlbumBadges() {
+  text(`Badges : ${BADGES.filter(b => has("badge:" + b.id)).length}/${BADGES.length}`, 12, 28, 8, "#fccc28");
+  BADGES.forEach((b, i) => {
+    const r = badgeRect(i), own = has("badge:" + b.id), sel = i === ALB.sel && ALB.focus === "list";
+    R(r.x, r.y + 4, r.w, r.h - 4, sel ? "rgba(255,255,255,0.14)" : "rgba(20,12,40,0.8)");
+    if (sel) { ctx.strokeStyle = "#ffffff"; ctx.strokeRect(r.x + 0.5, r.y + 4.5, r.w - 1, r.h - 5); }
+    drawBadgeIcon(b, r.x + r.w / 2, r.y + 22, 1.3, own);
+    const nm = own ? b.name : "???"; text(nm.length > 11 ? nm.slice(0, 10) + "…" : nm, r.x + r.w / 2, r.y + r.h - 7, 6, own ? b.col : "#5a4a80", "center");
+  });
+  const b = BADGES[ALB.sel]; if (!b) return;
+  const own = has("badge:" + b.id), px = 250, py = 34;
+  drawPanel(px, py, 222, 120, own ? b.col : "#3a2a5c");
+  drawBadgeIcon(b, px + 30, py + 32, 2.2, own);
+  text(own ? b.name : "Badge à gagner", px + 62, py + 20, 10, own ? b.col : "#b9a6e0");
+  text(own ? "Obtenu !" : "Pas encore obtenu", px + 62, py + 36, 7, own ? "#7dffb0" : "#ff8ab0");
+  let y = py + 66; for (const l of wrapText("Condition : " + b.how, 206, 8)) { text(l, px + 8, y, 8, "#e8dcff"); y += 12; }
+  // récompenses liées à ce badge
+  const rew = [...COSMETICS, ...DECOR].filter(x => x.cond && x.cond.badge === b.id);
+  if (rew.length) text("Débloque : " + rew.map(x => x.name).join(", "), px + 8, y + 4, 7, "#7dffb0");
+}
+function drawAlbumSocks() {
+  const n = socksCount(), T = socksTotal(), gold = AJOUTS.gold.filter(g => SAVE.gold[g.id]).length;
+  drawSock(20, 34, {}); text(`Chaussettes puantes : ${n}/${T}`, 30, 34, 10, "#7dffb0");
+  text(`Chaussettes dorées (chemins secrets) : ${gold}/${AJOUTS.gold.length}`, 30, 48, 7, "#ffd23c");
+  // par monde : barre et une case par salle (pleine : chaussette trouvée ; bord vert : salle terminée)
+  CWORLDS.forEach((W, i) => {
+    const y = 64 + i * 22, got = socksInWorld(W.id), tot = socksWorldTotal(W.id), col = MACHINE_FX[W.id][0];
+    text(W.name, 10, y + 4, 7, SAVE.camp.visited[W.id] ? col : "#5a4a80");
+    W.rooms.forEach((r, k) => {
+      const x = 110 + k * 11, s = !!SAVE.socks[r.id], done = !!SAVE.camp.rooms[r.id];
+      R(x, y - 1, 9, 9, s ? col : "rgba(30,20,56,0.9)"); if (done) { ctx.strokeStyle = "#7dffb0"; ctx.strokeRect(x + 0.5, y - 0.5, 8, 8); }
+      if (k === 11) text("B", x + 4.5, y + 3.5, 6, s ? "#120828" : "#6a5a88", "center");
+    });
+    text(`${got}/${tot}`, 248, y + 4, 7, got === tot ? "#7dffb0" : "#e8dcff");
+  });
+  text("Case pleine : chaussette trouvée   Bord vert : salle terminée   B : salle du boss", 10, 200, 6, "#b9a6e0");
+  // paliers et leurs récompenses
+  drawPanel(282, 26, 192, 228, "#5a4a80");
+  text("Paliers", 378, 36, 9, "#fccc28", "center");
+  SOCK_TIERS.forEach((t, i) => {
+    const y = 50 + i * 20, ok = n >= t;
+    const rew = [...COSMETICS, ...DECOR, ...BADGES].filter(x => x.cond && x.cond.socks === t).map(x => x.name);
+    R(288, y - 6, 26, 13, ok ? "#7dffb0" : "rgba(40,28,70,0.9)"); text(String(t), 301, y + 1, 7, ok ? "#120828" : "#b9a6e0", "center");
+    const s = rew.join(", ") || "—"; text(s.length > 34 ? s.slice(0, 33) + "…" : s, 318, y + 1, 6, ok ? "#e8dcff" : "#8a7aa8");
+  });
+}
+
+/* ---------------- Vestiaire : héros et cosmétiques ---------------- */
+// Les choix sont enregistrés par héros (SAVE.cos.char[id]) ; « Aucun » remet l'apparence d'origine.
+const WR = { tab: 0, sel: 0, focus: "list" };
+const WR_TABS = ["Héros", "Tenue", "Couleurs", "Effets"];
+function openWardrobe() { state = "wardrobe"; WR.sel = 0; WR.focus = "list"; audio.sfx("locker"); }
+function wardrobeItems() { const slot = COS_SLOTS[WR.tab - 1][0]; return [null, ...COSMETICS.filter(c => c.slot === slot)]; }
+const wrRect = i => ({ x: 232, y: 30 + i * 17, w: 240, h: 15 });
+function equip(slot, id) {
+  const C = ch(), e = SAVE.cos.char[C.id] = SAVE.cos.char[C.id] || {};
+  if (id && !has("cos:" + id)) { audio.sfx("nope"); return; }
+  e[slot] = id; saveGame(); audio.sfx("equip");
+}
+SCREENS.wardrobe = {
+  update() {
+    if (uiBack()) { backToHub(); return; }
+    const t = clickTab(4, 72, VW - 80); if (t >= 0) { WR.tab = t; WR.sel = 0; audio.sfx("page"); }
+    const items = WR.tab ? wardrobeItems() : [0];
+    gridNav(WR, items.length, 1, 4);
+    WR.sel = clamp(WR.sel, 0, items.length - 1);
+    const act = i => { if (WR.tab === 0) { openChars("hub"); return; } const slot = COS_SLOTS[WR.tab - 1][0]; equip(slot, items[i] && items[i].id); };
+    if (WR.focus === "list" && hit(...K.ok)) { act(WR.sel); return; }
+    if (hit("Mouse0")) {
+      if (WR.tab === 0 && inside({ x: 262, y: 120, w: 180, h: 24 })) { act(0); return; }
+      if (WR.tab) for (let i = 0; i < items.length; i++) if (inside(wrRect(i))) { WR.sel = i; WR.focus = "list"; act(i); }
+    }
+  },
+  draw() {
+    drawHub(); R(0, 0, VW, VH, "rgba(10,6,24,0.86)");
+    drawTabs(WR_TABS, WR.tab, WR.focus === "tabs", 72, VW - 80); drawBack();
+    const C = ch();
+    // aperçu : le héros avec ce qui est équipé (ou l'objet survolé), qui alterne repos, course et coup
+    drawPanel(8, 26, 216, 228, C.ui);
+    R(30, 208, 172, 2, hexA(C.ui, 0.5));
+    let pal, acc;
+    if (WR.tab && WR.focus === "list") { const it = wardrobeItems()[WR.sel], slot = COS_SLOTS[WR.tab - 1][0]; if (!it || has("cos:" + it.id)) { if (slot === "pal") pal = it ? it.id : null; if (slot === "acc") acc = it ? it.id : null; } }
+    const cyc = time % 3, fr = cyc < 1 ? Math.floor(cyc * 5) % 4 : cyc < 2 ? 6 + Math.floor(cyc * 12) % 6 : 12 + Math.min(4, Math.floor((cyc - 2) / 0.1));
+    drawCharCos(C, fr, 116, 206, 1, 3, 1, { pal, acc });
+    if (cyc >= 2 && cosOn(C, "fx")) { ctx.save(); ctx.globalAlpha = 0.7; ctx.strokeStyle = fxCol({ C }); ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(146, 160, 40, -1.2, 1.2); ctx.stroke(); ctx.restore(); }
+    text(C.name, 116, 222, 12, C.ui, "center", C.ui);
+    text(abilityText(C), 116, 238, 7, "#e8dcff", "center");
+    text("Les tenues changent l'apparence, pas les capacités.", 116, 34, 6, "#b9a6e0", "center");
+    if (WR.tab === 0) {
+      text("Les huit héros sont toujours disponibles.", 352, 60, 8, "#e8dcff", "center");
+      text(`Tu joues avec : ${C.name}`, 352, 80, 9, C.ui, "center");
+      text(`Héros déjà utilisés : ${CHARS.filter(c => SAVE.seen.char[c.id]).length}/8`, 352, 98, 8, "#7dffb0", "center");
+      drawButton({ x: 262, y: 120, w: 180, h: 24 }, "Changer de héros ▶", WR.focus === "list" || inside({ x: 262, y: 120, w: 180, h: 24 }), C.ui, 10);
+      return;
+    }
+    const slot = COS_SLOTS[WR.tab - 1][0], cur = charCos(C)[slot] || null;
+    wardrobeItems().forEach((it, i) => {
+      const r = wrRect(i), sel = i === WR.sel && WR.focus === "list", own = !it || has("cos:" + it.id), on = (it ? it.id : null) === cur;
+      R(r.x, r.y, r.w, r.h, sel ? "rgba(255,255,255,0.16)" : "rgba(20,12,40,0.85)");
+      if (sel) { ctx.strokeStyle = C.ui; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1); }
+      text(on ? "●" : "○", r.x + 8, r.y + 8, 7, on ? "#7dffb0" : "#5a4a80", "center");
+      text(it ? (own ? it.name : "🔒 " + it.name) : "Aucun (apparence d'origine)", r.x + 16, r.y + 8, 7, own ? "#ffffff" : "#6a5a88");
+      if (it && !own) text(it.how, r.x + r.w - 6, r.y + 8, 6, "#8a7aa8", "right");
+      if (it && it.slot === "fx" && own) R(r.x + r.w - 18, r.y + 4, 12, 7, it.rainbow ? `hsl(${Math.floor(time * 300) % 360},100%,65%)` : it.color);
+    });
+  },
+};
+
+/* ---------------- Décoration de la laverie ---------------- */
+// Choix enregistrés pour toute la sauvegarde (SAVE.cos.hub, SAVE.cos.machine). La laverie se voit derrière le panneau.
+const DC = { tab: 0, sel: 0, focus: "list" };
+const DC_TABS = DECOR_SLOTS.map(s => s[1]);
+function openDeco() { state = "deco"; DC.sel = 0; DC.focus = "list"; audio.sfx("page"); }
+function decoItems() {
+  const slot = DECOR_SLOTS[DC.tab][0];
+  if (slot === "machine") return [{ id: null, name: "Machine d'origine" }, ...COSMETICS.filter(c => c.slot === "machine")];
+  if (slot === "show") return SHOWCASE.map(([k, n]) => ({ id: k, name: n, show: true }));
+  return DECOR.filter(d => d.slot === slot);
+}
+const dcRect = i => ({ x: 296, y: 46 + i * 17, w: 176, h: 15 });
+function decoOwned(it) { const slot = DECOR_SLOTS[DC.tab][0]; return it.show || !it.id || (slot === "machine" ? has("cos:" + it.id) : has("decor:" + it.id)); }
+function decoActive(it) {
+  const slot = DECOR_SLOTS[DC.tab][0], H = SAVE.cos.hub;
+  if (slot === "machine") return (SAVE.cos.machine || null) === it.id;
+  if (slot === "show") return H.show[it.id] !== false;
+  if (slot === "item") return !!H.items[it.id];
+  return H[slot] === it.id;
+}
+function decoPick(it) {
+  if (!decoOwned(it)) { audio.sfx("nope"); return; }
+  const slot = DECOR_SLOTS[DC.tab][0], H = SAVE.cos.hub;
+  if (slot === "machine") SAVE.cos.machine = it.id;
+  else if (slot === "show") H.show[it.id] = H.show[it.id] === false;
+  else if (slot === "item") H.items[it.id] = !H.items[it.id];
+  else H[slot] = it.id;
+  hubBg = null; saveGame(); audio.sfx("equip");
+}
+SCREENS.deco = {
+  update() {
+    if (uiBack()) { backToHub(); return; }
+    const t = clickTab(DC_TABS.length, 72, VW - 80); if (t >= 0) { DC.tab = t; DC.sel = 0; audio.sfx("page"); }
+    const items = decoItems();
+    gridNav(DC, items.length, 1, DC_TABS.length);
+    DC.sel = clamp(DC.sel, 0, items.length - 1);
+    if (DC.focus === "list" && hit(...K.ok)) decoPick(items[DC.sel]);
+    if (hit("Mouse0")) for (let i = 0; i < items.length; i++) if (inside(dcRect(i))) { DC.sel = i; DC.focus = "list"; decoPick(items[i]); }
+  },
+  draw() {
+    drawHub(); R(0, 0, VW, 24, "rgba(10,6,24,0.86)");
+    drawTabs(DC_TABS, DC.tab, DC.focus === "tabs", 72, VW - 80); drawBack();
+    drawPanel(290, 26, 186, 200, "#5a4a80", "rgba(14,8,30,0.88)");
+    const slot = DECOR_SLOTS[DC.tab][0];
+    text({ tile: "Carrelage du sol", light: "Couleur des néons", sign: "Couleur de l'enseigne", machine: "Couleur de la machine", item: "Objets à poser (plusieurs)", show: "Montrer ou ranger" }[slot], 383, 36, 8, "#fccc28", "center");
+    decoItems().forEach((it, i) => {
+      const r = dcRect(i), sel = i === DC.sel && DC.focus === "list", own = decoOwned(it), on = decoActive(it);
+      R(r.x, r.y, r.w, r.h, sel ? "rgba(255,255,255,0.18)" : "rgba(20,12,40,0.9)");
+      if (sel) { ctx.strokeStyle = "#ffffff"; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1); }
+      const multi = slot === "item" || slot === "show";
+      text(on ? (multi ? "☑" : "●") : (multi ? "☐" : "○"), r.x + 8, r.y + 8, 7, on ? "#7dffb0" : "#5a4a80", "center");
+      text(own ? it.name : "🔒 " + it.name, r.x + 16, r.y + 8, 7, own ? "#ffffff" : "#6a5a88");
+      if (!own && it.how) text(it.how, r.x + r.w - 4, r.y + 8, 5, "#8a7aa8", "right");
+      if (own && (it.color || it.colors)) R(r.x + r.w - 14, r.y + 4, 9, 7, it.colors ? it.colors[0] : it.color.startsWith("#") ? it.color : `rgb(${it.color})`);
+    });
+    text("Les affiches, la vitrine, le présentoir et l'étendoir se remplissent avec tes progrès.", VW / 2, VH - 14, 6, "#e8dcff", "center");
+  },
+};
+
+/* ---------------- Jukebox ---------------- */
+// Pistes découvertes, musique du héros ou de la laverie en mode automatique. Respecte l'option Musique et le bouton muet (M).
+const JB = { sel: 0, scroll: 0 };
+function openJukebox() { state = "jukebox"; audio.sfx("coin"); JB.sel = Math.max(0, TRACKS.findIndex(t => t.id === SAVE.jukebox) + 1); }
+const jbItems = () => [null, ...TRACKS];
+const JB_ROWS = 12, jbRect = i => ({ x: 120, y: 40 + i * 16, w: 352, h: 14 });
+function jbPick(t) {
+  if (!t) { SAVE.jukebox = null; saveGame(); audio.sfx("coin"); return; }
+  if (!has("track:" + t.id)) { audio.sfx("nope"); return; }
+  if (!trackAvailable(t)) { audio.sfx("nope"); return; }
+  SAVE.jukebox = t.id; saveGame(); audio.sfx("coin");
+}
+SCREENS.jukebox = {
+  update() {
+    if (uiBack()) { backToHub(); return; }
+    const n = jbItems().length;
+    if (hit(...K.up)) { JB.sel = (JB.sel + n - 1) % n; audio.sfx("select"); }
+    if (hit(...K.down)) { JB.sel = (JB.sel + 1) % n; audio.sfx("select"); }
+    if (JB.sel < JB.scroll) JB.scroll = JB.sel; if (JB.sel >= JB.scroll + JB_ROWS) JB.scroll = JB.sel - JB_ROWS + 1;
+    if (hit(...K.ok)) jbPick(jbItems()[JB.sel]);
+    if (hit("Mouse0")) {
+      for (let i = 0; i < JB_ROWS; i++) if (inside(jbRect(i)) && JB.scroll + i < n) { JB.sel = JB.scroll + i; jbPick(jbItems()[JB.sel]); }
+      if (inside({ x: 120, y: 236, w: 60, h: 14 })) JB.scroll = Math.max(0, JB.scroll - JB_ROWS);
+      if (inside({ x: 190, y: 236, w: 60, h: 14 })) JB.scroll = Math.min(n - JB_ROWS, JB.scroll + JB_ROWS);
+    }
+  },
+  draw() {
+    drawHub(); R(0, 0, VW, VH, "rgba(10,6,24,0.86)"); drawBack();
+    text("Jukebox", VW / 2, 14, 14, "#ff4fd8", "center", "#ff4fd8");
+    drawPanel(8, 30, 104, 220, "#ff4fd8");
+    const cur = audio.curKey, T = SAVE.jukebox && TRACK_BY_ID[SAVE.jukebox];
+    text("En ce moment :", 60, 46, 7, "#b9a6e0", "center");
+    const nm = T ? T.name : "Automatique";
+    wrapText(nm, 96, 8).forEach((l, i) => text(l, 60, 62 + i * 11, 8, "#ffffff", "center"));
+    if (!OPT.music) text("Musique coupée", 60, 100, 7, "#ff8ab0", "center"), text("(Options)", 60, 112, 7, "#ff8ab0", "center");
+    else if (audio.muted) text("Son coupé (M)", 60, 100, 7, "#ff8ab0", "center");
+    else if (cur) for (let i = 0; i < 6; i++) R(22 + i * 12, 150 - Math.abs(Math.sin(time * 5 + i)) * 24, 8, Math.abs(Math.sin(time * 5 + i)) * 24 + 2, ["#ff4fd8", "#fccc28", "#5ef0ff", "#7dffb0", "#ff8a3c", "#c86eff"][i]);
+    const own = TRACKS.filter(t => has("track:" + t.id)).length;
+    text(`Découvertes : ${own}/${TRACKS.length}`, 60, 176, 7, "#7dffb0", "center");
+    text("Automatique : la", 60, 200, 6, "#b9a6e0", "center"); text("musique de la laverie", 60, 210, 6, "#b9a6e0", "center"); text("ou de ton héros", 60, 220, 6, "#b9a6e0", "center");
+    const items = jbItems();
+    for (let i = 0; i < JB_ROWS && JB.scroll + i < items.length; i++) {
+      const k = JB.scroll + i, t = items[k], r = jbRect(i), sel = k === JB.sel;
+      R(r.x, r.y, r.w, r.h, sel ? "rgba(255,255,255,0.16)" : "rgba(20,12,40,0.85)");
+      if (sel) { ctx.strokeStyle = "#ff4fd8"; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1); }
+      if (!t) { text((SAVE.jukebox ? "○ " : "▶ ") + "Automatique", r.x + 6, r.y + 7, 7, "#ffffff"); continue; }
+      const got = has("track:" + t.id), ok = trackAvailable(t), playing = SAVE.jukebox === t.id;
+      text(t.group, r.x + 6, r.y + 7, 6, "#8a7aa8");
+      text((playing ? "▶ " : "") + (got ? t.name : "???"), r.x + 58, r.y + 7, 7, !got ? "#5a4a80" : ok ? "#ffffff" : "#b9a6e0");
+      const info = !got ? "🔒 " + (t.how || "") : !ok ? "à venir : audio/" + t.base + ".mp3" : t.base.startsWith("synth:") ? "composition" : "";
+      if (info) text(info.length > 44 ? info.slice(0, 43) + "…" : info, r.x + r.w - 6, r.y + 7, 5, !got ? "#6a5a88" : "#fccc28", "right");
+    }
+    if (items.length > JB_ROWS) { drawButton({ x: 120, y: 236, w: 60, h: 14 }, "▲", false, "#b9a6e0", 7); drawButton({ x: 190, y: 236, w: 60, h: 14 }, "▼", false, "#b9a6e0", 7); }
+    text(say("↑ ↓ : choisir   Entrée : écouter", "Touche une musique pour l'écouter", "Croix : choisir   {A} : écouter"), 360, 244, 7, "#b9a6e0", "center");
+  },
+};
+
+/* ---------------- Souvenirs de la machine ---------------- */
+// Liste des six souvenirs ; une scène se passe (Échap) et se revoit autant qu'on veut (aucune récompense à la relecture).
+const MEMS = { sel: 0, view: null };
+function openMemories() { state = "memories"; MEMS.sel = 0; audio.sfx("page"); }
+const memRect = i => ({ x: 20, y: 40 + i * 30, w: 440, h: 26 });
+// auto : ouvert en revenant à la laverie (on y retourne ensuite)
+function openMemory(id, auto = false) { MEMS.view = { id, i: 0, t: 0, auto }; state = "memview"; audio.sfx("memory"); speakMem(); }
+function speakMem() { const v = MEMS.view, M = MEM_BY_ID[v.id]; if (OPT.voice) voice.say(M.lines[v.i], true); }
+SCREENS.memories = {
+  update() {
+    if (uiBack()) { backToHub(); return; }
+    const n = MEMORIES.length;
+    if (hit(...K.up)) { MEMS.sel = (MEMS.sel + n - 1) % n; audio.sfx("select"); }
+    if (hit(...K.down)) { MEMS.sel = (MEMS.sel + 1) % n; audio.sfx("select"); }
+    const go = i => { const M = MEMORIES[i]; if (has("mem:" + M.id)) openMemory(M.id); else audio.sfx("nope"); };
+    if (hit(...K.ok)) { go(MEMS.sel); return; }
+    if (hit("Mouse0")) for (let i = 0; i < n; i++) if (inside(memRect(i))) { MEMS.sel = i; go(i); return; }
+  },
+  draw() {
+    drawHub(); R(0, 0, VW, VH, "rgba(10,6,24,0.88)"); drawBack();
+    text("Souvenirs de la machine", VW / 2, 16, 13, "#ff8ab0", "center", "#ff8ab0");
+    MEMORIES.forEach((M, i) => {
+      const r = memRect(i), own = has("mem:" + M.id), sel = i === MEMS.sel, W = CWORLDS.find(w => w.id === M.world);
+      R(r.x, r.y, r.w, r.h, sel ? "rgba(255,255,255,0.14)" : "rgba(20,12,40,0.85)");
+      ctx.strokeStyle = sel ? "#ff8ab0" : "#3a2a5c"; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+      R(r.x + 4, r.y + 4, 18, 18, own ? MACHINE_FX[M.world][0] : "#2a2244"); text(String(i + 1), r.x + 13, r.y + 13, 9, own ? "#120828" : "#5a4a80", "center");
+      text(own ? M.title : "Souvenir verrouillé", r.x + 30, r.y + 9, 9, own ? "#ffffff" : "#6a5a88");
+      text(own ? (SAVE.memSeen[M.id] ? "Déjà vu — revoir" : "Nouveau !") : `Ramène la pièce de : ${W.name}`, r.x + 30, r.y + 19, 6, own ? (SAVE.memSeen[M.id] ? "#b9a6e0" : "#7dffb0") : "#8a7aa8");
+    });
+    text(say("↑ ↓ : choisir   Entrée : regarder", "Touche un souvenir pour le regarder", "Croix : choisir   {A} : regarder"), VW / 2, 234, 7, "#b9a6e0", "center");
+  },
+};
+SCREENS.memview = {
+  update(rdt) {
+    const v = MEMS.view, M = MEM_BY_ID[v.id]; v.t += rdt;
+    const end = () => { SAVE.memSeen[v.id] = 1; saveGame(); voice.stop(); MEMS.view = null; state = v.auto ? "hub" : "memories"; audio.sfx("back"); };
+    if (hit("Escape", "GB")) { end(); return; }
+    if (hit("Enter", "Space", "NumpadEnter", "Mouse0", "GA", "GStart", "TJump", "TAtk", ...K.attack)) {
+      if (v.t * 35 < M.lines[v.i].length) v.t = 99;
+      else if (v.i + 1 < M.lines.length) { v.i++; v.t = 0; audio.sfx("page"); speakMem(); }
+      else end();
+    }
+  },
+  draw() {
+    const v = MEMS.view, M = MEM_BY_ID[v.id], idx = MEMORIES.indexOf(M);
+    R(0, 0, VW, VH, "#0a0618");
+    const fx = 60, fy = 22, fw = 360, fh = 170;
+    ctx.save(); ctx.beginPath(); ctx.rect(fx, fy, fw, fh); ctx.clip();
+    const aid = "souvenir_" + (idx + 1);
+    if (ATL[aid] && atlasImg(aid)) drawFrame(aid, 0, fx + fw / 2, fy + fh, 1, 1, fw / ATL[aid].cw);
+    else drawMemScene(M.scene, fx, fy, fw, fh, v.t + v.i * 3);
+    // teinte « vieux souvenir »
+    ctx.fillStyle = "rgba(120,60,160,0.16)"; ctx.fillRect(fx, fy, fw, fh);
+    ctx.restore();
+    ctx.strokeStyle = "#ff8ab0"; ctx.lineWidth = 2; ctx.strokeRect(fx - 1, fy - 1, fw + 2, fh + 2);
+    text(`Souvenir ${idx + 1} : ${M.title}`, VW / 2, 12, 9, "#ff8ab0", "center");
+    const s = M.lines[v.i].slice(0, Math.floor(v.t * 35));
+    wrapText(s, VW - 60, 9).forEach((l, i) => text(l, VW / 2, 210 + i * 13, 9, "#ffffff", "center"));
+    text(`${v.i + 1}/${M.lines.length}`, VW - 14, VH - 8, 7, "#b9a6e0", "right");
+    text(say("Entrée : suite   Échap : passer", "Touche : suite", "{A} : suite   {B} : passer"), 14, VH - 8, 7, "#b9a6e0");
+  },
+};
+// Scènes provisoires dessinées avec les éléments du jeu (remplacées par souvenirs/souvenir_<n>.png)
+function drawMemScene(kind, x0, y0, w, h, t) {
+  const F = (c, x, y, ww, hh) => R(x0 + x, y0 + y, ww, hh, c), gy = h - 30;
+  const bg = ctx.createLinearGradient(0, y0, 0, y0 + h); bg.addColorStop(0, "#1a1030"); bg.addColorStop(1, "#3a2050");
+  ctx.fillStyle = bg; ctx.fillRect(x0, y0, w, h); F("#2a1a3a", 0, gy, w, 30);
+  if (kind === "atelier") {
+    for (let i = 0; i < 6; i++) F("#4a3a5a", 20 + i * 54, 20, 40, 3);
+    for (let i = 0; i < 8; i++) F(["#c8c8d8", "#8a5a3a", "#fccc28"][i % 3], 30 + i * 36, 12, 4, 8);
+    drawMachineIcon(x0 + 200, y0 + gy - 22, 2);
+    drawNpc("firmin", x0 + 140, y0 + gy, 1, Math.floor(t * 3) % 2 === 0);
+    if (Math.floor(t * 4) % 3 === 0) { ctx.strokeStyle = "#fccc28"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x0 + 240, y0 + 40); ctx.lineTo(x0 + 230, y0 + 60); ctx.lineTo(x0 + 245, y0 + 62); ctx.lineTo(x0 + 232, y0 + 86); ctx.stroke(); }
+  } else if (kind === "chaussette") {
+    drawMachineIcon(x0 + 180, y0 + gy - 26, 2.4);
+    for (let i = 0; i < 12; i++) { const a = t * 3 + i * 0.5, r = 6 + i * 3; R(Math.round(x0 + 180 + Math.cos(a) * r), Math.round(y0 + gy - 24 + Math.sin(a) * r * 0.7), 2, 2, ["#fccc28", "#ffffff", "#c86eff"][i % 3]); }
+    drawSock(x0 + 180 + Math.cos(t * 3) * 10, y0 + gy - 24 + Math.sin(t * 3) * 6, {});
+    drawNpc("firmin", x0 + 110, y0 + gy, 1, false);
+    text("?", x0 + 110, y0 + gy - 50, 14, "#fccc28", "center");
+  } else if (kind === "orage") {
+    F("#0a0618", 0, 0, w, gy);
+    if (Math.floor(t * 2) % 3 === 0) { ctx.fillStyle = "rgba(255,255,255,0.25)"; ctx.fillRect(x0, y0, w, gy); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x0 + 220, y0); ctx.lineTo(x0 + 200, y0 + 40); ctx.lineTo(x0 + 225, y0 + 45); ctx.lineTo(x0 + 190, y0 + gy - 40); ctx.stroke(); }
+    F("#3a2a5a", 120, 60, 160, gy - 60); F("#2a1a3a", 110, 52, 180, 10);
+    drawMachineIcon(x0 + 190, y0 + gy - 24, 2);
+    for (let i = 0; i < 5; i++) R(Math.round(x0 + 180 + Math.random() * 20), Math.round(y0 + gy - 50 + Math.random() * 10), 2, 2, "#fccc28");
+  } else if (kind === "pieces") {
+    drawMachineIcon(x0 + w / 2, y0 + gy - 24, 2);
+    Object.values(PIECES).forEach((P, i) => {
+      const a = -Math.PI * 0.9 + i * Math.PI * 0.36, k = (t * 0.35) % 1, r = 30 + k * 120;
+      const px = x0 + w / 2 + Math.cos(a) * r, py = y0 + gy - 30 + Math.sin(a) * r * 0.6;
+      ctx.globalAlpha = 0.35; ctx.fillStyle = P.color; ctx.beginPath(); ctx.arc(x0 + w / 2 + Math.cos(a) * 140, y0 + gy - 30 + Math.sin(a) * 84, 16, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+      R(Math.round(px - 3), Math.round(py - 3), 7, 7, "#0e0a1a"); R(Math.round(px - 2), Math.round(py - 2), 5, 5, P.color);
+    });
+  } else if (kind === "plongeon") {
+    drawMachineIcon(x0 + w / 2, y0 + gy - 30, 3);
+    CHARS.forEach((C, i) => { const k = ((t * 0.4) + i / 8) % 1, a = k * Math.PI * 4 + i, r = 90 * (1 - k);
+      drawChar(C, 18, x0 + w / 2 + Math.cos(a) * r, y0 + gy - 24 + Math.sin(a) * r * 0.5, 1, 0.6 * (1 - k * 0.6), 1); });
+  } else if (kind === "message") {
+    F("#1a0a2a", 0, 0, w, gy);
+    for (let i = 0; i < 9; i++) { ctx.fillStyle = "#ff4fd8"; ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.moveTo(x0 + 20 + i * 40, y0 + gy); ctx.lineTo(x0 + 30 + i * 40, y0 + gy - 30 - (i % 3) * 14); ctx.lineTo(x0 + 40 + i * 40, y0 + gy); ctx.fill(); ctx.globalAlpha = 1; }
+    ctx.fillStyle = "rgba(255,120,220,0.35)"; ctx.beginPath(); ctx.moveTo(x0 + w / 2, y0 + 20); ctx.lineTo(x0 + w / 2 + 50, y0 + 80); ctx.lineTo(x0 + w / 2, y0 + 130); ctx.lineTo(x0 + w / 2 - 50, y0 + 80); ctx.fill();
+    drawNpc("firmin", x0 + w / 2, y0 + 110, 1, Math.floor(t * 3) % 2 === 0, null, 0.85);
+    text("⌂", x0 + w / 2 + 34, y0 + 60, 14, "#fccc28", "center", "#fccc28");
+  }
+}
+
+/* ---------------- Programmes de lavage (défis) ---------------- */
+// Variantes de salles existantes avec une règle en plus (CHALLENGES dans registres.js). La salle est reconstruite à chaque fois
+// (buildRoom) : la campagne n'est jamais modifiée, et la progression, les chaussettes et la salle de reprise ne bougent pas.
+// Tout avance avec le temps du jeu : la pause arrête le chronomètre, les bourrasques et les indices.
+// chal = { C, ri, t, gust, res } ; res = résultat affiché à la fin (état "chalres").
+const CS = { sel: 0 };
+const chalOpen = C => testCond(C.unlock);
+function openChallenges() { state = "chalsel"; CS.sel = clamp(CS.sel, 0, CHALLENGES.length - 1); audio.sfx("drum"); }
+const csRect = i => ({ x: 10, y: 34 + i * 34, w: 168, h: 30 });
+const CS_GO = { x: 300, y: 228, w: 160, h: 22 };
+const rewardName = k => { const [t, id] = k.split(/:(.*)/); return (REWARD_INFO[t] ? REWARD_INFO[t][0](id) : id) + { cos: " (tenue)", decor: " (décoration)", track: " (musique)", card: " (carte)", badge: " (badge)" }[t]; };
+const chalBest = C => ((SAVE.chal[C.id] || {}).best || {})[df().id];
+SCREENS.chalsel = {
+  update() {
+    if (uiBack()) { backToHub(); return; }
+    const n = CHALLENGES.length;
+    if (hit(...K.up)) { CS.sel = (CS.sel + n - 1) % n; audio.sfx("dial"); }
+    if (hit(...K.down)) { CS.sel = (CS.sel + 1) % n; audio.sfx("dial"); }
+    const go = () => { const C = CHALLENGES[CS.sel]; if (chalOpen(C)) startChallenge(C); else audio.sfx("nope"); };
+    if (hit(...K.ok)) { go(); return; }
+    if (hit("Mouse0")) {
+      for (let i = 0; i < n; i++) if (inside(csRect(i))) { if (CS.sel === i) { go(); return; } CS.sel = i; audio.sfx("dial"); }
+      if (inside(CS_GO)) { go(); return; }
+    }
+  },
+  draw() {
+    drawHub(); R(0, 0, VW, VH, "rgba(10,6,24,0.88)"); drawBack();
+    text("Programmes de lavage", VW / 2 + 30, 14, 13, "#5ef0ff", "center", "#5ef0ff");
+    CHALLENGES.forEach((C, i) => {
+      const P = PROGRAMS[C.prog], r = csRect(i), sel = i === CS.sel, open = chalOpen(C), done = (SAVE.chal[C.id] || {}).done;
+      R(r.x, r.y, r.w, r.h, sel ? "rgba(255,255,255,0.15)" : "rgba(20,12,40,0.9)");
+      ctx.strokeStyle = sel ? P.color : "#3a2a5c"; ctx.lineWidth = sel ? 2 : 1; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+      R(r.x + 4, r.y + 4, 22, 22, open ? P.color : "#2a2244"); text(P.icon, r.x + 15, r.y + 15, 11, "#120828", "center");
+      text(P.name, r.x + 32, r.y + 10, 9, open ? "#ffffff" : "#6a5a88");
+      text(open ? (done ? "Réussi ✓" : "À essayer") : "Verrouillé", r.x + 32, r.y + 22, 6, open ? (done ? "#7dffb0" : "#fccc28") : "#6a5a88");
+    });
+    // fiche du programme choisi : niveau, règles, réussite, échec, récompense, record
+    const C = CHALLENGES[CS.sel], P = PROGRAMS[C.prog], W = CWORLDS.find(w => w.id === C.world), open = chalOpen(C);
+    drawPanel(186, 30, 288, 194, P.color);
+    let y = 44;
+    const row = (label, val, col = "#e8dcff") => { text(label, 194, y, 7, "#b9a6e0"); for (const l of wrapText(val, 196, 8)) { text(l, 270, y, 8, col); y += 11; } y += 3; };
+    text(`${P.icon}  ${P.name}`, 194, y, 11, P.color); y += 18;
+    row("Niveau", `${W.name} : ` + C.rooms.map(id => W.rooms.find(r => r.id === id).name).join(", "));
+    row("Règle", P.rule + (C.limit ? ` (${C.limit} s)` : ""));
+    row("Réussite", C.win, "#7dffb0");
+    row("Échec", C.lose, "#ff8ab0");
+    row("Récompense", C.reward.map(rewardName).join(", ") + ((SAVE.chal[C.id] || {}).done ? " — déjà gagnée" : ""), "#fccc28");
+    const b = chalBest(C);
+    row("Record", b ? `${fmtTime(b)} (${df().label})` : "Pas encore de record", b ? "#ffffff" : "#8a7aa8");
+    if (!open) text("Pour l'ouvrir : termine " + (CWORLDS[(C.unlock.world || 1) - 1] || {}).name, 330, 216, 8, "#ff8ab0", "center");
+    else drawButton(CS_GO, "Lancer le programme ▶", inside(CS_GO) || PAD, P.color, 9);
+    text("La difficulté choisie au menu reste appliquée.", 94, 228, 6, "#b9a6e0", "center");
+    text(say("↑ ↓ : choisir   Entrée : lancer   Échap : laverie", "Touche un programme, puis « Lancer »", "Croix : choisir   {A} : lancer   {B} : laverie"), 94, 244, 6, "#b9a6e0", "center");
+  },
+};
+function startChallenge(C) {
+  const wi = CWORLDS.findIndex(W => W.id === C.world);
+  chal = { C, ri: 0, gust: { t: 0, phase: "calm", dir: 1 }, res: null };
+  curWorld = wi; runTime = 0; deaths = 0; msg = null; audio.sfx("start");
+  chalLoad();
+  msg = { text: `Programme ${PROGRAMS[C.prog].name} !`, t: 2.2 };
+  voice.say(`Programme ${PROGRAMS[C.prog].name}. ${PROGRAMS[C.prog].rule}`, true);
+}
+function chalLoad(restart) {
+  const wi = curWorld, ri = roomIndex(wi, chal.C.rooms[chal.ri]);
+  camp.ckpt = ri; camp.fromStart = true;
+  loadCampRoom(wi, ri, { fadeIn: !restart, restart });
+  chal.gust = { t: 0, phase: "calm", dir: 1 };
+}
+// Porte franchie : salle suivante du défi, ou réussite à la dernière
+function chalRoomDone() {
+  if (chal.ri + 1 < chal.C.rooms.length) { chal.ri++; chalLoad(); return true; }
+  chalWin(); return true;
+}
+function chalWin() { if (!chal || chal.res) return; chalEnd(true); }
+function chalFail(why) { if (!chal || chal.res) return; chalEnd(false, why); }
+function chalEnd(ok, why) {
+  const C = chal.C, s = SAVE.chal[C.id] = SAVE.chal[C.id] || { best: {} };
+  s.best = s.best || {};
+  const first = ok && !s.done, prev = s.best[df().id];
+  const rec = ok && (prev === undefined || runTime < prev);
+  if (rec) s.best[df().id] = runTime;
+  chal.res = { ok, why, time: runTime, rec, first, t: 0, sel: 0 };
+  setTimeFx(false, false);
+  if (ok) { emit("challenge", { id: C.id }); for (const k of C.reward) grant(k); saveGame(); audio.sfx("chal_ok"); voice.say("Programme réussi ! Bravo !", true); }
+  else { saveGame(); audio.sfx("chal_fail"); voice.say("Presque ! On réessaie ?", true); }
+  state = "chalres";
+}
+function chalAbandon() { chal = null; enterHub({ x: 338, msg: "Programme abandonné" }); }
+const CR_BTN = [{ x: 140, y: 196, w: 96, h: 22, label: "Recommencer" }, { x: 244, y: 196, w: 96, h: 22, label: "Laverie" }];
+SCREENS.chalres = {
+  update(rdt) {
+    const r = chal.res; r.t += rdt; updateParts(rdt);
+    if (r.t < 0.6) return;
+    if (hit(...K.left, ...K.right, ...K.up, ...K.down)) { r.sel = 1 - r.sel; audio.sfx("select"); }
+    const act = i => { if (i === 0) { const C = chal.C; startChallenge(C); } else { const C = chal.C; chal = null; enterHub({ x: 338 }); void C; } };
+    if (hit(...K.ok)) { act(r.sel); return; }
+    if (hit("Escape", "GB")) { act(1); return; }
+    if (hit("Mouse0")) CR_BTN.forEach((b, i) => { if (state === "chalres" && inside(b)) act(i); });
+  },
+  draw() {
+    const r = chal.res, C = chal.C, P = PROGRAMS[C.prog];
+    drawCampWorld(); R(0, 0, VW, VH, "rgba(10,6,24,0.8)");
+    text(r.ok ? "Programme réussi !" : "Presque !", VW / 2, 70, 22, r.ok ? "#7dffb0" : "#ff8ab0", "center", r.ok ? "#7dffb0" : "#ff8ab0");
+    text(`${P.icon} ${P.name}`, VW / 2, 96, 10, P.color, "center");
+    text(r.ok ? `Temps : ${fmtTime(r.time)}` + (r.rec ? "   Nouveau record !" : "") : r.why || "", VW / 2, 120, 10, r.rec ? "#fccc28" : "#ffffff", "center");
+    if (r.first) text("Récompense : " + C.reward.map(rewardName).join(", "), VW / 2, 142, 8, "#fccc28", "center");
+    else if (r.ok) text("Récompense déjà gagnée : on joue pour le record !", VW / 2, 142, 8, "#b9a6e0", "center");
+    const b = chalBest(C); if (b !== undefined) text(`Record (${df().label}) : ${fmtTime(b)}`, VW / 2, 162, 8, "#e8dcff", "center");
+    CR_BTN.forEach((bt, i) => drawButton(bt, bt.label, (PAD || TOUCH) ? r.sel === i : inside(bt), i ? "#b9a6e0" : P.color, 9));
+  },
+};
+
+/* ---- En jeu ---- */
+// Appelé par updatePlay() après le déplacement des joueurs (dt : temps du jeu, rdt : temps réel)
+function chalUpdate(dt, rdt) {
+  if (!chal || chal.res) return;
+  const C = chal.C, p = players[0];
+  if (C.limit) {
+    const left = C.limit - runTime;
+    if (left < 10 && Math.floor(left + rdt) !== Math.floor(left) && left > 0) audio.sfx("tick");
+    if (left <= 0) { audio.sfx("chrono_end"); chalFail(C.prog === "solitaire" ? "La chaussette est restée cachée…" : "Le chronomètre est arrivé à zéro"); return; }
+  }
+  if (C.gust) {
+    // bourrasques : calme → annonce (flèche, son) → poussée ; jamais sans annonce
+    const g = chal.gust, G0 = C.gust; g.t += dt;
+    if (g.phase === "calm" && g.t >= G0.every - G0.warn) { g.phase = "warn"; g.t = 0; g.dir = Math.random() < 0.5 ? -1 : 1; audio.sfx("gust_warn"); }
+    else if (g.phase === "warn" && g.t >= G0.warn) { g.phase = "push"; g.t = 0; audio.sfx("gust"); }
+    else if (g.phase === "push") {
+      if (g.t >= G0.push) { g.phase = "calm"; g.t = 0; }
+      else for (const q of players) if (!q.dead && !campLocked(q)) {
+        const vx = q.vx, vy = q.vy; q.vx = g.dir * G0.force * windMul(); q.vy = 0; moveBody(q, dt); q.vx = vx; q.vy = vy;
+        if (Math.random() < 0.3) parts.push({ x: g.dir > 0 ? 0 : VW, y: 30 + Math.random() * 200, vx: g.dir * 400, vy: 0, life: 1.2, max: 1.2, color: "#e8f8ff", size: 1, grav: 0 });
+      }
+    }
+  }
+  if (C.grip && p.onGround && Math.abs(p.vx) > 60 && !(down(...K.left) || down(...K.right)) && Math.random() < 0.08) { audio.sfx("slip"); parts.push({ x: p.x + 5, y: p.y + p.h, vx: -p.vx * 0.2, vy: -20, life: 0.4, max: 0.4, color: "#e8f8ff", size: 1, grav: 60 }); }
+}
+// Adhérence (programme Lavage à froid) : multiplie l'accélération au sol
+const chalGrip = p => chal && !chal.res && chal.C.grip && p.onGround ? chal.C.grip : 1;
+// Programme Délicat : le premier coup reçu fait échouer
+function chalHurt() { if (chal && chal.C.prog === "delicat") chalFail("Tu as été touché : le linge délicat est froissé !"); }
+// Chaussette cible (Chaussette solitaire) : elle n'apparaît que de près
+function chalTargetAlpha(k) {
+  const d = Math.min(...players.map(p => Math.hypot(p.x + 5 - (k.x + 6), p.y + 16 - (k.y + 6))));
+  const pulse = Math.floor(time * 0.5) % 4 === 0 ? 0.25 : 0;   // un petit scintillement de temps en temps
+  return clamp(1 - (d - 30) / 60, 0, 1) || pulse * (0.5 + 0.5 * Math.sin(time * 10));
+}
+function drawChalHUD() {
+  if (!chal) return;
+  const C = chal.C, P = PROGRAMS[C.prog];
+  R(VW / 2 - 70, 17, 140, 14, "rgba(10,6,24,0.8)");
+  if (C.limit) { const left = Math.max(0, C.limit - runTime); text(`${P.icon} ${P.name}  ${left.toFixed(1)} s`, VW / 2, 24, 8, left < 10 ? (Math.floor(time * 4) % 2 ? "#ff3b5c" : "#ffffff") : P.color, "center"); }
+  else text(`${P.icon} ${P.name}` + (C.prog === "delicat" ? "  : ne te fais pas toucher" : C.prog === "froid" ? "  : ça glisse !" : ""), VW / 2, 24, 8, P.color, "center");
+  if (C.gust) {
+    const g = chal.gust;
+    if (g.phase === "warn" && Math.floor(time * 6) % 2) { R(VW / 2 - 80, 100, 160, 30, "rgba(10,6,24,0.75)"); text(g.dir > 0 ? "Bourrasque  ➜➜➜" : "⬅⬅⬅  Bourrasque", VW / 2, 115, 12, "#bff4ff", "center", "#5ef0ff"); }
+    if (g.phase === "push") { ctx.globalAlpha = 0.12; R(0, 0, VW, VH, "#bff4ff"); ctx.globalAlpha = 1; }
+  }
+  if (C.grip) { ctx.globalAlpha = 0.35; for (const s of [...lvl.solids, ...lvl.plats]) R(s.x, s.y, s.w, 2, "#e8f8ff"); ctx.globalAlpha = 1; for (let i = 0; i < 8; i++) R((i * 61 + Math.floor(time * 20)) % VW, (i * 37 + Math.floor(time * 30)) % VH, 1, 1, "#ffffff"); }
+  if (C.hints) {
+    const n = Math.min(C.hints.length, 1 + Math.floor(runTime / 20));
+    R(6, 34, 210, 10 + n * 11, "rgba(10,6,24,0.75)");
+    for (let i = 0; i < n; i++) text(`Indice ${i + 1} : ${C.hints[i]}`, 10, 41 + i * 11, 6, "#e8dcff");
+  }
+}
 
 /* ---------------- Menu ---------------- */
 // Écran titre : difficulté, Options, Jouer (→ choix du héros → choix des mondes)
@@ -3859,7 +5066,7 @@ const UI = {
 };
 const inside = (r) => mouse.x >= r.x && mouse.x <= r.x + r.w && mouse.y >= r.y && mouse.y <= r.y + r.h;
 function goMenu() { state = "menu"; setTimeFx(false, false); }
-function startGame() { audio.sfx("start"); openChars(); }
+function startGame() { audio.sfx("start"); openChars("menu"); }
 let worldSel = 0, thumbs = null, thumbsFor = null, curWorld = 0;
 // Choix des mondes : pages de 4 × 2 ; au-delà de 8 mondes, d'autres pages apparaissent (← → passent d'une page à l'autre)
 const WCOLS = 4, WPAGE = 8;
@@ -3931,7 +5138,7 @@ function updateCampWorlds() {
   const prog = campProgress(), n = CWORLDS.length + 1;
   const open = i => i === CWORLDS.length || i <= prog;
   const go = i => { if (i === CWORLDS.length) { mode = "bonus"; audio.sfx("select"); openWorlds(); } else startCampWorld(i); };
-  if (hit("Escape", "GB") || (hit("Mouse0") && inside({ x: 8, y: 6, w: 50, h: 20 }))) { openChars(); return; }
+  if (hit("Escape", "GB") || (hit("Mouse0") && inside({ x: 8, y: 6, w: 50, h: 20 }))) { audio.sfx("back"); enterHub({ x: 214 }); return; }
   if ((keys.ShiftLeft || keys.ShiftRight) && hit("KeyD")) { setCampProgress(CWORLDS.length); msg = { text: "Tous les mondes sont débloqués", t: 2 }; audio.sfx("door"); }
   if (hit(...K.left)) { worldSel = (worldSel + n - 1) % n; audio.sfx("select"); }
   if (hit(...K.right)) { worldSel = (worldSel + 1) % n; audio.sfx("select"); }
@@ -3972,8 +5179,8 @@ function drawCampWorlds() {
     ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1); ctx.shadowBlur = 0;
   }
   const lockedSel = worldSel < CWORLDS.length && worldSel > prog;
-  text(lockedSel ? "Termine le monde précédent pour débloquer celui-ci" : say("Flèches pour choisir, Entrée pour jouer, Échap : changer de héros", "Touche un monde, puis touche-le encore pour jouer", "Croix pour choisir, {A} pour jouer, {B} : changer de héros"), VW / 2, 254, 8, lockedSel ? "#ff8ab0" : "#b9a6e0", "center");
-  drawBackBtn("◀ Héros");
+  text(lockedSel ? "Termine le monde précédent pour débloquer celui-ci" : say("Flèches pour choisir, Entrée pour partir, Échap : laverie", "Touche un monde, puis touche-le encore pour partir", "Croix pour choisir, {A} pour partir, {B} : laverie"), VW / 2, 254, 8, lockedSel ? "#ff8ab0" : "#b9a6e0", "center");
+  drawBackBtn("◀ Laverie");
   if (msg && msg.t > 0) text(msg.text, VW / 2, 244, 9, "#7dffb0", "center");
 }
 function updateMenu() {
@@ -4069,16 +5276,18 @@ const CUI = {
   const i = CHARS.findIndex(C => C.id === SAVE.lastChar); if (i >= 0) charIdx = i;
   charSel = charIdx;
 })();
-function openChars() { state = "chars"; charSel = charIdx; charSelT = 0; audio.sfx("select"); }
+// charsFrom : "menu" (après Jouer) ou "hub" (vestiaire de la laverie) ; on arrive ou on revient dans la laverie
+let charsFrom = "menu";
+function openChars(from = "menu") { charsFrom = from; state = "chars"; charSel = charIdx; charSelT = 0; audio.sfx("select"); }
 function confirmChar() {
   charIdx = charSel; SAVE.lastChar = CHARS[charIdx].id; saveGame();
-  audio.sfx("start"); mode = "camp"; openWorlds();
+  audio.sfx("start"); enterHub({ x: charsFrom === "hub" ? 18 : undefined });
 }
 function moveCharSel(i) { if (i !== charSel) { charSel = i; charSelT = 0; audio.sfx("select"); } }
 function updateChars(rdt) {
   charSelT += rdt;
   const n = CHARS.length, cols = 4;
-  if (hit("Escape", "GB", "Backspace") || (hit("Mouse0") && inside(CUI.back))) { goMenu(); audio.sfx("select"); return; }
+  if (hit("Escape", "GB", "Backspace") || (hit("Mouse0") && inside(CUI.back))) { if (charsFrom === "hub") enterHub({ x: 18 }); else goMenu(); audio.sfx("back"); return; }
   if (hit(...K.left)) moveCharSel((charSel + n - 1) % n);
   if (hit(...K.right)) moveCharSel((charSel + 1) % n);
   if (hit(...K.up, ...K.down)) moveCharSel((charSel + cols) % n);
@@ -4161,7 +5370,7 @@ function hoverRow(n, step, cur) {
   return cur;
 }
 function openOptions(from) { optFrom = from; optSel = 0; lastMouse = mouse.x + "," + mouse.y; state = "options"; audio.sfx("select"); }
-function closeOptions() { saveOptions(); state = optFrom === "pause" ? "pause" : "menu"; audio.sfx("select"); }
+function closeOptions() { saveOptions(); state = optFrom === "pause" ? "pause" : optFrom === "hub" ? "hub" : "menu"; audio.sfx("back"); }
 function optActivate(i) {
   const r = OPT_ROWS[i]; optSel = i;
   if (r.k === "back") { closeOptions(); return; }
@@ -4180,7 +5389,8 @@ function updateOptions() {
   if (hit("Mouse0")) for (let i = 0; i < n; i++) if (inside(rowRect(i, 21))) { optActivate(i); return; }
 }
 function drawOptBg() {
-  if (optFrom === "pause" && lvl) { if (lvl.json) drawCampWorld(); else drawWorld(); R(0, 0, VW, VH, "rgba(10,6,24,0.82)"); }
+  if (optFrom === "hub") { drawHub(); R(0, 0, VW, VH, "rgba(10,6,24,0.82)"); }
+  else if (optFrom === "pause" && lvl) { if (lvl.json) drawCampWorld(); else drawWorld(); R(0, 0, VW, VH, "rgba(10,6,24,0.82)"); }
   else { if (!menuBgs) menuBgs = CHARS.map(C => makeBackground(C.ui, C)); ctx.drawImage(menuBgs[charIdx], 0, 0); R(0, 0, VW, VH, "rgba(13,8,32,0.72)"); }
 }
 function drawRow(b, sel, label, value, valueCol) {
@@ -4289,6 +5499,7 @@ function updateClear(rdt) {
   clearT -= rdt; updateParts(rdt);
   if (clearT <= 0 || hit("Enter", "Space", "Mouse0", "GA", "GStart")) {
     const r = ROOMS[lvlIdx], next = ROOMS[lvlIdx + 1];
+    if (!SAVE.seen.char[ch().id]) { SAVE.seen.char[ch().id] = 1; checkUnlocks(false); }   // carte du héros : une salle terminée avec lui
     if (!(next && next.w === r.w)) voice.say(r.w + 1 < WORLDS.length ? `Monde terminé ! ${WORLDS[r.w].name} est sauvé. Bravo !` : `Victoire ! ${ch().name} a vaincu Dr. Boulon. Bravo !`, true);
     if (next && next.w === r.w) loadLevel(lvlIdx + 1);
     else {
@@ -4362,6 +5573,9 @@ function frame(now) {
   else if (state === "pause") { updatePause(); if (state === "pause") drawPause(); }
   else if (state === "options") { updateOptions(); if (state === "options") drawOptions(); }
   else if (state === "keys") { updateKeys(); if (state === "keys") drawKeys(); }
+  else if (SCREENS[state]) { const st = state; SCREENS[st].update(rdt); if (state === st) SCREENS[st].draw(); }
+  if (state !== "loading" && state !== "menu") { updateToasts(rdt); drawToasts(); }
+  hubAmbience();
   const mk = OPT.music ? musicKey() : null;
   if (state !== "loading" && audio.ready && audio.wanted !== mk) audio.playMusic(mk);
   synthTick();

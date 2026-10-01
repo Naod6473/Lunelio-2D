@@ -270,7 +270,7 @@ const PROGRAMS = {
 // limit : temps (s) pour Express et Chaussette solitaire, calibré sans dash ni super vitesse.
 // win / lose : textes affichés avant le départ. record : "time" (plus petit = mieux).
 const CHALLENGES = [
-  { id: "express_centrale", prog: "express", world: "01_centrale", rooms: ["centrale_01", "centrale_02", "centrale_03"], limit: 50, unlock: { world: 1 },
+  { id: "express_centrale", prog: "express", world: "01_centrale", rooms: ["centrale_01", "centrale_02", "centrale_03"], limit: 40, unlock: { world: 1 },
     win: "Passer la porte de la salle 3 avant 0 s", lose: "Le chronomètre arrive à 0", reward: ["cos:acc_lunettes"], record: "time" },
   { id: "delicat_temple", prog: "delicat", world: "03_temple", rooms: ["temple_02"], unlock: { world: 3 },
     win: "Passer la porte sans être touché", lose: "Un seul coup reçu (le bouclier protège)", reward: ["cos:pal_nuit"], record: "time" },
