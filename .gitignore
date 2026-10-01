@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+src/worlds.json
+lunelio-autonome.html
+*_planche.png
+*_anim.gif
+selection_personnage.gif
+.DS_Store
