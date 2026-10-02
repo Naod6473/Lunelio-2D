@@ -26,7 +26,7 @@ function atlasImg(aid) {
 // Charge toutes les planches au démarrage (une image manquante ou lente ne bloque jamais le jeu plus de quelques secondes)
 // onEach : appelé pour chaque planche prête (écran de chargement)
 function preloadAtlases(timeout = 8000, onEach = () => {}) {
-  const list = Object.keys(ATL).filter(k => !ATLAS_SPRITE[k]).map(k => getImg(ATL[k].src));
+  const list = Object.keys(ATL).filter(k => !ATLAS_SPRITE[k] && !ATL[k].lazy).map(k => getImg(ATL[k].src));   // lazy : chargées à la demande (souvenirs)
   const all = Promise.all(list.map(o => o.done ? onEach() : new Promise(r => { const f = () => { onEach(); r(); }; o.img.addEventListener("load", f); o.img.addEventListener("error", f); })));
   return Promise.race([all, new Promise(r => setTimeout(r, timeout))]);
 }
@@ -1423,17 +1423,29 @@ function drawArenaFx() {
 let winT = 0;
 function drawCampWin(rdt) {
   winT += rdt;
-  const C = ch();
-  drawHub();
-  const dawn = ctx.createLinearGradient(0, 0, 0, VH); dawn.addColorStop(0, "rgba(255,180,90,0.25)"); dawn.addColorStop(1, "rgba(255,120,200,0.1)");
-  ctx.fillStyle = dawn; ctx.fillRect(0, 0, VW, VH);
-  R(0, 0, VW, 74, "rgba(13,8,32,0.6)");
-  text("Retour à la maison", VW / 2, 30, 22, C.ui, "center", C.ui);
-  text(`${C.name} a réparé la machine et rentre enfin chez lui !`, VW / 2, 54, 9, "#e8dcff", "center");
-  // chaussettes propres en confettis
-  for (let i = 0; i < 24; i++) { const k = (winT * 0.4 + i * 0.137) % 1, x = (i * 53 + Math.sin(winT + i) * 20) % VW; if (winT > 1) drawSock(x, -10 + k * 250, { t: i }); }
-  if (winT > 1.0) { const k = Math.min(1, (winT - 1.0) / 0.6); drawChar(C, k < 1 ? 18 : Math.floor(time * 5) % 4, 240 - 50 * k, HUB_FLOOR, -1, 1, k); }
-  if (winT > 2.5) text(`Chaussettes : ${socksCount()}/${socksTotal()}    Cartes : ${CARDS.filter(c => has("card:" + c.id)).length}/${CARDS.length}`, VW / 2, 92, 9, "#7dffb0", "center");
-  text(say("Entrée ou clic pour revenir à la laverie", "Touche l'écran pour revenir à la laverie", "{A} pour revenir à la laverie"), VW / 2, 182, 9, "#ffffff", "center");
+  const C = ch(), art = ATL.souvenir_fin && atlasImg("souvenir_fin");
+  if (art) {
+    // la scène de fin fournie : ses trois vues en boucle 1 → 2 → 3 → 2 (2,4 s chacune, fondu de 1,2 s)
+    const order = [0, 1, 2, 1], step = Math.floor(winT / 3.6), into = winT - step * 3.6;
+    const cur = order[step % 4], prev = order[(step + 3) % 4], s = VW / ATL.souvenir_fin.cw;
+    ctx.imageSmoothingEnabled = true;
+    if (into < 1.2 && step > 0 && !reducedMotion.matches) drawFrame("souvenir_fin", prev, VW / 2, VH, 1, 1, s);
+    drawFrame("souvenir_fin", reducedMotion.matches ? 0 : cur, VW / 2, VH, 1, step > 0 && !reducedMotion.matches ? Math.min(1, into / 1.2) : 1, s);
+    ctx.globalAlpha = 1; ctx.imageSmoothingEnabled = false;
+    R(0, 0, VW, 66, "rgba(13,8,32,0.55)");
+  } else {
+    drawHub();
+    const dawn = ctx.createLinearGradient(0, 0, 0, VH); dawn.addColorStop(0, "rgba(255,180,90,0.25)"); dawn.addColorStop(1, "rgba(255,120,200,0.1)");
+    ctx.fillStyle = dawn; ctx.fillRect(0, 0, VW, VH);
+    R(0, 0, VW, 74, "rgba(13,8,32,0.6)");
+  }
+  text("Retour à la maison", VW / 2, 26, 22, C.ui, "center", C.ui);
+  text(`${C.name} a réparé la machine et rentre enfin chez lui !`, VW / 2, 50, 9, "#e8dcff", "center");
+  // chaussettes propres en confettis (la scène fournie a déjà les siennes : on en garde quelques-unes)
+  for (let i = 0; i < (art ? 8 : 24); i++) { const k = (winT * 0.4 + i * 0.137) % 1, x = (i * 53 + Math.sin(winT + i) * 20) % VW; if (winT > 1) drawSock(x, -10 + k * 250, { t: i }); }
+  if (!art && winT > 1.0) { const k = Math.min(1, (winT - 1.0) / 0.6); drawChar(C, k < 1 ? 18 : Math.floor(time * 5) % 4, 240 - 50 * k, HUB_FLOOR, -1, 1, k); }
+  if (art) R(0, VH - 30, VW, 30, "rgba(13,8,32,0.6)");
+  if (winT > 2.5) text(`Chaussettes : ${socksCount()}/${socksTotal()}    Cartes : ${CARDS.filter(c => has("card:" + c.id)).length}/${CARDS.length}`, VW / 2, art ? VH - 21 : 92, 9, "#7dffb0", "center");
+  text(say("Entrée ou clic pour revenir à la laverie", "Touche l'écran pour revenir à la laverie", "{A} pour revenir à la laverie"), VW / 2, art ? VH - 9 : 182, art ? 8 : 9, "#ffffff", "center");
   if (winT > 1.5 && hit("Enter", "Space", "Mouse0", "Escape", "GA", "GB", "GStart")) enterHub({ msg: "La laverie reste ouverte : il reste des chaussettes à retrouver !" });
 }

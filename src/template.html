@@ -2623,7 +2623,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 // Chargement : planches, atlas puis police ; chaque élément chargé fait avancer l'écran de chargement
-const ldTotal = Object.keys(SPRITES).length + Object.keys(ATL).filter(k => !ATLAS_SPRITE[k]).length + 1;
+const ldTotal = Object.keys(SPRITES).length + Object.keys(ATL).filter(k => !ATLAS_SPRITE[k] && !ATL[k].lazy).length + 1;
 let ldN = 0; const ldStep = () => LOADER.set(++ldN / ldTotal);
 Promise.all(Object.entries(SPRITES).map(([k, src]) => new Promise(res => { const i = new Image(); i.onload = () => { IMG[k] = i; ldStep(); res(); }; i.onerror = () => { ldStep(); res(); }; i.src = src; })))
   .then(() => preloadAtlases(8000, ldStep))

@@ -78,8 +78,6 @@ SPEC = {
     "armes_icones": ("armes_icones.png", 5, 2, 32, 32, "center", {"play": [0, 10]}, False),
     "accessoires": ("cosmetiques/accessoires.png", 6, 2, 24, 24, "bottom", {"play": [0, 12]}, False),
     "autocollants_machine": ("cosmetiques/autocollants_machine.png", 6, 1, 16, 16, "center", {"play": [0, 6]}, False),
-    **{f"souvenir_{i}": (f"souvenirs/souvenir_{i}.png", 1, 1, 240, 136, "bottom", {"play": [0, 1]}, True) for i in range(1, 7)},
-    "souvenir_fin": ("souvenirs/fin.png", 1, 1, 240, 136, "bottom", {"play": [0, 1]}, True),
 }
 
 # hauteur visée et images de référence pour l'échelle commune (la chaussette se mesure sans les étincelles de la collecte)
@@ -343,6 +341,27 @@ def fade_foreground():
                 if k < 1: r, g, b, a = px[x, y]; px[x, y] = (r, g, b, round(a * k))
         im.save(f, lossless=True, quality=100, method=6)
 
+# Souvenirs : chaque scène en trois vues (<id>.png, <id>_02.png, <id>_03.png, même cadrage, ambiance qui change) pour des fondus.
+# Une planche WebP de 3 images en 672 × 378 par scène ; « lazy » : chargée seulement quand on regarde le souvenir.
+MEM_SCENES = [("souvenir_" + str(i), "souvenir_" + str(i)) for i in range(1, 7)] + [("souvenir_fin", "fin")]
+MEM_W, MEM_H = 672, 378
+
+def prepare_souvenirs():
+    out = {}
+    for name, base in MEM_SCENES:
+        files = [os.path.join(SRC, "souvenirs", base + s + ".png") for s in ("", "_02", "_03")]
+        files = [f for f in files if os.path.exists(f)]
+        if not files: continue
+        sheet = Image.new("RGB", (MEM_W * len(files), MEM_H))
+        for k, f in enumerate(files): sheet.paste(Image.open(f).convert("RGB").resize((MEM_W, MEM_H), Image.LANCZOS), (k * MEM_W, 0))
+        os.makedirs(OUT, exist_ok=True)
+        for old in (os.path.join(OUT, name + e) for e in (".png", ".webp")):
+            if os.path.exists(old): os.remove(old)
+        sheet.save(os.path.join(OUT, name + ".webp"), quality=82, method=6)
+        out[name] = {"src": f"assets/laverie/{name}.webp", "cw": MEM_W, "ch": MEM_H, "ax": MEM_W // 2, "ay": MEM_H, "cols": len(files),
+                     "anims": {"play": [0, len(files)]}, "lazy": True, "note": f"souvenir : {base} (3 vues pour les fondus)"}
+    return out
+
 def prepare_loading():
     """Écran de chargement : chargement/chargement_<pourcentage>.png (une image par palier de 10 %) → ../assets/chargement/*.webp (960 × 540)."""
     d = os.path.join(SRC, "chargement"); out = os.path.join(HERE, "..", "assets", "chargement")
@@ -363,7 +382,7 @@ def main():
         if a: atlas[name] = a
     b, c = prepare_brie()
     if b: atlas["eg_brie"], atlas["eg_crotte"] = b, c
-    atlas.update(prepare_eg_proj()); atlas.update(prepare_eg_portraits())
+    atlas.update(prepare_eg_proj()); atlas.update(prepare_eg_portraits()); atlas.update(prepare_souvenirs())
     for name, (base, anims) in HEROES.items():
         a = prepare_hero(name, base, anims)
         if a: atlas[name] = a

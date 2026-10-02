@@ -254,6 +254,118 @@
    },
    "note": "portrait de brie (église)"
   },
+  "souvenir_1": {
+   "src": "assets/laverie/souvenir_1.webp",
+   "cw": 672,
+   "ch": 378,
+   "ax": 336,
+   "ay": 378,
+   "cols": 3,
+   "anims": {
+    "play": [
+     0,
+     3
+    ]
+   },
+   "lazy": true,
+   "note": "souvenir : souvenir_1 (3 vues pour les fondus)"
+  },
+  "souvenir_2": {
+   "src": "assets/laverie/souvenir_2.webp",
+   "cw": 672,
+   "ch": 378,
+   "ax": 336,
+   "ay": 378,
+   "cols": 3,
+   "anims": {
+    "play": [
+     0,
+     3
+    ]
+   },
+   "lazy": true,
+   "note": "souvenir : souvenir_2 (3 vues pour les fondus)"
+  },
+  "souvenir_3": {
+   "src": "assets/laverie/souvenir_3.webp",
+   "cw": 672,
+   "ch": 378,
+   "ax": 336,
+   "ay": 378,
+   "cols": 3,
+   "anims": {
+    "play": [
+     0,
+     3
+    ]
+   },
+   "lazy": true,
+   "note": "souvenir : souvenir_3 (3 vues pour les fondus)"
+  },
+  "souvenir_4": {
+   "src": "assets/laverie/souvenir_4.webp",
+   "cw": 672,
+   "ch": 378,
+   "ax": 336,
+   "ay": 378,
+   "cols": 3,
+   "anims": {
+    "play": [
+     0,
+     3
+    ]
+   },
+   "lazy": true,
+   "note": "souvenir : souvenir_4 (3 vues pour les fondus)"
+  },
+  "souvenir_5": {
+   "src": "assets/laverie/souvenir_5.webp",
+   "cw": 672,
+   "ch": 378,
+   "ax": 336,
+   "ay": 378,
+   "cols": 3,
+   "anims": {
+    "play": [
+     0,
+     3
+    ]
+   },
+   "lazy": true,
+   "note": "souvenir : souvenir_5 (3 vues pour les fondus)"
+  },
+  "souvenir_6": {
+   "src": "assets/laverie/souvenir_6.webp",
+   "cw": 672,
+   "ch": 378,
+   "ax": 336,
+   "ay": 378,
+   "cols": 3,
+   "anims": {
+    "play": [
+     0,
+     3
+    ]
+   },
+   "lazy": true,
+   "note": "souvenir : souvenir_6 (3 vues pour les fondus)"
+  },
+  "souvenir_fin": {
+   "src": "assets/laverie/souvenir_fin.webp",
+   "cw": 672,
+   "ch": 378,
+   "ax": 336,
+   "ay": 378,
+   "cols": 3,
+   "anims": {
+    "play": [
+     0,
+     3
+    ]
+   },
+   "lazy": true,
+   "note": "souvenir : fin (3 vues pour les fondus)"
+  },
   "perso_helio": {
    "src": "assets/laverie/perso_helio.png",
    "cw": 64,

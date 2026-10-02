@@ -409,7 +409,19 @@ const MEMS = { sel: 0, view: null };
 function openMemories() { state = "memories"; MEMS.sel = 0; audio.sfx("page"); }
 const memRect = i => ({ x: 20, y: 40 + i * 30, w: 440, h: 26 });
 // auto : ouvert en revenant à la laverie (on y retourne ensuite)
-function openMemory(id, auto = false) { MEMS.view = { id, i: 0, t: 0, auto }; state = "memview"; audio.sfx("memory"); speakMem(); }
+function openMemory(id, auto = false) {
+  MEMS.view = { id, i: 0, t: 0, auto, fade: 9 }; state = "memview"; audio.sfx("memory"); speakMem();
+  const A = ATL["souvenir_" + (MEMORIES.findIndex(M => M.id === id) + 1)]; if (A) getImg(A.src);   // l'image se charge maintenant (atlas « lazy »)
+}
+// Image d'un souvenir (3 vues de la même scène) : la vue k, et en fondu de 1,2 s depuis la vue précédente quand on passe à la phrase suivante
+function drawMemoryArt(aid, k, fade, x, y, w, h) {
+  const A = ATL[aid], n = A.cols, s = Math.min(w / A.cw, h / A.ch), cx = x + w / 2, by = y + (h + A.ch * s) / 2;
+  ctx.imageSmoothingEnabled = true;
+  const a = reducedMotion.matches ? 1 : Math.min(1, fade / 1.2);
+  if (a < 1 && k > 0) drawFrame(aid, Math.min(n - 1, k - 1), cx, by, 1, 1, s);
+  drawFrame(aid, Math.min(n - 1, k), cx, by, 1, a, s);
+  ctx.globalAlpha = 1; ctx.imageSmoothingEnabled = false;
+}
 function speakMem() { const v = MEMS.view, M = MEM_BY_ID[v.id]; if (OPT.voice) voice.say(M.lines[v.i], true); }
 SCREENS.memories = {
   update() {
@@ -437,30 +449,31 @@ SCREENS.memories = {
 };
 SCREENS.memview = {
   update(rdt) {
-    const v = MEMS.view, M = MEM_BY_ID[v.id]; v.t += rdt;
+    const v = MEMS.view, M = MEM_BY_ID[v.id]; v.t += rdt; v.fade += rdt;
     const end = () => { SAVE.memSeen[v.id] = 1; saveGame(); voice.stop(); MEMS.view = null; state = v.auto ? "hub" : "memories"; audio.sfx("back"); };
     if (hit("Escape", "GB")) { end(); return; }
     if (hit("Enter", "Space", "NumpadEnter", "Mouse0", "GA", "GStart", "TJump", "TAtk", ...K.attack)) {
       if (v.t * 35 < M.lines[v.i].length) v.t = 99;
-      else if (v.i + 1 < M.lines.length) { v.i++; v.t = 0; audio.sfx("page"); speakMem(); }
+      else if (v.i + 1 < M.lines.length) { v.i++; v.t = 0; v.fade = 0; audio.sfx("page"); speakMem(); }
       else end();
     }
   },
   draw() {
     const v = MEMS.view, M = MEM_BY_ID[v.id], idx = MEMORIES.indexOf(M);
     R(0, 0, VW, VH, "#0a0618");
-    const fx = 60, fy = 22, fw = 360, fh = 170;
+    const aid = "souvenir_" + (idx + 1), art = ATL[aid];
+    const fx = art ? 72 : 60, fy = art ? 18 : 22, fw = art ? 336 : 360, fh = art ? 189 : 170;   // image fournie : 16/9 (une vue par phrase)
     ctx.save(); ctx.beginPath(); ctx.rect(fx, fy, fw, fh); ctx.clip();
-    const aid = "souvenir_" + (idx + 1);
-    if (hasAtlas(aid)) { R(fx, fy, fw, fh, "#0a0618"); drawFrame(aid, 0, fx + fw / 2, fy + fh, 1, 1, Math.min(fw / ATL[aid].cw, fh / ATL[aid].ch)); }
-    else drawMemScene(M.scene, fx, fy, fw, fh, v.t + v.i * 3);
-    // teinte « vieux souvenir »
-    ctx.fillStyle = "rgba(120,60,160,0.16)"; ctx.fillRect(fx, fy, fw, fh);
+    if (art) { R(fx, fy, fw, fh, "#0a0618"); if (atlasImg(aid)) drawMemoryArt(aid, v.i, v.fade, fx, fy, fw, fh); else text("…", fx + fw / 2, fy + fh / 2, 12, "#b9a6e0", "center"); }
+    else {
+      drawMemScene(M.scene, fx, fy, fw, fh, v.t + v.i * 3);
+      ctx.fillStyle = "rgba(120,60,160,0.16)"; ctx.fillRect(fx, fy, fw, fh);   // teinte « vieux souvenir »
+    }
     ctx.restore();
     ctx.strokeStyle = "#ff8ab0"; ctx.lineWidth = 2; ctx.strokeRect(fx - 1, fy - 1, fw + 2, fh + 2);
     text(`Souvenir ${idx + 1} : ${M.title}`, VW / 2, 12, 9, "#ff8ab0", "center");
     const s = M.lines[v.i].slice(0, Math.floor(v.t * 35));
-    wrapText(s, VW - 60, 9).forEach((l, i) => text(l, VW / 2, 210 + i * 13, 9, "#ffffff", "center"));
+    wrapText(s, VW - 60, 9).forEach((l, i) => text(l, VW / 2, (art ? 218 : 210) + i * 13, 9, "#ffffff", "center"));
     text(`${v.i + 1}/${M.lines.length}`, VW - 14, VH - 8, 7, "#b9a6e0", "right");
     text(say("Entrée : suite   Échap : passer", "Touche : suite", "{A} : suite   {B} : passer"), 14, VH - 8, 7, "#b9a6e0");
   },
