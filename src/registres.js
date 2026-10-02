@@ -82,6 +82,26 @@ const STORY = {
 // Une mécanique = { id, monde, intro (salle qui l'introduit), params } ; le moteur les lira dans buildRoom().
 const WORLD_MECHANICS = {};
 
+// Armes du râtelier (armes.js). Identifiants stables (sauvegarde : SAVE.weapons). icon : case de armes_icones.png.
+// Tenue en main : a0 = angle de l'arme dans son icône (degrés, 0 = vers la droite, négatif = vers le haut), grip = position de la
+// poignée (part de la demi-longueur, en arrière du centre), len = taille en jeu, carry = angle au repos, aim = angle pour viser.
+// stats : portée, vitesse, force (1 à 3) affichées au râtelier. Le sabre est l'arme de départ ; deux autres sont tirées au
+// hasard dans une nouvelle partie, puis une de plus après chaque boss vaincu.
+const WEAPONS = [
+  { id: "sabre", name: "Sabre lumineux", icon: -1, stats: [2, 2, 2], desc: "L'arme de départ. Renvoie les tirs des ennemis." },
+  { id: "arc", name: "Arc à ventouses", icon: 0, a0: 0, grip: 0, len: 18, carry: 60, aim: 0, stats: [3, 2, 1], desc: "Tire des flèches. Garde le bouton appuyé : flèche chargée qui traverse deux ennemis." },
+  { id: "boomerang", name: "Boomerang", icon: 5, a0: 0, grip: 0.3, len: 11, carry: 30, aim: 0, stats: [3, 3, 1], desc: "Fonce tout seul sur l'ennemi le plus proche. Ne revient pas : lance-le encore et encore !" },
+  { id: "lance", name: "Lance en mousse", icon: 1, a0: -40, grip: 0.6, len: 28, carry: -70, aim: 0, stats: [2, 2, 2], desc: "Pique loin devant. En l'air, Bas + coup : rebondis sur les ennemis !" },
+  { id: "pistolet", name: "Pistolet à bulles", icon: 2, a0: 0, grip: 0.1, len: 13, carry: 40, aim: 0, stats: [2, 2, 1], desc: "Enferme les ennemis dans une bulle qui finit par éclater." },
+  { id: "canon", name: "Canon à confettis", icon: 3, a0: -15, grip: 0, len: 17, carry: 20, aim: 0, stats: [2, 1, 3], desc: "Un gros boulet qui éclate en confettis et casse les caisses. Attention au recul !" },
+  { id: "laser", name: "Bâton laser", icon: 4, a0: -35, grip: 0.6, len: 17, carry: -60, aim: 0, stats: [3, 3, 1], desc: "Rayon continu tant que tu appuies. S'il chauffe trop, attends qu'il refroidisse." },
+  { id: "nunchaku", name: "Nunchaku", icon: 6, a0: -55, grip: 0.5, len: 14, carry: 60, aim: 0, stats: [1, 3, 1], desc: "Trois coups très rapides. Renvoie les tirs des ennemis comme le sabre." },
+  { id: "espadon", name: "Espadon", icon: 7, a0: -40, grip: 0.65, len: 24, carry: 40, aim: 0, stats: [2, 1, 3], desc: "Lent mais très fort contre les boss. Le coup lance une onde dorée au sol." },
+  { id: "lancepierre", name: "Lance-pierre", icon: 8, a0: -90, grip: 0.6, len: 12, carry: 0, aim: -90, stats: [2, 2, 1], desc: "Le caillou rebondit sur les murs et le sol." },
+  { id: "maillet", name: "Maillet rigolo", icon: 9, a0: -45, grip: 0.6, len: 20, carry: -70, aim: 0, stats: [1, 1, 3], desc: "Tape le sol : l'onde étourdit les ennemis proches et casse les caisses." },
+];
+const WEAPON_BY_ID = Object.fromEntries(WEAPONS.map(w => [w.id, w]));
+
 /* ---- Cartes ---- */
 // cat : pnj, heros, monstres, boss. world : filtre (id de monde, "laverie" ou "bonus").
 // art : { atlas, frame } (portrait du pack) ou { npc } (portrait dessiné) ou { foe } / { old } (sprite du jeu).

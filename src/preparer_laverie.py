@@ -60,6 +60,7 @@ SPEC = {
     "chaussette_bonus": ("objets/chaussette_bonus.png", 4, 2, 28, 28, "center", {"flotte": [0, 4], "collecte": [4, 4]}, True),
     "objets_quete": ("objets/objets_quete.png", 8, 1, 16, 16, "center", {"play": [0, 8]}, False),
     "fx_vent": ("objets/fx_vent.png", 4, 1, 32, 16, "center", {"play": [0, 4]}, True),
+    "ratelier": (["ratelier.png", "laverie/ratelier.png"], 4, 1, 48, 56, "bottom", {"fermee": [0, 1], "ouverture": [1, 3]}, True),
     "armes_icones": ("armes_icones.png", 5, 2, 32, 32, "center", {"play": [0, 10]}, False),
     "accessoires": ("cosmetiques/accessoires.png", 6, 2, 24, 24, "bottom", {"play": [0, 12]}, False),
     "autocollants_machine": ("cosmetiques/autocollants_machine.png", 6, 1, 16, 16, "center", {"play": [0, 6]}, False),

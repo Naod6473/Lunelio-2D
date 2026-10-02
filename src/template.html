@@ -1260,7 +1260,13 @@ function damageBoss(e, dmg) {
     checkDoor();
   }
 }
-function hitEnemy(e, src, p) {
+// src : "atk" (sabre), "dash", "laser" (tir renvoyé) ou "proj" (arme du râtelier, dégâts dmg)
+function hitEnemy(e, src, p, dmg) {
+  if (src === "proj") {
+    if (e.type === "foe") damageFoe(e, dmg || 1); else if (e.type === "bigboss") damageBig(e, dmg || 1);
+    else if (e.type === "boss") damageBoss(e, dmg || 1); else killEnemy(e);
+    return;
+  }
   if (e.type === "foe" || e.type === "bigboss") {
     // nouvelle campagne : un coup de sabre ou un dash ne touche qu'une fois ; un tir renvoyé fait 2 dégâts
     if (src === "atk") { if (p.hitList.has(e)) return; p.hitList.add(e); audio.sfx("sword_hit"); }
@@ -1354,12 +1360,14 @@ function updatePlayer(p, dt) {
       audio.sfx("dash"); shake = Math.max(shake, 2);
     }
   }
-  if (hit(...I.attack) && p.atkCd <= 0 && p.dashT <= 0) {
+  const wpn = curWeapon(p);   // arme du râtelier (armes.js) : elle remplace le coup de sabre
+  if (wpn.id === "sabre" && hit(...I.attack) && p.atkCd <= 0 && p.dashT <= 0) {
     p.atkT = 0; p.atkCd = 0.34; p.hitList = new Set(); audio.sfx("slash");
     if (dir) p.face = dir;
     if (p.onGround) p.vx += p.face * 90;
   }
   moveBody(p, dt);
+  if (wpn.id !== "sabre") updateWeapon(p, dt, boost);
   if (p.atkT >= 0) {
     p.atkT += dt * boost;
     if (p.atkT > 0.03 && p.atkT < 0.2) {
@@ -1588,6 +1596,7 @@ function updateEnemies(dt) {
 function updateLasers(dt) {
   for (const l of lasers) {
     if (!l.alive) continue;
+    if (l.wpn) { updateWProj(l, dt); continue; }   // tirs des armes du râtelier (armes.js)
     l.x += l.vx * dt;
     if (l.g) l.vy += l.g * dt;
     if (l.vy) l.y += l.vy * dt;
@@ -1714,7 +1723,9 @@ function drawSprite(id, frame, x, y, face, scale = 1, alpha = 1) {
   else { ctx.save(); ctx.translate(x + 48 * scale, y); ctx.scale(-1, 1); ctx.drawImage(img, sx0, sy0, 48, 48, 0, 0, 48 * scale, 48 * scale); ctx.restore(); }
   ctx.globalAlpha = 1;
 }
-function playerFrame(p) {
+// Image du héros ; avec une arme du râtelier, les poses mains libres (weaponFrame, armes.js)
+function playerFrame(p) { const fr = basePlayerFrame(p); return curWeapon(p).id !== "sabre" ? weaponFrame(p, fr) : fr; }
+function basePlayerFrame(p) {
   const C = ch();
   if (p.dashT > 0) return 24 + (Math.floor(time * 20) % 2);
   if (p.djT > 0) {   // double saut : pirouette de la ligne spéciale si la planche en a une (4 images), sinon la pose de saut
@@ -1740,6 +1751,7 @@ function drawPlayer(p) {
   const fr = playerFrame(p), x = p.x + 5, y = p.y + p.h, a = hidden(p) ? 0.35 + 0.1 * Math.sin(time * 12) : 1;
   if (p.dashT > 0) for (let i = 1; i <= 3; i++) drawChar(p.C, fr, x - p.face * i * 9, y, p.face, 1, 0.18 * (4 - i) * a);
   drawChar(p.C, fr, x, y, p.face, 1, a);
+  drawHeldWeapon(p, fr, x, y, a);
   if (p.powerOn && powerOf(p.C) && powerOf(p.C).shield) drawFrame("fx_bouclier", animFrame("fx_bouclier", "play", time, 8), x, p.y + 16, 1, 0.8, 0.9);
 }
 // Robots de l'ancienne aventure : planche fournie (robot_marcheur, robot_canon, drone_ancien, voir preparer_laverie.py) si elle
@@ -1904,12 +1916,14 @@ function drawWorld() {
       for (let i = 0; i < l.w; i += 2) R(x + i, y + l.h - 2 - Math.abs(Math.sin(time * 30 + i)) * (l.h - 2), 2, 2 + Math.abs(Math.sin(time * 30 + i)) * (l.h - 2), i % 4 ? "#ffffff" : "#9fb0d8");
       continue;
     }
+    if (l.wpn) { drawWProj(l); continue; }
     const col = l.owner === "player" ? (l.color || ch().color) : "#ff2d6a";
     ctx.globalAlpha = 0.35; R(l.x - 2, l.y - 2, l.w + 4, l.h + 4, col); ctx.globalAlpha = 1;
     R(l.x, l.y, l.w, l.h, col); R(l.x + 2, l.y, l.w - 4, 1, "#ffffff");
   }
   if (lvl.blocks) for (const b of lvl.blocks) { if (b.t < 1 && Math.floor(time * 10) % 2) continue; R(b.x, b.y, b.w, b.h, "#0e0a1a"); R(b.x + 1, b.y + 1, b.w - 2, b.h - 2, "#8a5a2a"); R(b.x + 1, b.y + 1, b.w - 2, 4, "#4fbf3a"); }
   for (const e of enemies) if (e.alive && e.stunT > 0) stunStars(e);
+  drawBubbled();
   drawGhosts(); for (const p of players) drawPlayer(p);
   for (const q of parts) { ctx.globalAlpha = Math.min(1, q.life / q.max * 1.5); R(Math.round(q.x), Math.round(q.y), q.size, q.size, q.color); }
   ctx.globalAlpha = 1;

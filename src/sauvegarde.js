@@ -15,7 +15,20 @@ function newSave() {
     flags: {}, got: {}, quests: {}, chal: {}, memSeen: {}, repaired: {},
     cos: { char: {}, machine: null, hub: { tile: "tile_damier", light: "light_blanc", sign: "sign_violet", items: {}, show: {} } },
     jukebox: null, lastChar: null,
+    weapons: { owned: randomWeapons(2), eq: {} },            // armes du râtelier : possédées, et arme choisie par héros
   };
+}
+// n armes tirées au hasard parmi celles qu'on n'a pas encore (le sabre est toujours là)
+function randomWeapons(n, owned = {}) {
+  const left = WEAPONS.filter(w => w.id !== "sabre" && !owned[w.id]).map(w => w.id), o = {};
+  for (let i = 0; i < n && left.length; i++) o[left.splice(Math.floor(Math.random() * left.length), 1)[0]] = 1;
+  return o;
+}
+// Après un boss vaincu : une nouvelle arme au hasard (tant qu'il en reste)
+function weaponReward(silent) {
+  const got = randomWeapons(1, SAVE.weapons.owned), id = Object.keys(got)[0]; if (!id) return;
+  SAVE.weapons.owned[id] = 1;
+  if (!silent) toast("Nouvelle arme !", WEAPON_BY_ID[id].name + " · au râtelier", "equip", "#ffb43c");
 }
 let SAVE = newSave();
 function saveGame() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) {} }
@@ -32,6 +45,8 @@ function loadGame() {
   try { o = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); } catch (e) { o = null; }
   if (o && typeof o === "object" && o.v >= 3) { SAVE = fillSave(o); }
   else { SAVE = migrateOld(); saveGame(); }
+  // armes : une partie commencée avant le râtelier reçoit une arme de plus par boss déjà vaincu
+  if (!SAVE.flags.armes) { SAVE.flags.armes = 1; for (let i = 0; i < Object.keys(SAVE.seen.boss).length + Object.keys(SAVE.seen.oldBoss).length; i++) weaponReward(true); saveGame(); }
   checkUnlocks(true);
 }
 // Relit les sauvegardes des versions précédentes (par personnage) et les fusionne : le meilleur de chaque héros est gardé.
@@ -68,7 +83,7 @@ function migrateOld() {
   return S;
 }
 // Remet tout à zéro (écran des options, avec confirmation) : les réglages ne bougent pas
-function resetGame() { SAVE = newSave(); saveGame(); checkUnlocks(true); }
+function resetGame() { SAVE = newSave(); SAVE.flags.armes = 1; saveGame(); checkUnlocks(true); }
 
 /* ---- Compteurs ---- */
 const SOCK_ROOMS = Object.keys(AJOUTS.socks || {});
@@ -179,8 +194,8 @@ function emit(type, d = {}) {
     case "foe": if (S.seen.foe[d.sp]) return; S.seen.foe[d.sp] = 1; break;
     case "oldFoe": if (S.seen.oldFoe[d.type]) return; S.seen.oldFoe[d.type] = 1; break;
     case "phase": if ((S.seen.phase[d.id] || 0) >= d.n) return; S.seen.phase[d.id] = d.n; break;
-    case "boss": S.seen.boss[d.id] = 1; if (d.noDamage) S.flags.noDamageBoss = 1; if (d.doom) S.flags.doomBoss = 1; break;
-    case "oldBoss": S.seen.oldBoss[d.wid] = 1; if (d.doom) S.flags.doomBoss = 1; break;
+    case "boss": S.seen.boss[d.id] = 1; if (d.noDamage) S.flags.noDamageBoss = 1; if (d.doom) S.flags.doomBoss = 1; weaponReward(); break;
+    case "oldBoss": S.seen.oldBoss[d.wid] = 1; if (d.doom) S.flags.doomBoss = 1; weaponReward(); break;
     case "roomDone": S.camp.rooms[d.room] = 1; S.seen.char[d.char] = 1; if (d.doom) S.flags.doomRoom = 1; break;
     case "worldDone": S.camp.done = Math.max(S.camp.done, d.wi + 1); break;
     case "bonusDone": S.bonus.done = Math.max(S.bonus.done, d.wi + 1); break;

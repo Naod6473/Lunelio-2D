@@ -1275,6 +1275,7 @@ function drawCampPlayer(p) {
   const fr = playerFrame(p), x = p.x + 5, y = p.y + p.h;
   if (p.dashT > 0) for (let i = 1; i <= 3; i++) drawChar(p.C, fr, x - p.face * i * 9, y, p.face, 1, 0.18 * (4 - i) * a);
   drawChar(p.C, fr, x, y, p.face, 1, a);
+  drawHeldWeapon(p, fr, x, y, a);
   drawSlash(p);
   if (p.powerOn && powerOf(p.C) && powerOf(p.C).shield) drawFrame("fx_bouclier", animFrame("fx_bouclier", "play", time, 8), x, p.y + 16, 1, 0.8, 0.9);
 }
@@ -1294,8 +1295,9 @@ function drawCampWorld() {
       const x = Math.round(l.x), y = Math.round(l.y);
       ctx.globalAlpha = 0.35; R(x - 2, y - 2, l.w + 4, l.h + 2, "#c0c8e0"); ctx.globalAlpha = 1;
       for (let i = 0; i < l.w; i += 2) R(x + i, y + l.h - 2 - Math.abs(Math.sin(time * 30 + i)) * (l.h - 2), 2, 2 + Math.abs(Math.sin(time * 30 + i)) * (l.h - 2), i % 4 ? "#ffffff" : "#9fb0d8");
-    } else drawCampProjectile(l);
+    } else if (l.wpn) drawWProj(l); else drawCampProjectile(l);
   }
+  drawBubbled();
   drawGhosts(); for (const p of players) drawCampPlayer(p);
   drawCovers();
   drawArenaFx();

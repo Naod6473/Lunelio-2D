@@ -31,6 +31,7 @@ const STATIONS = [
   { id: "bulle", room: "salle", x: 618, w: 22, h: 38, label: "Mme Bulle", npc: "bulle" },
   { id: "jukebox", room: "salle", x: 770, fy: 101, w: 44, h: 56, art: true, label: "Jukebox", open: () => openJukebox() },
   { id: "defis", room: "chaussettes", x: 139, w: 96, h: 120, art: true, label: "Programmes de lavage", need: { world: 1 }, lockText: "Termine la centrale pour allumer ces machines", open: () => openChallenges() },
+  { id: "ratelier", room: "chaussettes", x: 540, w: 44, h: 56, label: "Râtelier d'armes", open: () => openArmory() },
   { id: "tas", room: "chaussettes", x: 340, w: 110, h: 100, label: "Tas de chaussettes", open: () => { ALB.tab = 2; openAlbum(); } },
   { id: "souvenirs", room: "trophees", x: 45, w: 50, h: 100, art: true, label: "Portail des souvenirs", need: { memories: 1 }, lockText: "Ramène une pièce de la machine pour réveiller ses souvenirs", open: () => openMemories() },
   ...PEDESTALS.map((x, i) => ({ id: "vitrine" + i, room: "trophees", x, w: 40, h: 90, art: true, world: i, label: CWORLDS[i].name,
@@ -361,9 +362,9 @@ function drawStation(s) {
     return;
   }
   ctx.save(); if (!on) ctx.globalAlpha = 0.45;
-  const A = { armoire: "armoire", album: "album_lutrin", jukebox: "jukebox", defis: "machine_defis" }[s.id];
+  const A = { armoire: "armoire", album: "album_lutrin", jukebox: "jukebox", defis: "machine_defis", ratelier: "ratelier" }[s.id];
   if (A && hasAtlas(A)) {
-    const an = s.id === "jukebox" ? (SAVE.jukebox ? "musique" : "repos") : s.id === "defis" ? (on ? "marche" : "repos") : near ? "ouverture" : (s.id === "armoire" ? "fermee" : "ferme");
+    const an = s.id === "jukebox" ? (SAVE.jukebox ? "musique" : "repos") : s.id === "defis" ? (on ? "marche" : "repos") : near ? "ouverture" : (ATL[A].anims.fermee ? "fermee" : "ferme");
     drawFrame(A, animFrame(A, an, time, 6, an !== "ouverture"), x, by);
     ctx.restore(); if (near && on) { ctx.globalAlpha = 0.25 + 0.15 * Math.sin(time * 6); R(x - s.w / 2, by - 1, s.w, 2, "#7dffb0"); ctx.globalAlpha = 1; }
     return;
@@ -398,6 +399,14 @@ function drawStation(s) {
       break;
     }
     case "machine": drawHubMachine(x, by); break;
+    case "ratelier": {
+      // provisoire (en attendant ratelier.png) : armoire en bois, les armes gagnées accrochées dedans
+      R(x - 22, by - 56, 44, 56, "#0e0a1a"); R(x - 21, by - 55, 42, 54, "#6a3a8a"); R(x - 18, by - 52, 36, 46, "#2a1a3a");
+      for (let i = 0; i < 3; i++) R(x - 18, by - 38 + i * 14, 36, 1, "#8a5a3a");
+      WEAPONS.filter(w => w.icon >= 0 && SAVE.weapons.owned[w.id]).forEach((w, i) => { if (hasAtlas("armes_icones")) drawFrame("armes_icones", w.icon, x - 12 + (i % 3) * 12, by - 45 + Math.floor(i / 3) * 14, 1, 1, 0.32); });
+      R(x - 21, by - 4, 42, 3, "#4a2a6a"); if (near) { ctx.globalAlpha = 0.3; R(x - 21, by - 55, 42, 54, "#ffb43c"); ctx.globalAlpha = 1; }
+      break;
+    }
     case "defis": {
       const sh = on ? Math.round(Math.sin(time * 30) * 0.6) : 0;
       R(x - 20 + sh, by - 50, 40, 50, "#0e0a1a"); R(x - 19 + sh, by - 49, 38, 48, "#d8dce8"); R(x - 19 + sh, by - 49, 38, 10, "#a8b0c8");
