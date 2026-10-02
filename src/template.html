@@ -759,7 +759,9 @@ function musicKey() {
   const P = audio.playlists, L = k => P[k] || [];
   const doom = df().id === "doom";
   if (state === "chars") return charMusic(CHARS[charSel]);
-  if (state === "dahaka") return pickList(audio.list("dahaka", "musique/bonus/dahaka"), 0) || pickList(audio.list("boss:maitre_ombres", "musique/boss/maitre_ombres"), 0) || "synth:boss";
+  if (state === "dahaka") return DK.lv === "grotte"
+    ? pickList(audio.list("dahaka_grotte", "musique/bonus/dahaka_grotte"), 0) || pickList(audio.list("boss:reine_chauve_souris", "musique/boss/reine_chauve_souris"), 0) || "synth:boss"
+    : pickList(audio.list("dahaka", "musique/bonus/dahaka"), 0) || pickList(audio.list("boss:maitre_ombres", "musique/boss/maitre_ombres"), 0) || "synth:boss";
   if (typeof screenMusic === "function") { const m = screenMusic(); if (m !== undefined) return m; }   // laverie, souvenirs, fin, défis
   const inRoom = ["play", "clear", "worldclear", "pause"].includes(state) || (optFrom === "pause" && (state === "options" || state === "keys"));
   if (inRoom && lvl && lvl.json) return campMusic();
@@ -2095,10 +2097,10 @@ function drawWorlds() {
 let bonusThumb = null, bonusThumbFor = null;
 const SECRET_CARD = () => SAVE.flags.dahaka ? CWORLDS.length + 1 : -1;   // carte du niveau secret, une fois le mot de passe trouvé
 function updateCampWorlds() {
-  if (dahakaType()) return;
+  if (dkPickUpdate() || dahakaType()) return;
   const prog = campProgress(), n = CWORLDS.length + (SAVE.flags.dahaka ? 2 : 1);
   const open = i => i >= CWORLDS.length || i <= prog;
-  const go = i => { if (i === SECRET_CARD()) { audio.sfx("select"); startDahaka(); } else if (i === CWORLDS.length) { mode = "bonus"; audio.sfx("select"); openWorlds(); } else startCampWorld(i); };
+  const go = i => { if (i === SECRET_CARD()) openDkPick(); else if (i === CWORLDS.length) { mode = "bonus"; audio.sfx("select"); openWorlds(); } else startCampWorld(i); };
   if (hit("Escape", "GB") || (hit("Mouse0") && inside({ x: 8, y: 6, w: 50, h: 20 }))) { audio.sfx("back"); enterHub({ x: 380 }); return; }
   if ((keys.ShiftLeft || keys.ShiftRight) && hit("KeyD")) { setCampProgress(CWORLDS.length); msg = { text: "Tous les mondes sont débloqués", t: 2 }; audio.sfx("door"); }
   if (hit(...K.left)) { worldSel = (worldSel + n - 1) % n; audio.sfx("select"); }
@@ -2126,8 +2128,7 @@ function drawCampWorlds() {
     if (locked) { R(r.x + 4, r.y + 4, tw, th, "rgba(10,6,24,0.75)"); text("Verrouillé", r.x + r.w / 2, r.y + 30, 8, "#8a7aa8", "center"); }
     if (secret) {
       text("✦ Niveau secret", r.x + 5, r.y + r.h - 22, 8, "#c86eff");
-      const b = (SAVE.dahaka.best || {})[df().id];
-      text(b ? `La course du Dahaka · ${b} m` : "La course du Dahaka", r.x + 5, r.y + r.h - 10, 6, "#b9a6e0");
+      text("La course du Dahaka (2 parcours)", r.x + 5, r.y + r.h - 10, 6, "#b9a6e0");
     } else if (bonus) {
       text("★ Monde bonus", r.x + 5, r.y + r.h - 22, 8, "#fccc28");
       text("Ancienne aventure (8 mondes)", r.x + 5, r.y + r.h - 10, 6, "#b9a6e0");
@@ -2148,6 +2149,7 @@ function drawCampWorlds() {
   text(lockedSel ? "Termine le monde précédent pour débloquer celui-ci" : say("Flèches pour choisir, Entrée pour partir, Échap : laverie", "Touche un monde, puis touche-le encore pour partir", "Croix pour choisir, {A} pour partir, {B} : laverie"), VW / 2, 254, 8, lockedSel ? "#ff8ab0" : "#b9a6e0", "center");
   drawBackBtn("◀ Laverie");
   if (msg && msg.t > 0) text(msg.text, VW / 2, 244, 9, "#7dffb0", "center");
+  drawDkPick();
 }
 function updateMenu() {
   if (hit(...K.up, ...K.left)) { diffIdx = Math.max(0, diffIdx - 1); audio.sfx("select"); }

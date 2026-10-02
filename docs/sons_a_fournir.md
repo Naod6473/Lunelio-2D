@@ -83,7 +83,7 @@ audio/
 │   │   ├── chanson_capitaine.mp3      récompense de la quête du Capitaine Barbe-Mouillée
 │   │   ├── danse_bobine.mp3           récompense de la quête de Bobine (robot, électro rigolote)
 │   │   └── ombres_kage.mp3            récompense de la quête de Kage (calme, flûte)
-│   └── bonus/                         facultatif : ancienne aventure, une piste par monde ; dahaka.mp3 : niveau secret (sinon la musique du Maître des ombres)
+│   └── bonus/                         facultatif : ancienne aventure, une piste par monde ; dahaka.mp3 et dahaka_grotte.mp3 : niveau secret, temple et grotte (sinon la musique du Maître des ombres ou de la Reine chauve-souris)
 │       └── bar.mp3, immeuble.mp3, ruelle.mp3, cinema.mp3, avion.mp3, parking.mp3, metro.mp3, labo.mp3
 │
 ├── jingles/

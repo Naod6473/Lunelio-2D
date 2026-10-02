@@ -64,6 +64,14 @@ SPEC = {
     # trésors de la collection : une ligne par objet, 4 images animées (de simple à très brillant)
     **{f"tresors_{i}": (f"tresors_{i}.png", 4, 5 if i == 4 else 6, 32, 32, "center", {"play": [0, 4]}, True) for i in range(1, 6)},
     "etagere": ("etagere.png", 1, 1, 64, 72, "bottom", {"play": [0, 1]}, True),
+    # niveau secret du Dahaka, la grotte : scènes (terrain de jeu), cadres de premier plan, cascade, monstres du fond et gardiens du premier plan
+    **{f"grotte_scene_{i}": (f"dahaka_grotte/scene_{i}.png", 1, 1, 480, 272, "bottom", {"play": [0, 1]}, True) for i in range(1, 7)},
+    **{f"grotte_avant_{i}": (f"dahaka_grotte/avant_{i}.png", 1, 1, 480, 272, "bottom", {"play": [0, 1]}, True) for i in range(1, 5)},
+    "grotte_cascade": ("dahaka_grotte/cascade.png", 2, 1, 112, 184, "bottom", {"play": [0, 2]}, True),
+    "grotte_lezard": ("dahaka_grotte/fond_lezard.png", 3, 1, 52, 24, "feet", {"play": [0, 3]}, True),
+    "grotte_golem": ("dahaka_grotte/fond_golem.png", 3, 1, 36, 36, "feet", {"play": [0, 3]}, True),
+    "grotte_chauvesouris": ("dahaka_grotte/fond_chauvesouris.png", 3, 1, 44, 32, "center", {"play": [0, 3]}, True),
+    "grotte_gardiens": ("dahaka_grotte/gardiens.png", 5, 3, 60, 56, "feet", {"cristal": [0, 5], "spectre": [5, 5], "champignon": [10, 5]}, True),
     "armes_icones": ("armes_icones.png", 5, 2, 32, 32, "center", {"play": [0, 10]}, False),
     "accessoires": ("cosmetiques/accessoires.png", 6, 2, 24, 24, "bottom", {"play": [0, 12]}, False),
     "autocollants_machine": ("cosmetiques/autocollants_machine.png", 6, 1, 16, 16, "center", {"play": [0, 6]}, False),
@@ -72,7 +80,10 @@ SPEC = {
 }
 
 # hauteur visée et images de référence pour l'échelle commune (la chaussette se mesure sans les étincelles de la collecte)
-FIT = {"robot_marcheur": (24, None), "robot_canon": (24, None), "drone_ancien": (14, None), "chaussette": (22, [0, 1, 2, 3]), "chaussette_bonus": (22, [0, 1, 2, 3]), "tas_chaussettes": (100, None), "trophees": (32, None), "portes_laverie": (56, None)}
+FIT = {"grotte_cascade": (180, None), "grotte_lezard": (20, None), "grotte_golem": (32, None), "grotte_chauvesouris": (26, None), "grotte_gardiens": (50, None), "robot_marcheur": (24, None), "robot_canon": (24, None), "drone_ancien": (14, None), "chaussette": (22, [0, 1, 2, 3]), "chaussette_bonus": (22, [0, 1, 2, 3]), "tas_chaussettes": (100, None), "trophees": (32, None), "portes_laverie": (56, None)}
+
+# lignes d'une planche aux hauteurs inégales (y début, y fin dans l'image source), au lieu de parts égales
+ROWS = {"grotte_gardiens": [(14, 300), (300, 646), (646, 1000)]}
 
 for _n in NPCS: FIT["pnj_" + _n] = (38, None)   # clients : environ 38 px de haut, comme les héros
 
@@ -120,8 +131,9 @@ def prepare(name, spec):
     im = unmagenta(Image.open(full))
     W, H = im.size
     sw, sh = W / cols, H / rows
-    cells = [im.crop((round(c * sw), round(r * sh), round((c + 1) * sw), round((r + 1) * sh))) for r in range(rows) for c in range(cols)]
-    if name.startswith("tresors_"): cells = [drop_edge_bits(c) for c in cells]
+    ys = ROWS.get(name) or [(round(r * sh), round((r + 1) * sh)) for r in range(rows)]
+    cells = [im.crop((round(c * sw), y0, round((c + 1) * sw), y1)) for y0, y1 in ys for c in range(cols)]
+    if name.startswith(("tresors_", "grotte_")) and cw < 200: cells = [drop_edge_bits(c) for c in cells]
     boxes = [bbox(c) for c in cells]
     if cw >= 200:   # fond ou illustration : on garde toute l'image, réduite à la bonne taille
         crops = [c.resize((cw, ch), Image.BOX) for c in cells]
@@ -254,6 +266,19 @@ def prepare_dahaka():
     sheet.save(os.path.join(OUT, "dahaka.png"), optimize=True)
     return {"src": "assets/laverie/dahaka.png", "cw": cw, "ch": ch, "ax": ax, "ay": ay, "cols": cols, "anims": DAHAKA_ANIMS, "note": "Dahaka (niveau secret)"}
 
+def fade_foreground():
+    """Cadres de premier plan de la grotte : en bas (sous y = 150), seuls les bords gauche et droit restent, fondus vers le milieu."""
+    for i in range(1, 5):
+        f = os.path.join(OUT, f"grotte_avant_{i}.webp")
+        if not os.path.exists(f): continue
+        im = Image.open(f).convert("RGBA"); px = im.load(); w, h = im.size
+        for y in range(150, h):
+            for x in range(w):
+                d = min(x, w - 1 - x)                       # distance au bord
+                k = 1 if d < 56 else max(0, 1 - (d - 56) / 40)
+                if k < 1: r, g, b, a = px[x, y]; px[x, y] = (r, g, b, round(a * k))
+        im.save(f, lossless=True, quality=100, method=6)
+
 def main():
     atlas, missing = {}, []
     d = prepare_dahaka()
@@ -265,6 +290,7 @@ def main():
         a = prepare(name, spec)
         if a: atlas[name] = a
         else: missing.append(spec[0])
+    fade_foreground()
     json.dump({"atlas": atlas}, open(os.path.join(HERE, "laverie.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print(f"{len(atlas)} planches prêtes dans assets/laverie/ ; {len(missing)} images pas encore fournies (dessin provisoire)")
     if "-v" in sys.argv: print("\n".join("  manque : " + m for m in missing))

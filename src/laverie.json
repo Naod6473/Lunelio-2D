@@ -758,6 +758,239 @@
    },
    "note": "laverie : etagere.png"
   },
+  "grotte_scene_1": {
+   "src": "assets/laverie/grotte_scene_1.webp",
+   "cw": 480,
+   "ch": 272,
+   "ax": 240,
+   "ay": 272,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : dahaka_grotte/scene_1.png"
+  },
+  "grotte_scene_2": {
+   "src": "assets/laverie/grotte_scene_2.webp",
+   "cw": 480,
+   "ch": 272,
+   "ax": 240,
+   "ay": 272,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : dahaka_grotte/scene_2.png"
+  },
+  "grotte_scene_3": {
+   "src": "assets/laverie/grotte_scene_3.webp",
+   "cw": 480,
+   "ch": 272,
+   "ax": 240,
+   "ay": 272,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : dahaka_grotte/scene_3.png"
+  },
+  "grotte_scene_4": {
+   "src": "assets/laverie/grotte_scene_4.webp",
+   "cw": 480,
+   "ch": 272,
+   "ax": 240,
+   "ay": 272,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : dahaka_grotte/scene_4.png"
+  },
+  "grotte_scene_5": {
+   "src": "assets/laverie/grotte_scene_5.webp",
+   "cw": 480,
+   "ch": 272,
+   "ax": 240,
+   "ay": 272,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : dahaka_grotte/scene_5.png"
+  },
+  "grotte_scene_6": {
+   "src": "assets/laverie/grotte_scene_6.webp",
+   "cw": 480,
+   "ch": 272,
+   "ax": 240,
+   "ay": 272,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : dahaka_grotte/scene_6.png"
+  },
+  "grotte_avant_1": {
+   "src": "assets/laverie/grotte_avant_1.webp",
+   "cw": 480,
+   "ch": 272,
+   "ax": 240,
+   "ay": 272,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : dahaka_grotte/avant_1.png"
+  },
+  "grotte_avant_2": {
+   "src": "assets/laverie/grotte_avant_2.webp",
+   "cw": 480,
+   "ch": 272,
+   "ax": 240,
+   "ay": 272,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : dahaka_grotte/avant_2.png"
+  },
+  "grotte_avant_3": {
+   "src": "assets/laverie/grotte_avant_3.webp",
+   "cw": 480,
+   "ch": 272,
+   "ax": 240,
+   "ay": 272,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : dahaka_grotte/avant_3.png"
+  },
+  "grotte_avant_4": {
+   "src": "assets/laverie/grotte_avant_4.webp",
+   "cw": 480,
+   "ch": 272,
+   "ax": 240,
+   "ay": 272,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : dahaka_grotte/avant_4.png"
+  },
+  "grotte_cascade": {
+   "src": "assets/laverie/grotte_cascade.png",
+   "cw": 112,
+   "ch": 184,
+   "ax": 56,
+   "ay": 184,
+   "cols": 2,
+   "anims": {
+    "play": [
+     0,
+     2
+    ]
+   },
+   "note": "laverie : dahaka_grotte/cascade.png"
+  },
+  "grotte_lezard": {
+   "src": "assets/laverie/grotte_lezard.png",
+   "cw": 52,
+   "ch": 24,
+   "ax": 26,
+   "ay": 24,
+   "cols": 3,
+   "anims": {
+    "play": [
+     0,
+     3
+    ]
+   },
+   "note": "laverie : dahaka_grotte/fond_lezard.png"
+  },
+  "grotte_golem": {
+   "src": "assets/laverie/grotte_golem.png",
+   "cw": 36,
+   "ch": 36,
+   "ax": 18,
+   "ay": 36,
+   "cols": 3,
+   "anims": {
+    "play": [
+     0,
+     3
+    ]
+   },
+   "note": "laverie : dahaka_grotte/fond_golem.png"
+  },
+  "grotte_chauvesouris": {
+   "src": "assets/laverie/grotte_chauvesouris.png",
+   "cw": 44,
+   "ch": 32,
+   "ax": 22,
+   "ay": 16,
+   "cols": 3,
+   "anims": {
+    "play": [
+     0,
+     3
+    ]
+   },
+   "note": "laverie : dahaka_grotte/fond_chauvesouris.png"
+  },
+  "grotte_gardiens": {
+   "src": "assets/laverie/grotte_gardiens.png",
+   "cw": 60,
+   "ch": 56,
+   "ax": 30,
+   "ay": 56,
+   "cols": 5,
+   "anims": {
+    "cristal": [
+     0,
+     5
+    ],
+    "spectre": [
+     5,
+     5
+    ],
+    "champignon": [
+     10,
+     5
+    ]
+   },
+   "note": "laverie : dahaka_grotte/gardiens.png"
+  },
   "armes_icones": {
    "src": "assets/laverie/armes_icones.png",
    "cw": 32,

@@ -51,7 +51,7 @@ Les boss changent de comportement à chaque phase : en P1 ils attaquent posémen
 
 Chaque monde de l'ancienne aventure compte trois salles puis un combat de boss. Des cœurs à ramasser sont cachés dans certaines salles.
 
-**Niveau secret — La course du Dahaka** : sur l'écran des mondes, taper le mot de passe `DAHAKA` au clavier fait apparaître une carte de plus. Le Dahaka, gardien invincible du temps, poursuit le héros dans un temple sans fin : il faut courir, sauter de plateforme en plateforme et éviter les lames le plus longtemps possible. Tomber dans un trou ou toucher une lame ne fait pas perdre de cœur, mais ralentit… et le Dahaka se rapproche. Le score est la distance parcourue en mètres, avec un record par difficulté.
+**Niveau secret — La course du Dahaka** : sur l'écran des mondes, taper le mot de passe `DAHAKA` au clavier fait apparaître une carte de plus. Le Dahaka, gardien invincible du temps, poursuit le héros dans un parcours sans fin, au choix : le **temple** (lames qui sortent du sol) ou la **grotte** (six scènes qui s'enchaînent au hasard, corniches et rochers où sauter, cristaux, cascades, monstres qui passent au loin et gardiens qui regardent la course au premier plan). Il faut courir, sauter de plateforme en plateforme et éviter les pièges le plus longtemps possible. Tomber dans un trou ou toucher un piège ne fait pas perdre de cœur, mais ralentit… et le Dahaka se rapproche. Le score est la distance parcourue en mètres, avec un record par difficulté et par parcours.
 
 ## La laverie
 
