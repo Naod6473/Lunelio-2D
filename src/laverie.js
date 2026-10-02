@@ -27,7 +27,7 @@ const STATIONS = [
   { id: "armoire", room: "salle", x: 100, w: 34, h: 58, label: "Vestiaire", open: () => openWardrobe() },
   { id: "album", room: "salle", x: 268, w: 30, h: 36, label: "Collections", open: () => openAlbum() },
   { id: "machine", room: "salle", x: 408, w: 56, h: 64, label: "Machine temporelle", open: () => hubToMachine() },
-  { id: "deco", room: "salle", x: 562, w: 30, h: 40, label: "Décoration", open: () => openDeco() },
+  { id: "deco", room: "salle", x: 562, w: 40, h: 54, label: "Décoration", open: () => openDeco() },
   { id: "bulle", room: "salle", x: 618, w: 22, h: 38, label: "Mme Bulle", npc: "bulle" },
   { id: "jukebox", room: "salle", x: 770, fy: 101, w: 44, h: 56, art: true, label: "Jukebox", open: () => openJukebox() },
   { id: "defis", room: "chaussettes", x: 139, w: 96, h: 120, art: true, label: "Programmes de lavage", need: { world: 1 }, lockText: "Termine la centrale pour allumer ces machines", open: () => openChallenges() },
@@ -39,6 +39,7 @@ const STATIONS = [
   { id: "etagere", room: "trophees", x: 107, w: 64, h: 100, label: "Étagère à trésors", open: () => { ALB.tab = 3; ALB.sel = 0; openAlbum(); } },
   { id: "presentoir", room: "trophees", x: 592, w: 34, h: 100, label: "Présentoir à badges", open: () => { ALB.tab = 1; openAlbum(); } },
 ];
+const STATION_OPEN_SFX = { deco: "deco_book" };
 const stationOn = s => !s.need || testCond(s.need);
 // Clients présents : ceux dont la quête est apparue (dans la grande salle)
 const hubNpcs = () => QUESTS.filter(q => testCond(q.appear)).map(q => ({ id: q.npc, room: q.room || "salle", x: q.x, w: 20, h: 38, label: NPCS[q.npc].name, npc: q.npc, quest: q }));
@@ -205,6 +206,8 @@ function updateHub(rdt) {
     const d = Math.abs(p.x + 5 - it.x);
     if (d < Math.max(bd, it.w / 2) && p.onGround && !p.hidden && Math.abs(p.y + p.h - thingFloor(it)) < 6) { bd = d; hub.near = it; }
   }
+  // un poste qui s'ouvre quand on s'approche joue son son d'ouverture (le livre de décoration)
+  if (hub.near !== hub.prevNear) { const sid = hub.near && STATION_OPEN_SFX[hub.near.id]; if (sid && stationOn(hub.near)) audio.sfx(sid); hub.prevNear = hub.near; }
   hub.cool = Math.max(0, (hub.cool || 0) - rdt);   // juste après un dialogue, Entrée ne relance pas un poste
   if (hub.near && hub.cool <= 0 && (hit(...K.jump) || hit("Enter", "NumpadEnter"))) { for (const k of [...K.jump, "Enter", "NumpadEnter"]) delete pressed[k]; p.jumpBuf = 0; hubInteract(hub.near); return; }
   // clic ou toucher sur un poste, un client ou une porte (coordonnées de la pièce : la caméra défile)
@@ -374,7 +377,7 @@ function drawStation(s) {
     return;
   }
   ctx.save(); if (!on) ctx.globalAlpha = 0.45;
-  const A = { armoire: "armoire", album: "album_lutrin", jukebox: "jukebox", defis: "machine_defis", ratelier: "ratelier" }[s.id];
+  const A = { armoire: "armoire", album: "album_lutrin", jukebox: "jukebox", defis: "machine_defis", ratelier: "ratelier", deco: "livre_deco" }[s.id];
   if (A && hasAtlas(A)) {
     const an = s.id === "jukebox" ? (SAVE.jukebox ? "musique" : "repos") : s.id === "defis" ? (on ? "marche" : "repos") : near ? "ouverture" : (ATL[A].anims.fermee ? "fermee" : "ferme");
     drawFrame(A, animFrame(A, an, time, 6, an !== "ouverture"), x, by);

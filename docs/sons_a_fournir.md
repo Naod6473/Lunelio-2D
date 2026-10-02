@@ -171,6 +171,7 @@ audio/
     │   ├── voix_bobine.mp3        bip robotique
     │   ├── voix_kage.mp3          syllabe soufflée
     │   ├── album_page.mp3         page qui tourne
+    │   ├── livre_deco.mp3         livre de décoration qui s'ouvre quand on s'approche (fourni : décorationbook)
     │   ├── armoire.mp3            porte de casier
     │   ├── equiper.mp3            accessoire équipé
     │   └── jukebox_piece.mp3      pièce dans le jukebox

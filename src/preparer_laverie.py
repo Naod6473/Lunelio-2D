@@ -64,6 +64,7 @@ SPEC = {
     # trésors de la collection : une ligne par objet, 4 images animées (de simple à très brillant)
     **{f"tresors_{i}": (f"tresors_{i}.png", 4, 5 if i == 4 else 6, 32, 32, "center", {"play": [0, 4]}, True) for i in range(1, 6)},
     "etagere": ("etagere.png", 1, 1, 64, 72, "bottom", {"play": [0, 1]}, True),
+    "livre_deco": ("livre_deco.png", 2, 1, 52, 56, "feet", {"fermee": [0, 1], "ouverture": [1, 1]}, True),
     # niveau secret du Dahaka, la grotte : scènes (terrain de jeu), cadres de premier plan, cascade, monstres du fond et gardiens du premier plan
     **{f"grotte_scene_{i}": (f"dahaka_grotte/scene_{i}.png", 1, 1, 480, 272, "bottom", {"play": [0, 1]}, True) for i in range(1, 7)},
     **{f"grotte_avant_{i}": (f"dahaka_grotte/avant_{i}.png", 1, 1, 480, 272, "bottom", {"play": [0, 1]}, True) for i in range(1, 5)},
@@ -80,7 +81,7 @@ SPEC = {
 }
 
 # hauteur visée et images de référence pour l'échelle commune (la chaussette se mesure sans les étincelles de la collecte)
-FIT = {"grotte_cascade": (180, None), "grotte_lezard": (20, None), "grotte_golem": (32, None), "grotte_chauvesouris": (26, None), "grotte_gardiens": (50, None), "robot_marcheur": (24, None), "robot_canon": (24, None), "drone_ancien": (14, None), "chaussette": (22, [0, 1, 2, 3]), "chaussette_bonus": (22, [0, 1, 2, 3]), "tas_chaussettes": (100, None), "trophees": (32, None), "portes_laverie": (56, None)}
+FIT = {"livre_deco": (54, None), "grotte_cascade": (180, None), "grotte_lezard": (20, None), "grotte_golem": (32, None), "grotte_chauvesouris": (26, None), "grotte_gardiens": (50, None), "robot_marcheur": (24, None), "robot_canon": (24, None), "drone_ancien": (14, None), "chaussette": (22, [0, 1, 2, 3]), "chaussette_bonus": (22, [0, 1, 2, 3]), "tas_chaussettes": (100, None), "trophees": (32, None), "portes_laverie": (56, None)}
 
 # lignes d'une planche aux hauteurs inégales (y début, y fin dans l'image source), au lieu de parts égales
 ROWS = {"grotte_gardiens": [(14, 300), (300, 646), (646, 1000)]}

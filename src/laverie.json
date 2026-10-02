@@ -758,6 +758,25 @@
    },
    "note": "laverie : etagere.png"
   },
+  "livre_deco": {
+   "src": "assets/laverie/livre_deco.png",
+   "cw": 52,
+   "ch": 56,
+   "ax": 26,
+   "ay": 56,
+   "cols": 2,
+   "anims": {
+    "fermee": [
+     0,
+     1
+    ],
+    "ouverture": [
+     1,
+     1
+    ]
+   },
+   "note": "laverie : livre_deco.png"
+  },
   "grotte_scene_1": {
    "src": "assets/laverie/grotte_scene_1.webp",
    "cw": 480,

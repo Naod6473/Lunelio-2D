@@ -469,7 +469,7 @@ const SFX_FILES = {
   boss_intro: "sfx/boss/intro", bosshit: "sfx/boss/coup_boss", transform: "sfx/boss/transformation", wave: "sfx/boss/onde_choc", boss_defeat: "sfx/boss/defaite",
   zap: "sfx/pieges/electricite", alert: "sfx/pieges/alerte", jet: "sfx/pieges/jet_eau", flames: "sfx/pieges/flammes", break: "sfx/pieges/mur_casse", flag: "sfx/pieges/drapeau",
   door: "sfx/machine/porte", unlock: "sfx/machine/deverrouillage", machine: "sfx/machine/demarrage", drum: "sfx/machine/tambour", spin: "sfx/machine/depart", arrive: "sfx/machine/arrivee", dial: "sfx/machine/programmateur",
-  page: "sfx/laverie/album_page", locker: "sfx/laverie/armoire", equip: "sfx/laverie/equiper", coin: "sfx/laverie/jukebox_piece",
+  page: "sfx/laverie/album_page", locker: "sfx/laverie/armoire", equip: "sfx/laverie/equiper", coin: "sfx/laverie/jukebox_piece", deco_book: "sfx/laverie/livre_deco",
   select: "sfx/interface/deplacer", start: "sfx/interface/valider", back: "sfx/interface/retour", nope: "sfx/interface/refus", pause: "sfx/interface/pause",
   gust_warn: "sfx/defis/bourrasque_alerte", gust: "sfx/defis/bourrasque", tick: "sfx/defis/chrono_tic", chrono_end: "sfx/defis/chrono_fin", slip: "sfx/defis/glissade",
 };
@@ -619,7 +619,7 @@ const audio = {
       case "hurt": this.tone("sawtooth", 300, t, 0.3, 0.25, d, 60); break;
       case "aim": case "alert": this.tone("sine", 1200, t, 0.05, 0.06, d); break;
       case "door": case "flag": this.arp([0, 4, 7, 12], 440, t, 0.07, "square", 0.08, 0.15); break;
-      case "select": case "page": case "dial": this.tone("square", 880, t, 0.06, 0.07, d); break;
+      case "select": case "page": case "deco_book": case "dial": this.tone("square", 880, t, 0.06, 0.07, d); break;
       case "back": this.tone("square", 660, t, 0.06, 0.06, d, 440); break;
       case "pause": this.tone("triangle", 520, t, 0.1, 0.1, d); this.tone("triangle", 390, t + 0.08, 0.12, 0.1, d); break;
       case "start": this.arp([0, 7, 12, 19], 330, t, 0.06, "square", 0.08); break;
