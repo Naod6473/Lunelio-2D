@@ -472,6 +472,9 @@ const SFX_FILES = {
   gust_warn: "sfx/defis/bourrasque_alerte", gust: "sfx/defis/bourrasque", tick: "sfx/defis/chrono_tic", chrono_end: "sfx/defis/chrono_fin", slip: "sfx/defis/glissade",
 };
 const BOSS_IDS = ["roi_slime", "drone_titan", "maitre_ombres", "colosse_lave", "singe_roi_pirate", "reine_chauve_souris"];
+// Variantes d'un bruitage : « deverrouillage », puis « deverrouillage2 », « deverrouillage3 »… tant que les numéros se suivent
+function soundAlts(n) { const a = [n]; for (let i = 2; hasSound(n + i); i++) a.push(n + i); return a; }
+const pickAlt = n => { const a = soundAlts(n); return a[Math.floor(Math.random() * a.length)]; };
 for (const id of BOSS_IDS) { SFX_FILES["sig_" + id] = "sfx/boss/" + id; SFX_FILES["bossdef_" + id] = "sfx/boss/defaite_" + id; }
 for (let i = 1; i <= 5; i++) SFX_FILES["boss_atk" + i] = "sfx/boss/attaque" + i;
 // Attaques des boss : quel son pour quelle action (sfx/boss/attaque1 à 5)
@@ -501,7 +504,7 @@ const audio = {
     const len = c.sampleRate; this.noise = c.createBuffer(1, len, c.sampleRate);
     const d = this.noise.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     // bruitages et jingles présents : chargés tout de suite (ils sont courts)
-    for (const n of [...Object.values(SFX_FILES), ...Object.values(JINGLES)]) if (hasSound(n)) this.load(n);
+    for (const n of [...Object.values(SFX_FILES), ...Object.values(JINGLES)]) if (hasSound(n)) for (const a of soundAlts(n)) this.load(a);
     if (this.wanted) this.playMusic(this.wanted, true);
   },
   // Listes de musiques : base, base2, base3… (les numéros doivent se suivre), d'après AUDIO_LIST
@@ -565,7 +568,8 @@ const audio = {
   },
   // Bruitage ou jingle depuis un fichier s'il existe et qu'il est chargé ; renvoie false sinon (le son synthétisé prend le relais)
   file(name, vol = 1) {
-    const j = JINGLES[name], n = j || SFX_FILES[name]; if (!n || !hasSound(n)) return false;
+    const j = JINGLES[name]; let n = j || SFX_FILES[name]; if (!n || !hasSound(n)) return false;
+    n = pickAlt(n);   // variantes facultatives : nom2, nom3… tirées au hasard
     if (!this.buffers[n]) { this.load(n); return false; }
     const d = this.playBuf(n, vol); if (d && j) this.duck(typeof d === "number" ? d + 0.3 : 2);
     return !!d;

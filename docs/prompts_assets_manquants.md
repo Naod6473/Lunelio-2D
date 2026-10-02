@@ -1,5 +1,7 @@
 # Prompts ChatGPT — assets manquants (octobre 2026)
 
+> **Fournis et intégrés** : 1 à 14, 16 à 21. **Restent** : 15 (`machine_reparations.png`) et 22–23 (souvenirs et fin).
+
 Mode d'emploi : un nouveau fil ChatGPT, le bloc STYLE en premier message, puis une demande par message. Télécharge chaque image en PNG, renomme-la comme indiqué et dépose-la à la racine de `src/assets/pack_laverie/` (les sous-dossiers marchent aussi). Fond magenta uni `#FF00FF`, comme pour Mme Bulle.
 
 ## Récapitulatif

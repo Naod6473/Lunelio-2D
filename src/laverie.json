@@ -166,6 +166,86 @@
    },
    "note": "laverie : drone_ancien.png"
   },
+  "album_lutrin": {
+   "src": "assets/laverie/album_lutrin.png",
+   "cw": 32,
+   "ch": 32,
+   "ax": 16,
+   "ay": 32,
+   "cols": 4,
+   "anims": {
+    "ferme": [
+     0,
+     1
+    ],
+    "ouverture": [
+     1,
+     3
+    ]
+   },
+   "note": "laverie : album_lutrin.png"
+  },
+  "armoire": {
+   "src": "assets/laverie/armoire.png",
+   "cw": 40,
+   "ch": 56,
+   "ax": 20,
+   "ay": 56,
+   "cols": 4,
+   "anims": {
+    "fermee": [
+     0,
+     1
+    ],
+    "ouverture": [
+     1,
+     3
+    ]
+   },
+   "note": "laverie : armoire.png"
+  },
+  "enseigne": {
+   "src": "assets/laverie/enseigne.png",
+   "cw": 96,
+   "ch": 24,
+   "ax": 48,
+   "ay": 12,
+   "cols": 1,
+   "anims": {
+    "allumee": [
+     0,
+     1
+    ],
+    "clignote": [
+     1,
+     1
+    ]
+   },
+   "note": "laverie : enseigne.png"
+  },
+  "bulles_pnj": {
+   "src": "assets/laverie/bulles_pnj.png",
+   "cw": 12,
+   "ch": 12,
+   "ax": 6,
+   "ay": 6,
+   "cols": 2,
+   "anims": {
+    "quete": [
+     0,
+     2
+    ],
+    "parler": [
+     2,
+     2
+    ],
+    "fini": [
+     4,
+     2
+    ]
+   },
+   "note": "laverie : bulles_pnj.png"
+  },
   "pnj_bulle": {
    "src": "assets/laverie/pnj_bulle.png",
    "cw": 48,
@@ -355,6 +435,85 @@
     ]
    },
    "note": "laverie : pnj/portrait_firmin.png"
+  },
+  "illus_monstres": {
+   "src": "assets/laverie/illus_monstres.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 40,
+   "cols": 6,
+   "anims": {
+    "play": [
+     0,
+     6
+    ]
+   },
+   "note": "laverie : illus_monstres.png"
+  },
+  "badges": {
+   "src": "assets/laverie/badges.png",
+   "cw": 16,
+   "ch": 16,
+   "ax": 8,
+   "ay": 8,
+   "cols": 5,
+   "anims": {
+    "play": [
+     0,
+     19
+    ]
+   },
+   "note": "laverie : badges.png"
+  },
+  "chaussette_bonus": {
+   "src": "assets/laverie/chaussette_bonus.png",
+   "cw": 28,
+   "ch": 28,
+   "ax": 14,
+   "ay": 14,
+   "cols": 4,
+   "anims": {
+    "flotte": [
+     0,
+     4
+    ],
+    "collecte": [
+     4,
+     4
+    ]
+   },
+   "note": "laverie : chaussette_bonus.png"
+  },
+  "objets_quete": {
+   "src": "assets/laverie/objets_quete.png",
+   "cw": 16,
+   "ch": 16,
+   "ax": 8,
+   "ay": 8,
+   "cols": 8,
+   "anims": {
+    "play": [
+     0,
+     8
+    ]
+   },
+   "note": "laverie : objets_quete.png"
+  },
+  "accessoires": {
+   "src": "assets/laverie/accessoires.png",
+   "cw": 24,
+   "ch": 24,
+   "ax": 12,
+   "ay": 24,
+   "cols": 6,
+   "anims": {
+    "play": [
+     0,
+     12
+    ]
+   },
+   "note": "laverie : accessoires.png"
   }
  }
 }

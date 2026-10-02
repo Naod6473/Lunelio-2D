@@ -158,7 +158,7 @@ audio/
     │   └── drapeau.mp3            point de sauvegarde touché
     ├── machine/
     │   ├── porte.mp3          ★ porte qui s'ouvre, « door »
-    │   ├── deverrouillage.mp3     cadenas de la porte qui saute (dernier ennemi vaincu), « unlock »
+    │   ├── deverrouillage.mp3 ✓   cadenas de la porte qui saute (dernier ennemi vaincu), « unlock » (deverrouillage2.mp3 ✓ : variante tirée au hasard)
     │   ├── demarrage.mp3      ★ la machine s'allume, « machine »
     │   ├── tambour.mp3            essorage (boucle de 2 s)
     │   ├── depart.mp3         ★ aspiration dans le hublot

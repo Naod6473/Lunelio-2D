@@ -579,9 +579,13 @@ function headOf(aid, frame) {
   return headCache[k] = res;
 }
 // Accessoire de tête (provisoire, dessiné par le code) : hx, hy = haut de la tête, face = sens
+// Image de cosmetiques/accessoires.png (chaque objet remplit sa case de 24 px) : [échelle, bas de l'image sous le haut de la tête, décalage vers l'avant]
+const ACC_FIT = { acc_chapeau_pirate: [0.62, 6, 0], acc_bandana: [0.55, 6, 0], acc_echarpe: [0.5, 20, -2], acc_couronne_slime: [0.45, 3, 0],
+  acc_lunettes: [0.42, 11, 3], acc_bonnet: [0.55, 7, 0], acc_casque: [0.58, 7, 0], acc_bigoudis: [0.48, 4, -1], acc_oreilles: [0.5, 4, 0],
+  acc_fleurs: [0.55, 4, 0], acc_helice: [0.58, 6, 0], acc_bulle: [1, 17, 0] };
 const ACC_ORDER = COSMETICS.filter(c => c.slot === "acc").map(c => c.id);   // même ordre que cosmetiques/accessoires.png
 function drawAccessory(id, hx, hy, face, s = 1, alpha = 1) {
-  if (hasAtlas("accessoires")) { drawFrame("accessoires", ACC_ORDER.indexOf(id), hx, hy + 8 * s, face, alpha, s); return; }
+  if (hasAtlas("accessoires")) { const [k, dy, dx] = ACC_FIT[id] || [0.55, 4, 0]; drawFrame("accessoires", ACC_ORDER.indexOf(id), hx + face * dx * s, hy + dy * s, face, alpha, s * k); return; }
   ctx.save(); ctx.globalAlpha = alpha; ctx.translate(Math.round(hx), Math.round(hy + 3 * s)); ctx.scale(face * s, s);   // un peu enfoncé dans les cheveux
   const O = "#0e0a1a";
   switch (id) {
