@@ -75,6 +75,21 @@ Chaque récompense n'est donnée qu'une fois, même après un rechargement. Les 
 
 Les ennemis ont des variantes tirées au hasard : une nuance proche de leur couleur d'origine et parfois un petit effet (aura, scintillement, ombre, éclat). Seule l'apparence change ; une salle recommencée garde les mêmes ennemis.
 
+## Jouer à deux
+
+Sur l'écran du choix du héros, le joueur 2 rejoint la partie en appuyant sur **Start** d'une manette (la deuxième manette, ou la seule si le joueur 1 joue au clavier), ou sur la touche **2** du clavier. Il choisit son héros avec sa croix (ou les flèches) ; le même héros deux fois, c'est permis. Pour repartir : **Select** sur sa manette, ou de nouveau **2**.
+
+- **Au clavier à deux** : le joueur 1 joue avec ZQSD, Espace, J, K, L et Maj gauche ; le joueur 2 avec les flèches (Haut pour sauter et entrer), **:** ou **.** pour trancher, **!** ou **/** pour le dash, **Maj droite** pour le pouvoir (ou le pavé numérique : 0 sauter, 1 trancher, 2 dash, 3 pouvoir).
+- Une flèche de couleur au-dessus de chaque héros dit qui est qui (1 orange, 2 violet) ; les cœurs du joueur 2 sont en haut à droite, sous ceux du joueur 1.
+- **Bulles** : un héros qui n'a plus de cœur devient une bulle qui suit son copain ; il suffit de courir ou de sauter dedans pour le ramener avec 1 cœur. La salle recommence seulement si les deux sont tombés. En Doom, pas de bulle : la salle recommence dès qu'un héros tombe.
+- À deux : la campagne, l'ancienne aventure, l'église et le boss rush. Les programmes de lavage et la course du Dahaka se jouent seul (joueur 1). Dans la laverie, la caméra suit les deux héros et c'est le joueur 1 qui utilise les objets.
+
+## Boss rush et médailles
+
+Une fois les 6 mondes terminés, la carte **Boss rush** apparaît sur l'écran des mondes : les 6 boss d'affilée, dans leurs arènes. Les cœurs sont gardés d'un boss à l'autre (+1 cœur après chaque victoire) ; perdre fait recommencer le boss en cours avec les cœurs du début de ce combat, sans arrêter le chrono. Le record est gardé par difficulté, en solo et à deux.
+
+**Médailles** : un monde terminé d'une traite, ou le boss rush, rapporte une médaille de bronze, d'argent ou d'or selon le temps (seuils dans `MEDALS`, `registres.js`). La meilleure médaille s'affiche sur la carte du monde. Cinq badges vont avec : Main dans la main (un monde à deux), Sauveteur (sauver son copain d'une bulle), Boss rush, Première médaille d'or et Or partout.
+
 ## Difficultés
 
 - **Facile** : 5 cœurs, robots lents, boss moins résistants.
@@ -99,7 +114,7 @@ Les ennemis ont des variantes tirées au hasard : une nuance proche de leur coul
 
 Dans les menus, la manette se pilote avec la croix ou le stick : **A / ✕** pour valider, **B / ○** pour revenir. Sur l'écran de pause et l'écran de fin de monde, la croix choisit le bouton et A / ✕ le valide. Dès qu'une manette est utilisée, les consignes à l'écran affichent ses boutons (lettres Xbox ou symboles PlayStation selon la manette détectée) ; une touche du clavier ou un toucher de l'écran remet les consignes habituelles.
 
-Avec deux manettes branchées, c'est la première sur laquelle on appuie qui joue ; l'autre est ignorée. Si elle est débranchée en pleine partie, le jeu se met en pause. Les autres manettes (Switch Pro, 8BitDo…) fonctionnent avec la disposition Xbox. Le navigateur ne laisse démarrer le son qu'après un clic, un toucher ou une touche : si le menu affiche « Clic : activer le son », un clic dans le jeu suffit.
+Avec deux manettes branchées, c'est la première sur laquelle on appuie qui joue ; l'autre sert au joueur 2 (voir « Jouer à deux »). Si elle est débranchée en pleine partie, le jeu se met en pause. Les autres manettes (Switch Pro, 8BitDo…) fonctionnent avec la disposition Xbox. Le navigateur ne laisse démarrer le son qu'après un clic, un toucher ou une touche : si le menu affiche « Clic : activer le son », un clic dans le jeu suffit.
 
 Sur téléphone et tablette, des commandes tactiles apparaissent automatiquement : une croix à gauche, et à droite les boutons saut (qui sert aussi à entrer par une porte), coup, dash et pouvoir. Le jeu se joue en mode paysage.
 
@@ -220,6 +235,5 @@ Chaque salle fait 30 colonnes sur 17 lignes. Les salles de boss sont générées
 
 - Mécaniques propres à chaque monde pour les prochaines séries de salles (point d'extension prévu : `WORLD_MECHANICS`).
 - Nouveaux programmes de lavage et nouveaux clients (il suffit d'ajouter une entrée dans `registres.js`).
-- Mode coop à deux.
 - Rejeu de la salle en accéléré à la fin.
-- Mode « boss rush » : tous les boss à la suite.
+- Boss de l'église dans le boss rush.
