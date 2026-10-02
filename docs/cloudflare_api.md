@@ -1,5 +1,7 @@
 # Sauvegardes partagées : installation et Cloudflare
 
+> **Désactivé pour l'instant** : le jeu n'appelle pas `/api/` tant que `SYNC_ON` vaut `false` dans `src/profils.js`. Pour l'activer : passer `SYNC_ON` à `true`, relancer `build.py`, puis suivre ce guide.
+
 Le jeu reste **public** sur `https://lunelio.pissits.com`. Seul `/api/` (profils, sauvegardes, scores) est réservé à la famille, grâce à **Cloudflare Access**. Un visiteur qui n'est pas connecté joue normalement : sa sauvegarde reste dans son appareil.
 
 ## 1. Dans le conteneur (une seule fois)

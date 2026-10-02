@@ -8,7 +8,10 @@
 // SYNC.st : "off" (pas de service), "auth" (Cloudflare Access demande la connexion famille), "ok", "wait" (en cours).
 const SYNC = { st: "wait", rev: {}, timer: null, busy: false, again: false, remote: [], scores: null };
 const NOM_OK = /^[\p{L}\p{N}](?:[\p{L}\p{N}' -]{0,10}[\p{L}\p{N}])?$/u;   // comme le service : 1 à 12 caractères
-const syncPossible = () => AUDIO_MODE !== "embed" && /^https?:$/.test(location.protocol);
+// SYNC_ON : sauvegarde partagée avec le service de la maison. Désactivée pour l'instant (choix du parent) : les profils
+// et l'onglet « Famille » marchent avec les parties de l'appareil, et le jeu n'appelle jamais /api/. Mettre true pour l'activer.
+const SYNC_ON = false;
+const syncPossible = () => SYNC_ON && AUDIO_MODE !== "embed" && /^https?:$/.test(location.protocol);
 async function api(path, opts = {}) {
   if (!syncPossible()) { SYNC.st = "off"; return null; }
   const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 6000);
@@ -161,7 +164,7 @@ SCREENS.profils = {
     // état de la sauvegarde partagée
     if (SYNC.st === "ok") text("✓ Sauvegardes partagées avec la maison", VW / 2, 222, 8, "#7dffb0", "center");
     else if (SYNC.st === "auth") { text("Pour partager les sauvegardes :", VW / 2, 222, 7, "#b9a6e0", "center"); drawButton(PF_LOGIN, "Connexion famille", !TOUCH && inside(PF_LOGIN), "#fccc28", 8); }
-    else if (SYNC.st === "off") text("Sauvegarde sur cet appareil", VW / 2, 222, 8, "#b9a6e0", "center");
+    else if (SYNC.st === "off" && SYNC_ON) text("Sauvegarde sur cet appareil", VW / 2, 222, 8, "#b9a6e0", "center");
     if (PF.msg) text(PF.msg, VW / 2, 36, 8, "#fccc28", "center");
     text(say("Flèches pour choisir, Entrée pour jouer", "Touche ton nom pour jouer", "Croix pour choisir, {A} pour jouer"), VW / 2, 256, 8, "#b9a6e0", "center");
   },
@@ -286,7 +289,7 @@ function drawAlbumFamily() {
     text(r.nom, 316, y, 8, r.id === PROFILS.cur ? ch().ui : "#ffffff");
     text(`${r.mondes}/${CWORLDS.length} mondes · ${r.chaussettes} chaussettes · ${r.badges} badges`, 316, y + 9, 6, "#b9a6e0");
   });
-  const st = SYNC.st === "ok" ? "Toute la famille (serveur de la maison)" : "Profils de cet appareil";
+  const st = SYNC.st === "ok" ? "Toute la famille (serveur de la maison)" : "Les joueurs de cet appareil";
   text(st, 12, 250, 7, "#b9a6e0");
 }
 
