@@ -4,7 +4,8 @@
 
 Tout va dans **`audio/`**, à la racine du dépôt, dans les sous-dossiers ci-dessous. Ce dossier est déjà servi par Nginx et mis en cache par l'appli.
 
-- **Ne déplace pas les fichiers existants** : je les range moi-même dans la nouvelle arborescence quand j'adapterai le code (`build.py`, `sw.js` et la détection des musiques liront les sous-dossiers).
+- Les fichiers qui existaient déjà sont **déjà rangés** dans cette arborescence (`musique/heros/`, `musique/doom/`, `sfx/joueur/coup.mp3`, `sfx/ennemis/laser.mp3`, `jingles/gameover.mp3`). Les dossiers vides contiennent un `.gitkeep` pour montrer où déposer.
+- **Après avoir déposé des sons, relancer `python3 build.py`** dans `src/` : il écrit la liste des sons dans le jeu et dans le service worker (le jeu ne cherche plus les fichiers tout seul, ce qui évite les erreurs 404).
 - **Tout est facultatif** : un fichier absent garde le comportement actuel (bruitage synthétisé, ou musique du personnage). Rien ne plante.
 - **Variantes** : `nom.mp3`, puis `nom2.mp3`, `nom3.mp3`… Les numéros doivent se suivre (pas de `nom3` sans `nom2`).
 - Noms en **minuscules, sans accent ni espace**, exactement comme ci-dessous.
@@ -32,10 +33,10 @@ Taille totale à viser : moins de 40 Mo, car tout est mis en cache pour jouer ho
 ```
 audio/
 ├── musique/
-│   ├── heros/            (existants, je les déplace)
+│   ├── heros/            (existants, déjà rangés)
 │   │   ├── backgroundhelio.mp3, backgroundhelio2.mp3
 │   │   └── backgroundlune.mp3, backgroundlune2.mp3, backgroundlune3.mp3
-│   ├── doom/             (existants, je les déplace)
+│   ├── doom/             (existants, déjà rangés)
 │   │   └── doombackground.mp3, doombackground2.mp3
 │   ├── laverie/
 │   │   ├── laverie.mp3                ★ thème du hub : calme, rétro, ronronnement de machines
@@ -83,7 +84,7 @@ audio/
 │   ├── defi_reussi.mp3        ★
 │   ├── defi_rate.mp3          gentil, pas triste (« presque ! »)
 │   ├── souvenir.mp3           nouveau souvenir débloqué
-│   └── gameover.mp3           (existant, je le déplace)
+│   └── gameover.mp3           (existant, déjà rangé)
 │
 └── sfx/
     ├── joueur/
@@ -91,7 +92,7 @@ audio/
     │   ├── double_saut.mp3        « dj »
     │   ├── dash.mp3               « dash »
     │   ├── atterrissage.mp3
-    │   ├── coup.mp3               (existant : attack.mp3, je le renomme)
+    │   ├── coup.mp3               (existant, déjà rangé)
     │   ├── renvoi.mp3             laser renvoyé au sabre, « deflect »
     │   ├── touche.mp3         ★ le héros est touché, « hurt » (doux, pas de cri de douleur)
     │   └── soin.mp3               « heal »
@@ -114,7 +115,7 @@ audio/
     │   ├── objet_quete.mp3
     │   └── cristal.mp3            fragment de souvenir
     ├── ennemis/
-    │   ├── laser.mp3              (existant, je le déplace)
+    │   ├── laser.mp3              (existant, déjà rangé)
     │   ├── visee.mp3              un ennemi se prépare à attaquer, « aim »
     │   ├── defaite_robot.mp3  ★ étincelles et boulons
     │   ├── defaite_slime.mp3  ★ « splotch » rigolo

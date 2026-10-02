@@ -2249,10 +2249,11 @@ const OPT_ROWS = [
   { k: "rumble", label: "Vibration de la manette", info: "La manette vibre quand on est touché ou qu'un boss tombe." },
   { k: "kb", label: "Touches du clavier", info: "Choisis les touches pour jouer au clavier." },
   { k: "pad", label: "Boutons de la manette", info: "Choisis les boutons pour jouer à la manette." },
+  { k: "reset", label: "Effacer la partie", info: "Efface mondes, chaussettes, cartes et quêtes (les réglages restent)." },
   { k: "back", label: "Retour", info: "" },
 ];
 const rowRect = (i, step) => ({ x: 110, y: 44 + i * step, w: 260, h: 17 });
-let optFrom = "menu", optSel = 0, lastMouse = "";
+let optFrom = "menu", optSel = 0, lastMouse = "", resetAsk = 0;
 // survol à la souris : la ligne sous le pointeur devient la ligne choisie
 function hoverRow(n, step, cur) {
   const m = mouse.x + "," + mouse.y; if (m === lastMouse || TOUCH) return cur; lastMouse = m;
@@ -2265,18 +2266,26 @@ function optActivate(i) {
   const r = OPT_ROWS[i]; optSel = i;
   if (r.k === "back") { closeOptions(); return; }
   if (r.k === "kb" || r.k === "pad") { openKeys(r.k); return; }
+  if (r.k === "reset") {
+    if (optFrom !== "menu") { audio.sfx("nope"); return; }
+    // deux appuis pour confirmer (dans les 4 secondes)
+    if (resetAsk > 0) { resetGame(); resetAsk = 0; audio.sfx("door"); msg = { text: "Partie effacée", t: 2 }; if (optFrom !== "menu") { optFrom = "menu"; } }
+    else { resetAsk = 4; audio.sfx("nope"); }
+    return;
+  }
   OPT[r.k] = !OPT[r.k]; saveOptions(); audio.sfx("select");
   if (r.k === "voice") { if (OPT.voice) voice.say("La voix est activée.", true); else voice.stop(); }
   if (r.k === "rumble" && OPT.rumble) rumble(250, 0.6, 0.6);
 }
 function updateOptions() {
   const n = OPT_ROWS.length;
+  if (resetAsk > 0) resetAsk = Math.max(0, resetAsk - 1 / 60);
   if (hit("Escape", "GB", "Backspace")) { closeOptions(); return; }
-  optSel = hoverRow(n, 21, optSel);
+  optSel = hoverRow(n, 19, optSel);
   if (hit(...K.up)) { optSel = (optSel + n - 1) % n; audio.sfx("select"); }
   if (hit(...K.down)) { optSel = (optSel + 1) % n; audio.sfx("select"); }
   if (hit(...K.ok) || (hit("ArrowLeft", "ArrowRight", "GLeft", "GRight") && OPT_ROWS[optSel].k in OPT_DEFAULT)) { optActivate(optSel); return; }
-  if (hit("Mouse0")) for (let i = 0; i < n; i++) if (inside(rowRect(i, 21))) { optActivate(i); return; }
+  if (hit("Mouse0")) for (let i = 0; i < n; i++) if (inside(rowRect(i, 19))) { optActivate(i); return; }
 }
 function drawOptBg() {
   if (optFrom === "hub") { drawHub(); R(0, 0, VW, VH, "rgba(10,6,24,0.82)"); }
@@ -2297,13 +2306,15 @@ function drawOptions() {
   OPT_ROWS.forEach((r, i) => {
     let v = "", col = "#b9a6e0";
     if (r.k in OPT_DEFAULT) { v = OPT[r.k] ? "Oui" : "Non"; col = OPT[r.k] ? "#7dffb0" : "#ff8ab0"; }
+    else if (r.k === "reset") { v = resetAsk > 0 ? "Encore une fois pour confirmer" : "›"; col = resetAsk > 0 ? "#ff8ab0" : col; }
     else if (r.k !== "back") v = "›";
-    drawRow(rowRect(i, 21), i === optSel, r.label, v, col);
+    drawRow(rowRect(i, 19), i === optSel, r.label, v, col);
   });
   const r = OPT_ROWS[optSel];
   let info = r.info;
   if (r.k === "voice" && !voice.ok()) info = "Ce navigateur ne sait pas lire à voix haute.";
   if (r.k === "buddy" && df().id === "doom") info = "Le mode copain ne marche pas en mode Doom.";
+  if (r.k === "reset" && optFrom !== "menu") info = "Pour effacer la partie, ouvre les options depuis l'écran titre.";
   text(info, VW / 2, 226, 8, "#e8dcff", "center");
   text(say("↑ ↓ pour choisir    Entrée pour changer    Échap pour revenir", "Touche une ligne pour la changer",
     "Croix pour choisir    {A} pour changer    {B} pour revenir"), VW / 2, 254, 8, "#b9a6e0", "center");

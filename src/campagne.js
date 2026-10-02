@@ -69,20 +69,24 @@ const FOE_DEFEATS = {
   etoiles: { fx: "fx_collecte", sparks: ["#fccc28", "#ffffff", "#ff8ab0"], debris: ["#fccc28", "#ffffff"] },
 };
 // Boss des nouveaux mondes : une suite d'actions par phase (moves[phase - 1]), jouées en boucle.
+// P1 : attaques posées, rythme pour apprendre. P2 : plus rapide, nouvelles combinaisons, il se dégrade (fumée, étincelles).
+// P3 (P2 pour le singe, qui n'a que deux phases) : rage, attaques spectaculaires… puis « tired » : il s'essouffle, c'est le moment de frapper.
 const BIG = {
   roi_slime:           { name: "Roi Slime électrique", hp: 10, color: "#5ef0ff", fly: false, speed: 34, w: 40, h: 40, minion: null, defeat: "slime",
-    moves: [["walk", "hop"], ["hop", "orb", "walk"], ["hop", "orb3", "hop"]] },
+    moves: [["walk", "hop"], ["hop", "orb", "walk", "hop", "orb"], ["hop", "orb3", "hop", "tired"]] },
   drone_titan:         { name: "Drone Titan", hp: 12, color: "#ff5a3c", fly: true, speed: 60, w: 44, h: 40, minion: "drone", defeat: "robot",
-    moves: [["hover", "burst"], ["hover", "burst2", "summon"], ["dive", "burst3", "hover"]] },
+    moves: [["hover", "burst"], ["hover", "burst2", "summon", "burst2"], ["dive", "burst3", "hover", "dive", "tired"]] },
   maitre_ombres:       { name: "Maître des ombres", hp: 13, color: "#c86eff", fly: false, speed: 52, w: 32, h: 52, minion: null, defeat: "ombre",
-    moves: [["walk", "slash"], ["teleport", "walk", "blades"], ["teleport", "blades3", "slash"]] },
+    moves: [["walk", "slash"], ["teleport", "walk", "blades", "teleport"], ["teleport", "blades3", "slash", "tired"]] },
   colosse_lave:        { name: "Colosse de lave", hp: 14, color: "#ff8a3c", fly: false, speed: 26, w: 40, h: 56, minion: null, defeat: "lave",
-    moves: [["walk", "slam"], ["walk", "slam", "rain"], ["slam", "rain", "slam"]] },
+    moves: [["walk", "slam"], ["walk", "slam", "rain"], ["slam", "rain", "slam", "tired"]] },
   singe_roi_pirate:    { name: "Singe roi pirate", hp: 12, color: "#ffc23c", fly: false, speed: 56, w: 32, h: 52, minion: null, defeat: "etoiles",
-    moves: [["walk", "leap"], ["leap", "coco", "leap"]] },
+    moves: [["walk", "leap"], ["leap", "coco", "leap", "leap", "tired"]] },
   reine_chauve_souris: { name: "Reine chauve-souris néon", hp: 15, color: "#ff4fd8", fly: true, speed: 50, w: 44, h: 44, minion: "chauve_souris", defeat: "etoiles",
-    moves: [["hover", "orb"], ["hover", "summon", "orb3"], ["dive", "orb5", "summon"]] },
+    moves: [["hover", "orb"], ["hover", "summon", "orb3"], ["dive", "orb5", "summon", "dive", "tired"]] },
 };
+// Réaction du décor en P2 et plus (effets visuels seulement : le parcours et les zones sûres ne changent pas)
+const ARENA_FX = { "01_centrale": "lumieres", "02_usine": "alarme", "03_temple": "ombres", "04_volcan": "braises", "05_port": "pluie", "06_grotte": "cristaux" };
 // Annonce d'un changement de phase de boss (P2 : il s'énerve ; P3 : rage, mais il s'épuise et laisse des ouvertures)
 const BOSS_PHASE_SAY = {
   2: e => e.th.length === 1 ? `${e.name} entre dans une rage folle !` : `${e.name} s'énerve !`,
@@ -232,7 +236,7 @@ function loadCampRoom(wi, ri, opts = {}) {
   const W = CWORLDS[wi], d = df();
   players = [makePlayer(ch(), K, 0)];
   enemies = lvl.foeSpawns.map(o => makeFoe(o, W));
-  if (lvl.bossSpawn) enemies.push(makeBig(lvl.bossSpawn, W));
+  if (lvl.bossSpawn) { enemies.push(makeBig(lvl.bossSpawn, W)); audio.sfx("boss_intro"); audio.sfx("sig_" + W.boss); }
   pickups = []; lasers = []; parts = []; ghosts = []; fxs = [];
   roomTime = 0; hintT = 0; deathT = 0; doorOpen = false; campTrans = null; mach = null; campFade = opts.fadeIn ? 1 : 0;
   lvl.lastSafe = { x: lvl.start.x, y: lvl.start.y };
@@ -322,10 +326,11 @@ const hidden = p => !!(p && p.powerOn && powerOf(p.C) && powerOf(p.C).invisible)
 
 /* ---------------- Nouvelle campagne : effets ---------------- */
 // Effet animé d'un atlas fx_… : fps, loop (durée life en boucle) ; sinon supprimé après sa dernière image
+// opts.anim : animation de l'atlas à jouer (play par défaut)
 function addFx(aid, x, y, opts = {}) {
   const A = ATL[aid]; if (!A) return null;
-  const n = (A.anims.play || [0, 1])[1], fps = opts.fps || 12;
-  const f = { aid, x, y, t: 0, fps, n, life: opts.life || n / fps, loop: !!opts.life, face: opts.face || 1, alpha: opts.alpha ?? 1, scale: opts.scale || 1, follow: opts.follow || null, under: !!opts.under };
+  const an = A.anims[opts.anim || "play"] || [0, 1], n = an[1], fps = opts.fps || 12;
+  const f = { aid, a0: an[0], x, y, t: 0, fps, n, life: opts.life || n / fps, loop: !!opts.life, face: opts.face || 1, alpha: opts.alpha ?? 1, scale: opts.scale || 1, follow: opts.follow || null, under: !!opts.under };
   fxs.push(f); return f;
 }
 function updateFx(dt) {
@@ -337,7 +342,7 @@ function drawFxList(under) {
     if (f.under !== under) continue;
     const k = f.loop ? Math.floor(f.t * f.fps) % f.n : Math.min(f.n - 1, Math.floor(f.t * f.fps));
     const fade = f.loop ? Math.min(1, (f.life - f.t) * 4) : 1;
-    drawFrame(f.aid, (ATL[f.aid].anims.play || [0])[0] + k, f.x, f.y, f.face, f.alpha * fade, f.scale);
+    drawFrame(f.aid, f.a0 + k, f.x, f.y, f.face, f.alpha * fade, f.scale);
   }
 }
 
@@ -501,6 +506,7 @@ function bigNext(e) {
   e.move = m; e.pose = "idle";
   switch (m) {
     case "walk": e.st = "walk"; e.t = 1.2; break;
+    case "tired": e.st = "tired"; e.t = 1.6 * windMul(); e.vx = 0; if (!e.toldTired) { e.toldTired = true; msg = { text: `${e.name} s'essouffle : frappe !`, t: 2 }; voice.say(msg.text); } break;
     case "hover": e.st = "hover"; e.t = 1.4; e.hoverX = clamp(p.x + 5 + (Math.random() < 0.5 ? -90 : 90), 50, VW - 50); break;
     case "hop": case "leap": e.st = "prep"; e.t = 0.45 * windMul(); e.pose = "prep"; audio.sfx("aim"); break;
     case "slash": e.st = "prep"; e.t = 0.55 * windMul(); e.pose = "prep"; audio.sfx("aim"); break;
@@ -567,7 +573,7 @@ function updateBig(e, dt) {
         if (e.move === "hop" || e.move === "leap") {
           e.st = "air"; e.vy = e.move === "leap" ? -470 : -520; e.vx = clamp((pcx - cx) * 1.25, -210, 210) * Math.min(1.3, sp); e.airT = 0; audio.sfx("jump");
         } else if (e.move === "slash") { e.st = "charge"; e.t = 0.5; e.vx = e.face * 300 * sp; audio.sfx("dash"); }
-        else if (e.move === "slam") { e.st = "attack"; e.t = 0.35; bigWaves(e, 170 + (e.phase - 1) * 30); if (e.phase >= 3) e.second = true; }
+        else if (e.move === "slam") { e.st = "attack"; e.t = 0.35; bigWaves(e, 170 + (e.phase - 1) * 30); if (e.phase >= 3 && !e.isSecond) e.second = true; e.isSecond = false; }
         else if (e.move === "rain") { e.st = "attack"; e.t = 0.4; const n = 3 + e.phase; for (let i = 0; i < n; i++) e.rocks = (e.rocks || []).concat([{ x: 24 + Math.random() * (VW - 48), t: 0.7 + i * 0.22 }]); audio.sfx("aim"); }
         else if (e.move === "summon") {
           e.st = "attack"; e.t = 0.4;
@@ -623,13 +629,26 @@ function updateBig(e, dt) {
       break;
     }
     case "low": e.t -= dt; e.pose = "idle"; if (e.t <= 0) { e.st = "hover"; e.t = 0.9; e.hoverX = cx; } break;
+    case "tired":
+      // ouverture : il reste sur place (au sol s'il vole), souffle, puis repart
+      e.t -= dt; e.vx = 0; e.pose = "idle";
+      if (B.fly) e.y += (240 - e.h - 4 - e.y) * Math.min(1, dt * 4);
+      if (Math.random() < dt * 5) parts.push({ x: cx + (Math.random() - 0.5) * e.w, y: e.y + 4, vx: (Math.random() - 0.5) * 20, vy: -30, life: 0.6, max: 0.6, color: "#bff4ff", size: 2, grav: 120 });
+      if (e.t <= 0) { e.st = B.fly ? "hover" : "idle"; e.t = 0.5; e.hoverX = cx; }
+      break;
     case "attack":
       e.t -= dt; e.vx = 0;
       if (e.t <= 0) {
-        if (e.second) { e.second = false; e.st = "prep"; e.t = 0.45; e.pose = "prep"; break; }
+        if (e.second) { e.second = false; e.isSecond = true; e.st = "prep"; e.t = 0.45; e.pose = "prep"; break; }   // une seule frappe en plus
         e.st = "idle"; e.t = 0.8 / sp;
       }
       break;
+  }
+  // dégradation : fumée et étincelles de plus en plus nombreuses
+  if (e.phase >= 2 && Math.random() < dt * (e.phase >= 3 ? 9 : 4)) {
+    const sx = e.x + Math.random() * e.w, sy = e.y + Math.random() * e.h * 0.5;
+    parts.push(Math.random() < 0.6 ? { x: sx, y: sy, vx: (Math.random() - 0.5) * 12, vy: -25, life: 0.9, max: 0.9, color: "#5a5070", size: 2, grav: -15 }
+      : { x: sx, y: sy, vx: (Math.random() - 0.5) * 80, vy: -60, life: 0.35, max: 0.35, color: B.color, size: 1, grav: 300 });
   }
   // rochers de lave annoncés au sol, puis qui tombent
   if (e.rocks) {
@@ -639,7 +658,7 @@ function updateBig(e, dt) {
   }
   if (!B.fly || e.st === "dive" || e.st === "low") { if (!B.fly) { e.vy = Math.min(e.vy + 1500 * dt, 700); moveBody(e, dt); } }
   e.x = clamp(e.x, 4, VW - 4 - e.w);
-  if (!["intro", "transform", "vanish", "taunt"].includes(e.st)) touchPlayers(e, e.x + e.w / 2);
+  if (!["intro", "transform", "vanish", "taunt", "tired"].includes(e.st)) touchPlayers(e, e.x + e.w / 2);
 }
 function damageBig(e, dmg) {
   if (!e.alive || e.dying || e.inv > 0 || e.st === "intro" || e.st === "transform" || e.st === "vanish") return;
@@ -849,15 +868,19 @@ function updateCollectibles(dt) {
   }
   for (const c of lvl.covers) { const inside = players.some(p => !p.dead && ov(p, c)); c.a += ((inside ? 0.18 : 1) - c.a) * Math.min(1, dt * 6); }
 }
+const hasAtlas = aid => !!(ATL[aid] && atlasImg(aid));
 function collectFx(it, col) {
   addFx("fx_collecte", it.x + it.w / 2, it.y + it.h / 2, { scale: 1.3 });
+  if (hasAtlas("chaussette") && (it.type || it.requires)) addFx(it.requires && hasAtlas("chaussette_bonus") ? "chaussette_bonus" : "chaussette", it.x + it.w / 2, it.y + it.h / 2, { anim: "collecte", fps: 14 });
   burst(it.x + it.w / 2, it.y + it.h / 2, 18, [col, "#ffffff", "#fccc28"], 140, 0.6, 0, 1);
   flash = Math.max(flash, 0.05);
 }
 // Chaussette puante (provisoire, dessinée par le code tant que l'atlas « chaussette » n'existe pas) : x, y = centre
 function drawSock(x, y, o = {}) {
-  const A = ATL.chaussette;
-  if (A && atlasImg("chaussette") && !o.gold && !o.striped) { drawFrame("chaussette", animFrame("chaussette", "flotte", time + (o.t || 0), 8), x, y, 1, o.alpha ?? 1); return; }
+  const aid = o.gold ? "chaussette_bonus" : "chaussette";
+  if (hasAtlas(aid) && !o.striped && !o.ghost) { drawFrame(aid, animFrame(aid, "flotte", time + (o.t || 0), 8), x, y, 1, o.alpha ?? 1); return; }
+  if (hasAtlas("chaussette") && o.ghost) { drawFrame("chaussette", ATL.chaussette.anims.flotte[0], x, y, 1, (o.alpha ?? 1) * 0.7); return; }
+  if (o.striped && hasAtlas("objets_quete")) { drawFrame("objets_quete", 0, x, y, 1, o.alpha ?? 1); return; }
   const a = o.alpha ?? 1, body = o.gold ? "#ffd23c" : o.ghost ? "#8a80a8" : "#f4f0ff", band = o.gold ? "#ff8a3c" : o.striped ? "#d02a2a" : "#ff4f8a";
   ctx.globalAlpha = a;
   const X = Math.round(x - 5), Y = Math.round(y - 6);
@@ -891,6 +914,7 @@ function drawCollectibles(behind) {
     const y = q.y + 6 + Math.sin(time * 3 + q.x) * 1.5;
     ctx.globalAlpha = (q.vis ?? 1) * (0.2 + 0.12 * Math.sin(time * 5)); R(q.x - 2, Math.round(y - 8), 16, 16, "#ff8ab0"); ctx.globalAlpha = 1;
     if (q.kind === "chaussette_rayee") drawSock(q.x + 6, y, { striped: true, alpha: q.vis ?? 1 });
+    else if (hasAtlas("objets_quete")) drawFrame("objets_quete", 1, q.x + 6, y, 1, q.vis ?? 1);
     else { ctx.globalAlpha = q.vis ?? 1; R(q.x, Math.round(y - 3), 12, 5, "#0e0a1a"); R(q.x + 1, Math.round(y - 2), 10, 3, "#7a3aff"); R(q.x + 4, Math.round(y - 3), 3, 6, "#c86eff"); ctx.globalAlpha = 1; }
   }
 }
@@ -1137,7 +1161,8 @@ function drawBig(e) {
   if (e.st === "prep" && e.move === "dive" && e.target) { ctx.globalAlpha = 0.5 + 0.3 * Math.sin(time * 30); R(Math.round(e.target.x), 238, e.w, 2, "#ff2d6a"); ctx.globalAlpha = 1; }
   if (e.st === "prep" && e.move === "slash") { ctx.globalAlpha = 0.3 + 0.2 * Math.sin(time * 40); for (let i = 0; i < 160; i += 6) R(Math.round(e.face > 0 ? e.x + e.w + i : e.x - i), Math.round(e.y + e.h * 0.55), 3, 1, "#ff2d6a"); ctx.globalAlpha = 1; }
   if (e.rocks) for (const r of e.rocks) if (Math.floor(time * 10) % 2) { R(Math.round(r.x - 7), 237, 14, 3, "#ff6a1a"); text("!", r.x, 226, 9, "#ffd23c", "center"); }
-  if (e.stunT > 0) stunStars(e);
+  if (e.stunT > 0 || e.st === "tired") stunStars(e);
+  if (e.st === "tired") { const k = (time * 1.2) % 1; ctx.globalAlpha = 1 - k; text("z", e.x + e.w - 2 + k * 6, e.y - 6 - k * 10, 8, "#bff4ff", "center"); ctx.globalAlpha = 1; }
 }
 function drawCampProjectile(l) {
   const x = Math.round(l.x), y = Math.round(l.y), cx = l.x + l.w / 2, cy = l.y + l.h / 2;
@@ -1199,6 +1224,7 @@ function drawCampWorld() {
   }
   drawGhosts(); for (const p of players) drawCampPlayer(p);
   drawCovers();
+  drawArenaFx();
   // invites « entrer »
   const p = players[0];
   if (!p.dead && !campLocked(p)) {
@@ -1218,7 +1244,8 @@ function drawCampHUD() {
   text(tag, 6, 8, 9, accent);
   ctx.font = `700 9px ${FONT}`; const nw = ctx.measureText(tag).width;
   text(R0.name, 14 + nw, 8, 9, "#e8dcff");
-  text(fmtTime(runTime), VW / 2 + 40, 8, 9, C.ui, "center");
+  const nw2 = ctx.measureText(R0.name).width;
+  text(fmtTime(runTime), Math.max(VW / 2 + 40, 14 + nw + nw2 + 30), 8, 9, C.ui, "center");
   let hx = VW - (TOUCH && !PAD ? 52 : 8);
   if (d.id === "doom") { ctx.globalAlpha = 0.6 + 0.4 * Math.sin(time * 8); text("☠ DOOM", hx, 8, 9, d.color, "right", d.color); ctx.globalAlpha = 1; }
   else {
@@ -1296,6 +1323,21 @@ function drawCampHUD() {
     text("Raté ! On recommence…", VW / 2, VH / 2 - 4, 16, "#ff4f8a", "center", "#ff4f8a");
     text(df().id === "doom" && doomReset ? (camp.ckpt ? "Retour au drapeau" : "Retour au début du monde") : "La salle redémarre", VW / 2, VH / 2 + 12, 8, "#b9a6e0", "center");
   }
+}
+
+// Le décor de l'arène réagit au combat à partir de P2 (lumières, alarme, ombres, braises, pluie, cristaux) ; léger, jamais dangereux
+function drawArenaFx() {
+  const b = enemies.find(e => e.type === "bigboss" && e.alive && !e.dying); if (!b || b.phase < 2 || b.st === "intro") return;
+  const kind = ARENA_FX[CWORLDS[camp.wi].id], k = b.phase >= 3 ? 1 : 0.6;
+  switch (kind) {
+    case "lumieres": if (Math.floor(time * 7) % 5 === 0) { ctx.globalAlpha = 0.12 * k; R(0, 0, VW, VH, "#000000"); } ctx.globalAlpha = 0.5 * k; for (let i = 0; i < 4; i++) if (Math.random() < 0.3) R(Math.random() * VW, 18 + Math.random() * 10, 2, 2, "#fff3a0"); break;
+    case "alarme": ctx.globalAlpha = (0.05 + 0.05 * Math.sin(time * 6)) * k; R(0, 0, VW, VH, "#ff2020"); ctx.globalAlpha = 0.6 * k; R(Math.round(VW / 2 + Math.sin(time * 4) * 200), 16, 6, 3, "#ff3b3b"); break;
+    case "ombres": { const g = ctx.createRadialGradient(VW / 2, VH / 2, 120, VW / 2, VH / 2, 300); g.addColorStop(0, "rgba(20,0,40,0)"); g.addColorStop(1, `rgba(20,0,40,${0.35 * k})`); ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH); break; }
+    case "braises": ctx.globalAlpha = 0.07 * k; R(0, 0, VW, VH, "#ff6a1a"); ctx.globalAlpha = 0.8; for (let i = 0; i < 10 * k; i++) { const x = (i * 97 + time * 30) % VW, y = VH - ((time * 40 + i * 37) % VH); R(Math.round(x), Math.round(y), 1, 2, "#ffb43c"); } break;
+    case "pluie": ctx.globalAlpha = 0.25 * k; for (let i = 0; i < 30 * k; i++) { const x = (i * 53 + time * 120) % VW, y = (i * 29 + time * 400) % VH; R(Math.round(x), Math.round(y), 1, 5, "#bfe8ff"); } break;
+    case "cristaux": ctx.globalAlpha = (0.06 + 0.06 * Math.sin(time * 3)) * k; R(0, 0, VW, VH, "#ff4fd8"); break;
+  }
+  ctx.globalAlpha = 1;
 }
 
 /* ---------------- Nouvelle campagne : fin ---------------- */

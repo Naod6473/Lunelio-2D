@@ -189,12 +189,14 @@ const decoOf = slot => DECOR_BY_ID[hubDeco()[slot]] || DECOR.find(d => d.slot ==
 const showOn = k => hubDeco().show[k] !== false;
 let hubBg = null, hubBgKey = "";
 function hubBgCanvas() {
-  const D = hubDeco(), key = [D.tile, D.light, D.sign, SAVE.camp.done].join("|");
+  const D = hubDeco(), img = hasAtlas("laverie_fond"), key = [D.tile, D.light, D.sign, SAVE.camp.done, img].join("|");
   if (hubBg && key === hubBgKey) return hubBg;
   hubBgKey = key;
   const [c, x] = mkCanvas(VW, VH);
   const F = (col, a, b, w, h) => { x.fillStyle = col; x.fillRect(a, b, w, h); };
   const L = decoOf("light").color;
+  if (img) x.drawImage(atlasImg("laverie_fond"), 0, 0, VW, VH);   // fond fourni (laverie/laverie_fond.png)
+  else {
   // mur
   F("#1c1430", 0, 0, VW, HUB_FLOOR);
   for (let y = 60; y < 200; y += 10) for (let bx = (y / 10 % 2) * 10; bx < VW; bx += 20) F("#221a3a", bx, y, 19, 9);
@@ -207,6 +209,7 @@ function hubBgCanvas() {
   let bx = 140; while (bx < 340) { const w = 12 + Math.floor(rnd() * 22), h = 20 + Math.floor(rnd() * 40); F("#160c28", bx, 150 - h, w, h); for (let wy = 150 - h + 4; wy < 148; wy += 6) for (let wx = bx + 2; wx < bx + w - 2; wx += 5) if (rnd() < 0.3) F(["#5ef0ff55", "#ff4fd855", "#fccc2855"][Math.floor(rnd() * 3)], wx, wy, 2, 2); bx += w + 1; }
   F("#0e0a1a", 136, 54, 208, 4); F("#0e0a1a", 136, 150, 208, 4); F("#0e0a1a", 136, 54, 4, 100); F("#0e0a1a", 340, 54, 4, 100); F("#0e0a1a", 238, 54, 4, 100);
   x.fillStyle = "rgba(255,255,255,0.06)"; x.beginPath(); x.moveTo(150, 60); x.lineTo(180, 60); x.lineTo(150, 110); x.fill();
+  }
   // néons du plafond, couleur de l'éclairage choisi
   for (const lx of [60, 240, 420]) { F(`rgb(${L})`, lx - 22, 18, 44, 3); cone(x, lx - 22, lx + 22, 21, 40, 200, L, 0.07); glow(x, lx, 20, 40, L, 0.25); }
   // sol en carrelage
@@ -226,7 +229,8 @@ function hubBgCanvas() {
 function drawSign() {
   const col = decoOf("sign").color, flick = Math.floor(time * 8) % 37 === 0;
   ctx.globalAlpha = flick ? 0.5 : 1;
-  neon(ctx, "LAVERIE LUNELIO", VW / 2, 34, col, 12);
+  if (hasAtlas("enseigne")) { drawFrame("enseigne", flick ? 1 : 0, VW / 2, 34, 1, 1, 1.4, null); ctx.globalAlpha = 1; text("LAVERIE LUNELIO", VW / 2, 35, 11, col, "center", col); }
+  else neon(ctx, "LAVERIE LUNELIO", VW / 2, 34, col, 12);
   ctx.globalAlpha = 1;
   drawSock(VW / 2 - 66, 34, {}); drawSock(VW / 2 + 66, 34, {});
 }
@@ -264,7 +268,8 @@ function drawShowcase(front) {
     if (showOn("affiches")) CWORLDS.forEach((W, i) => {
       const x = 356 + (i % 3) * 22, y = 58 + Math.floor(i / 3) * 30, ok = SAVE.seen.boss[W.boss];
       R(x, y, 18, 24, "#0e0a1a");
-      if (ok) { R(x + 1, y + 1, 16, 22, BIG[W.boss].color + "55"); ctx.save(); ctx.beginPath(); ctx.rect(x + 1, y + 1, 16, 22); ctx.clip(); drawFrame("portraits_boss", Object.keys(BIG).indexOf(W.boss), x + 9, y + 28, 1, 1, 0.55); ctx.restore(); R(x + 7, y - 1, 4, 2, "#e8e0c8"); }
+      if (ok && hasAtlas("affiches_boss")) drawFrame("affiches_boss", i, x + 9, y + 24, 1, 1, 0.75);
+      else if (ok) { R(x + 1, y + 1, 16, 22, BIG[W.boss].color + "55"); ctx.save(); ctx.beginPath(); ctx.rect(x + 1, y + 1, 16, 22); ctx.clip(); drawFrame("portraits_boss", Object.keys(BIG).indexOf(W.boss), x + 9, y + 28, 1, 1, 0.55); ctx.restore(); R(x + 7, y - 1, 4, 2, "#e8e0c8"); }
       else { R(x + 1, y + 1, 16, 22, "#2a2244"); text("?", x + 9, y + 12, 8, "#4a3a68", "center"); }
     });
     // présentoir à badges (au mur, au-dessus de la décoration)
@@ -277,7 +282,7 @@ function drawShowcase(front) {
     if (showOn("vitrine")) {
       const x = 362, y = 122;
       R(x, y, 46, 54, "#0e0a1a"); R(x + 1, y + 1, 44, 52, "rgba(160,220,255,0.12)"); R(x + 1, y + 26, 44, 2, "#5a4a80"); R(x + 1, y + 44, 44, 9, "#3a2a5c");
-      CWORLDS.forEach((W, i) => { if (!SAVE.seen.boss[W.boss]) return; const tx = x + 8 + (i % 3) * 15, ty = y + (i < 3 ? 24 : 42); R(tx - 3, ty - 2, 7, 2, "#c8a020"); R(tx - 2, ty - 9, 5, 7, "#ffd23c"); R(tx - 4, ty - 10, 9, 2, "#ffd23c"); R(tx - 1, ty - 7, 1, 3, BIG[W.boss].color); });
+      CWORLDS.forEach((W, i) => { if (!SAVE.seen.boss[W.boss]) return; const tx = x + 8 + (i % 3) * 15, ty = y + (i < 3 ? 24 : 42); if (hasAtlas("trophees")) { drawFrame("trophees", i, tx, ty, 1, 1, 0.8); return; } R(tx - 3, ty - 2, 7, 2, "#c8a020"); R(tx - 2, ty - 9, 5, 7, "#ffd23c"); R(tx - 4, ty - 10, 9, 2, "#ffd23c"); R(tx - 1, ty - 7, 1, 3, BIG[W.boss].color); });
       ctx.globalAlpha = 0.15; R(x + 4, y + 3, 3, 46, "#ffffff"); ctx.globalAlpha = 1;
     }
     if (items.item_plante) { R(2, 222, 10, 18, "#8a4a2a"); R(0, 204, 4, 18, "#2fa85a"); R(5, 198, 4, 24, "#3fd070"); R(9, 206, 4, 16, "#2fa85a"); }
@@ -294,6 +299,13 @@ function drawShowcase(front) {
 function drawStation(s) {
   const on = stationOn(s), x = s.x, by = HUB_FLOOR, near = hub.near === s;
   ctx.save(); if (!on) ctx.globalAlpha = 0.45;
+  const A = { armoire: "armoire", album: "album_lutrin", jukebox: "jukebox", defis: "machine_defis" }[s.id];
+  if (A && hasAtlas(A)) {
+    const an = s.id === "jukebox" ? (SAVE.jukebox ? "musique" : "repos") : s.id === "defis" ? (on ? "marche" : "repos") : near ? "ouverture" : (s.id === "armoire" ? "fermee" : "ferme");
+    drawFrame(A, animFrame(A, an, time, 6, an !== "ouverture"), x, by);
+    ctx.restore(); if (near && on) { ctx.globalAlpha = 0.25 + 0.15 * Math.sin(time * 6); R(x - s.w / 2, by - 1, s.w, 2, "#7dffb0"); ctx.globalAlpha = 1; }
+    return;
+  }
   switch (s.id) {
     case "armoire": {
       R(x - 17, by - 58, 34, 58, "#0e0a1a"); R(x - 16, by - 57, 32, 56, "#4a6aa8"); R(x - 16, by - 57, 32, 3, "#6a8ac8");
@@ -357,7 +369,8 @@ function drawStation(s) {
 function drawHubMachine(x, by) {
   const n = SAVE.camp.done, sh = hub.machShake > 0 ? Math.round((Math.random() - 0.5) * 3) : 0;
   const st = hub.arrive && hub.arrive.t < 1.1 ? "activating" : "idle";
-  drawMachineSkin(x + sh, by, st, hub.arrive ? hub.arrive.t : time);
+  if (st === "idle" && hasAtlas("machine_reparations")) drawFrame("machine_reparations", Math.min(n, 6), x + sh, by, 1, 1, 1, SAVE.cos.machine && has("cos:" + SAVE.cos.machine) ? SAVE.cos.machine : null);
+  else drawMachineSkin(x + sh, by, st, hub.arrive ? hub.arrive.t : time);
   // six voyants : les pièces récupérées
   CWORLDS.forEach((W, i) => {
     const lx = x - 15 + i * 6 + sh, ly = by - 70, ok = i < n, P = PIECES[W.id];
@@ -382,6 +395,11 @@ function drawMachineIcon(x, y, s = 1) {
 // Dessin simple d'environ 36 px, regard vers la droite (face < 0 : retourné). talk : bouche qui bouge.
 function drawNpc(id, x, by, face = 1, talk = false, quest = null, alpha = 1) {
   const N = NPCS[id], bob = Math.round(Math.sin(time * 2.5 + x) * 0.6), O = "#0e0a1a";
+  if (hasAtlas("pnj_" + id)) {
+    const st = quest && SAVE.quests[quest.id], an = talk ? "parle" : st && st.st === "ready" ? "content" : "repos";
+    drawFrame("pnj_" + id, animFrame("pnj_" + id, an, time, an === "parle" ? 8 : 5), x, by, face, alpha);
+    drawNpcBubble(x, by, quest); return;
+  }
   ctx.save(); ctx.globalAlpha = alpha; ctx.translate(Math.round(x), by + bob); if (face < 0) ctx.scale(-1, 1);
   if (N.robot) {
     R(-6, -6, 4, 6, O); R(2, -6, 4, 6, O); R(-5, -6, 2, 5, "#8a92a8"); R(3, -6, 2, 5, "#8a92a8");
@@ -403,11 +421,16 @@ function drawNpc(id, x, by, face = 1, talk = false, quest = null, alpha = 1) {
     else if (id === "firmin") { R(-6, -37, 11, 3, N.hair); R(-1, -29, 6, 2, "#ffffff"); R(-6, -38, 11, 2, "#fccc28"); }
   }
   ctx.restore();
-  // bulle au-dessus : quête à prendre (!), en cours (…), à rendre (✓)
+  drawNpcBubble(x, by, quest);
+}
+// bulle au-dessus d'un client : quête à prendre (!), en cours (…), à rendre (✓)
+function drawNpcBubble(x, by, quest) {
   if (quest) {
     const st = SAVE.quests[quest.id], sy = by - 52 + Math.sin(time * 4) * 2;
     const [sym, col] = !st ? ["!", "#fccc28"] : st.st === "ready" ? ["✓", "#7dffb0"] : st.st === "active" ? ["…", "#9fe8ff"] : [null];
-    if (sym) { R(Math.round(x - 6), Math.round(sy - 6), 12, 11, "#0e0a1a"); R(Math.round(x - 5), Math.round(sy - 5), 10, 9, col); text(sym, x, sy, 8, "#120828", "center"); }
+    const fr = { "!": "quete", "…": "parler", "✓": "fini" }[sym];
+    if (sym && hasAtlas("bulles_pnj")) drawFrame("bulles_pnj", animFrame("bulles_pnj", fr, time, 3), x, sy);
+    else if (sym) { R(Math.round(x - 6), Math.round(sy - 6), 12, 11, "#0e0a1a"); R(Math.round(x - 5), Math.round(sy - 5), 10, 9, col); text(sym, x, sy, 8, "#120828", "center"); }
   }
 }
 function drawNpcPortrait(id, cx, cy, s = 1, talk = false) {
@@ -500,8 +523,10 @@ function headOf(aid, frame) {
   return headCache[k] = res;
 }
 // Accessoire de tête (provisoire, dessiné par le code) : hx, hy = haut de la tête, face = sens
+const ACC_ORDER = COSMETICS.filter(c => c.slot === "acc").map(c => c.id);   // même ordre que cosmetiques/accessoires.png
 function drawAccessory(id, hx, hy, face, s = 1, alpha = 1) {
-  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(Math.round(hx), Math.round(hy)); ctx.scale(face * s, s);
+  if (hasAtlas("accessoires")) { drawFrame("accessoires", ACC_ORDER.indexOf(id), hx, hy + 8 * s, face, alpha, s); return; }
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(Math.round(hx), Math.round(hy + 3 * s)); ctx.scale(face * s, s);   // un peu enfoncé dans les cheveux
   const O = "#0e0a1a";
   switch (id) {
     case "acc_chapeau_pirate": R(-9, -3, 18, 3, O); R(-8, -2, 16, 1, "#2a1a24"); R(-6, -8, 12, 6, O); R(-5, -7, 10, 5, "#2a1a24"); R(-1, -6, 3, 3, "#ffffff"); break;

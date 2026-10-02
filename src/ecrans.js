@@ -131,6 +131,7 @@ function drawCardArt(c, cx, cy, s = 1) {
   const a = c.art;
   if (a.atlas) { const an = ATL[a.atlas].anims[a.anim]; drawFrame(a.atlas, an ? an[0] : 0, cx, cy + 20 * s, 1, 1, s); }
   else if (a.npc) drawNpcPortrait(a.npc, cx, cy - 4, s * 0.8);
+  else if (a.foe && hasAtlas("illus_monstres")) drawFrame("illus_monstres", Object.keys(FOES).indexOf(a.foe), cx, cy + 20 * s, 1, 1, s);
   else if (a.foe) { const F = FOES[a.foe], A = ATL[F.atlas]; const sc = Math.min(1.3, 34 / Math.max(A.cw, A.ch)) * s * 1.5; drawFrame(F.atlas, A.anims.idle[0], cx, F.ground ? cy + 14 * s : cy, 1, 1, sc); }
   else if (a.old) {
     const d = ENEMIES[a.old], e = { type: a.old, x: 0, y: 0, w: d.w, h: d.h, face: 1, state: "idle", walkT: time, charging: false };
@@ -144,6 +145,7 @@ function drawCardArt(c, cx, cy, s = 1) {
 // Badges : médaille ronde avec un symbole (provisoire en attendant icones/badges.png)
 const BADGE_GLYPH = { socks: "2", basket: "▤", star: "★", home: "⌂", bubble: "…", heart: "♥", shield: "◈", bolt: "ϟ", swirl: "@", card: "▯", book: "▥", crown: "♛", crystal: "◆", trophy: "♜", skull: "☠", key: "⚷" };
 function drawBadgeIcon(b, cx, cy, s = 1, own = true) {
+  if (hasAtlas("badges")) { drawFrame("badges", BADGES.indexOf(b), cx, cy, 1, own ? 1 : 0.25, s * 1.1); return; }
   const col = own ? b.col : "#3a3450";
   ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
   R(-5, 5, 4, 6, own ? "#c8302a" : "#2a2440"); R(1, 5, 4, 6, own ? "#3a6aff" : "#2a2440");
@@ -429,7 +431,7 @@ SCREENS.memview = {
     const fx = 60, fy = 22, fw = 360, fh = 170;
     ctx.save(); ctx.beginPath(); ctx.rect(fx, fy, fw, fh); ctx.clip();
     const aid = "souvenir_" + (idx + 1);
-    if (ATL[aid] && atlasImg(aid)) drawFrame(aid, 0, fx + fw / 2, fy + fh, 1, 1, fw / ATL[aid].cw);
+    if (hasAtlas(aid)) { R(fx, fy, fw, fh, "#0a0618"); drawFrame(aid, 0, fx + fw / 2, fy + fh, 1, 1, Math.min(fw / ATL[aid].cw, fh / ATL[aid].ch)); }
     else drawMemScene(M.scene, fx, fy, fw, fh, v.t + v.i * 3);
     // teinte « vieux souvenir »
     ctx.fillStyle = "rgba(120,60,160,0.16)"; ctx.fillRect(fx, fy, fw, fh);
