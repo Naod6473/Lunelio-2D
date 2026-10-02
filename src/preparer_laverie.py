@@ -76,11 +76,11 @@ def unmagenta(im):
     im = im.convert("RGBA")
     px = im.load(); w, h = im.size
     if any(px[x, y][3] < 250 for x in (0, w - 1) for y in (0, h - 1)): return im
-    if not (px[0, 0][0] > 200 and px[0, 0][2] > 200 and px[0, 0][1] < 90): return im   # fond plein (décor) : rien à détourer
+    mag = lambda r, g, b: r >= 185 and b >= 185 and g <= 95 and abs(r - b) <= 50   # magenta à peu près uni (les images générées varient un peu)
+    if not mag(*px[0, 0][:3]): return im   # fond plein (décor) : rien à détourer
     for y in range(h):
         for x in range(w):
-            r, g, b, a = px[x, y]
-            if r > 200 and b > 200 and g < 90: px[x, y] = (0, 0, 0, 0)
+            if mag(*px[x, y][:3]): px[x, y] = (0, 0, 0, 0)
     return im
 
 def bbox(cell):

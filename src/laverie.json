@@ -113,6 +113,59 @@
    },
    "note": "laverie : sock_sprite.png"
   },
+  "robot_marcheur": {
+   "src": "assets/laverie/robot_marcheur.png",
+   "cw": 30,
+   "ch": 30,
+   "ax": 15,
+   "ay": 30,
+   "cols": 4,
+   "anims": {
+    "marche": [
+     0,
+     4
+    ],
+    "charge": [
+     4,
+     4
+    ]
+   },
+   "note": "laverie : robot_marcheur.png"
+  },
+  "robot_canon": {
+   "src": "assets/laverie/robot_canon.png",
+   "cw": 34,
+   "ch": 30,
+   "ax": 17,
+   "ay": 30,
+   "cols": 4,
+   "anims": {
+    "repos": [
+     0,
+     2
+    ],
+    "vise": [
+     2,
+     2
+    ]
+   },
+   "note": "laverie : robot_canon.png"
+  },
+  "drone_ancien": {
+   "src": "assets/laverie/drone_ancien.png",
+   "cw": 24,
+   "ch": 20,
+   "ax": 12,
+   "ay": 10,
+   "cols": 4,
+   "anims": {
+    "vol": [
+     0,
+     4
+    ]
+   },
+   "note": "laverie : drone_ancien.png"
+  },
   "pnj_bulle": {
    "src": "assets/laverie/pnj_bulle.png",
    "cw": 48,
@@ -136,6 +189,98 @@
    },
    "note": "laverie : pnj/pnj_bulle.png"
   },
+  "pnj_capitaine": {
+   "src": "assets/laverie/pnj_capitaine.png",
+   "cw": 48,
+   "ch": 48,
+   "ax": 24,
+   "ay": 48,
+   "cols": 4,
+   "anims": {
+    "repos": [
+     0,
+     4
+    ],
+    "parle": [
+     4,
+     2
+    ],
+    "content": [
+     8,
+     2
+    ]
+   },
+   "note": "laverie : pnj/pnj_capitaine.png"
+  },
+  "pnj_bobine": {
+   "src": "assets/laverie/pnj_bobine.png",
+   "cw": 48,
+   "ch": 48,
+   "ax": 24,
+   "ay": 48,
+   "cols": 4,
+   "anims": {
+    "repos": [
+     0,
+     4
+    ],
+    "parle": [
+     4,
+     2
+    ],
+    "content": [
+     8,
+     2
+    ]
+   },
+   "note": "laverie : pnj/pnj_bobine.png"
+  },
+  "pnj_kage": {
+   "src": "assets/laverie/pnj_kage.png",
+   "cw": 48,
+   "ch": 48,
+   "ax": 24,
+   "ay": 48,
+   "cols": 4,
+   "anims": {
+    "repos": [
+     0,
+     4
+    ],
+    "parle": [
+     4,
+     2
+    ],
+    "content": [
+     8,
+     2
+    ]
+   },
+   "note": "laverie : pnj/pnj_kage.png"
+  },
+  "pnj_firmin": {
+   "src": "assets/laverie/pnj_firmin.png",
+   "cw": 48,
+   "ch": 48,
+   "ax": 24,
+   "ay": 48,
+   "cols": 4,
+   "anims": {
+    "repos": [
+     0,
+     4
+    ],
+    "parle": [
+     4,
+     2
+    ],
+    "content": [
+     8,
+     2
+    ]
+   },
+   "note": "laverie : pnj/pnj_firmin.png"
+  },
   "portrait_bulle": {
    "src": "assets/laverie/portrait_bulle.png",
    "cw": 40,
@@ -150,6 +295,66 @@
     ]
    },
    "note": "laverie : pnj/portrait_bulle.png"
+  },
+  "portrait_capitaine": {
+   "src": "assets/laverie/portrait_capitaine.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 40,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : pnj/portrait_capitaine.png"
+  },
+  "portrait_bobine": {
+   "src": "assets/laverie/portrait_bobine.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 40,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : pnj/portrait_bobine.png"
+  },
+  "portrait_kage": {
+   "src": "assets/laverie/portrait_kage.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 40,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : pnj/portrait_kage.png"
+  },
+  "portrait_firmin": {
+   "src": "assets/laverie/portrait_firmin.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 40,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : pnj/portrait_firmin.png"
   }
  }
 }
