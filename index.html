@@ -322,7 +322,7 @@ const K = {
 };
 // Coop (coop.js) : deuxième joueur. dev : "pad" (deuxième manette, touches virtuelles H…) ou "kb" (flèches et touches de droite,
 // retirées alors des touches du joueur 1). ci : héros du joueur 2. K2 : ses commandes, au format de K.
-const COOP = { on: false, ci: 1, dev: null, pad: null };
+const COOP = { on: false, ci: 1, dev: null, pad: null, nom: null };   // nom : profil du joueur 2 (records à deux), facultatif
 const K2_KB = { left: ["ArrowLeft"], right: ["ArrowRight"], jump: ["ArrowUp", "Numpad0"], drop: ["ArrowDown"], attack: ["Period", "Numpad1"], special: ["Slash", "Numpad2"], power: ["ShiftRight", "Numpad3"] };
 const K2 = {};
 // Actions de jeu : touches choisies dans les options, plus la souris, le tactile et la manette (GJump… suivent les boutons choisis)
@@ -814,7 +814,7 @@ function campMusic() {
 function musicKey() {
   const P = audio.playlists, L = k => P[k] || [];
   const doom = df().id === "doom";
-  if (state === "menu" || ((state === "options" || state === "keys") && optFrom === "menu")) { const m = pickList(audio.list("intro", MUSIC_BASES.intro), 0); if (m) return m; }   // écran titre
+  if (state === "menu" || state === "profils" || state === "nomprofil" || ((state === "options" || state === "keys") && optFrom === "menu")) { const m = pickList(audio.list("intro", MUSIC_BASES.intro), 0); if (m) return m; }   // écran titre
   if (state === "chars") return charMusic(CHARS[charSel]);
   if (state === "eglise") return egliseMusic();
   if (state === "dahaka") return DK.lv === "grotte"
@@ -3991,7 +3991,21 @@ const trackAvailable = t => t.base.startsWith("synth:") ? !!SYNTH_THEMES[t.base.
 // SAVE.got est le registre des récompenses déjà données : grant() n'agit qu'une fois par clé, même après un rechargement.
 // Migration : les anciennes clés (lunelio-v2-…, lunelio-progress-…, lunelio-best-…) sont relues une fois, puis laissées en place
 // (une ancienne version du jeu reste donc jouable si on revient en arrière).
-const SAVE_KEY = "lunelio-save", SAVE_VERSION = 3;
+// Profils (profils.js) : chaque profil a sa sauvegarde, lunelio-save:<id> ; la liste et le profil en cours sont dans
+// lunelio-profils ({ list: [{ id, nom }], cur, legacy }). Sans profil choisi, la sauvegarde d'avant (lunelio-save) sert.
+const SAVE_KEY = "lunelio-save", SAVE_VERSION = 3, PROFILS_KEY = "lunelio-profils";
+let PROFILS = { list: [], cur: null, legacy: false };
+function loadProfils() {
+  try {
+    const o = JSON.parse(localStorage.getItem(PROFILS_KEY) || "null");
+    if (o && Array.isArray(o.list)) PROFILS = { list: o.list.filter(p => p && typeof p.id === "string" && typeof p.nom === "string"), cur: typeof o.cur === "string" ? o.cur : null, legacy: !!o.legacy };
+  } catch (e) {}
+  if (!PROFILS.list.some(p => p.id === PROFILS.cur)) PROFILS.cur = null;
+}
+function saveProfils() { try { localStorage.setItem(PROFILS_KEY, JSON.stringify(PROFILS)); } catch (e) {} }
+const curProfil = () => PROFILS.list.find(p => p.id === PROFILS.cur) || null;
+const saveKey = id => (id ?? PROFILS.cur) ? SAVE_KEY + ":" + (id ?? PROFILS.cur) : SAVE_KEY;
+loadProfils();
 function newSave() {
   return {
     v: SAVE_VERSION,
@@ -4004,8 +4018,8 @@ function newSave() {
     cos: { char: {}, machine: null, hub: { tile: "tile_damier", light: "light_blanc", sign: "sign_violet", items: {}, show: {} } },
     jukebox: null, lastChar: null,
     weapons: { owned: randomWeapons(2), eq: {} },            // armes du râtelier : possédées, et arme choisie par héros
-    dahaka: { best: {} },
-    rush: { best: {} },                                      // boss rush : record (secondes) par difficulté, en solo ou à deux                                    // niveau secret : record (mètres) par difficulté
+    dahaka: { best: {} },                                    // niveau secret : record (mètres) par difficulté
+    rush: { best: {}, avec: {} },                            // boss rush : record (secondes) par difficulté, en solo ou à deux ; avec : nom du joueur 2
   };
 }
 // n armes tirées au hasard parmi celles qu'on n'a pas encore (le sabre est toujours là)
@@ -4021,7 +4035,11 @@ function weaponReward(silent) {
   if (!silent) toast("Nouvelle arme !", WEAPON_BY_ID[id].name + " · au râtelier", "equip", "#ffb43c");
 }
 let SAVE = newSave();
-function saveGame() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) {} }
+// maj : date de la dernière sauvegarde (la fusion garde les choix les plus récents) ; syncSoon : envoi au serveur (profils.js,
+// chargé plus loin dans le script : syncReady devient vrai à la fin de profils.js)
+let syncReady = false;
+function saveGame() { SAVE.maj = Date.now(); try { localStorage.setItem(saveKey(), JSON.stringify(SAVE)); } catch (e) {} if (syncReady) syncSoon(); }
+function readSave(key) { try { const o = JSON.parse(localStorage.getItem(key) || "null"); return o && typeof o === "object" && o.v >= 3 ? o : null; } catch (e) { return null; } }
 // Complète une sauvegarde relue avec les champs manquants (versions futures ou fichier abîmé)
 function fillSave(o) {
   const base = newSave();
@@ -4031,9 +4049,9 @@ function fillSave(o) {
   return o;
 }
 function loadGame() {
-  let o = null;
-  try { o = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); } catch (e) { o = null; }
-  if (o && typeof o === "object" && o.v >= 3) { SAVE = fillSave(o); }
+  const o = readSave(saveKey());
+  if (o) SAVE = fillSave(o);
+  else if (PROFILS.cur) { SAVE = newSave(); SAVE.flags.armes = 1; saveGame(); }   // nouveau profil : une partie neuve
   else { SAVE = migrateOld(); saveGame(); }
   // armes : une partie commencée avant le râtelier reçoit une arme de plus par boss déjà vaincu
   if (!SAVE.flags.armes) { SAVE.flags.armes = 1; for (let i = 0; i < Object.keys(SAVE.seen.boss).length + Object.keys(SAVE.seen.oldBoss).length; i++) weaponReward(true); saveGame(); }
@@ -4072,8 +4090,53 @@ function migrateOld() {
   if (any) S.flags.migrated = 2;
   return S;
 }
+// Fusion de deux sauvegardes du même profil (cet appareil et le serveur) : rien de gagné ne se perd.
+// Ce qui est gagné s'additionne (union des registres, maximum des compteurs, état de quête le plus avancé) ; les records
+// gardent le meilleur (temps le plus court, distance la plus longue) ; les choix viennent de la sauvegarde la plus récente
+// (maj) : en entier pour le jukebox, le dernier héros et les salles de reprise ; héros par héros pour les tenues et les armes
+// (un choix fait sur un seul appareil reste).
+const MERGE_NEWER = ["jukebox", "lastChar", "camp.resume"], MERGE_NEWER_LEAF = ["cos", "weapons.eq"];
+const MERGE_MIN = ["chal.*.best", "rush.best"];   // valeurs : temps (le plus petit gagne)
+const QUEST_ORDER = { active: 1, ready: 2, done: 3 };
+function mergeSave(a, b) {
+  if (!a) return b; if (!b) return a;
+  if ((b.wiped || 0) > (a.maj || 0)) return b; if ((a.wiped || 0) > (b.maj || 0)) return a;   // partie effacée entre-temps
+  const newer = (b.maj || 0) > (a.maj || 0) ? b : a;
+  const match = (path, pats) => pats.some(p => { const x = p.split("."), y = path.split("."); return x.length === y.length && x.every((k, i) => k === "*" || k === y[i]); });
+  const rec = (x, y, path) => {
+    if (match(path, MERGE_NEWER)) return JSON.parse(JSON.stringify(path.split(".").reduce((o, k) => o && o[k], newer) ?? x ?? y ?? null));
+    if (MERGE_NEWER_LEAF.some(p => path === p || path.startsWith(p + "."))) {
+      if (x && y && typeof x === "object" && typeof y === "object") { const o = {}; for (const k of new Set([...Object.keys(x), ...Object.keys(y)])) o[k] = k in x && k in y ? rec(x[k], y[k], path + "." + k) : k in x ? x[k] : y[k]; return o; }
+      return newer === b ? (y ?? x) : (x ?? y);
+    }
+    if (path === "best") {   // { clé : { time, deaths } } : le meilleur temps
+      const o = { ...(x || {}) };
+      for (const k in y || {}) if (!o[k] || (y[k] && typeof y[k].time === "number" && y[k].time < o[k].time)) o[k] = y[k];
+      return o;
+    }
+    if (path.startsWith("quests.") && path.split(".").length === 2 && x && y) {
+      const st = (QUEST_ORDER[y.st] || 0) > (QUEST_ORDER[x.st] || 0) ? y.st : x.st;
+      return { ...x, ...y, st, items: { ...(x.items || {}), ...(y.items || {}) } };
+    }
+    if (x && y && typeof x === "object" && typeof y === "object" && !Array.isArray(x) && !Array.isArray(y)) {
+      const o = {}, min = match(path, MERGE_MIN);
+      for (const k of new Set([...Object.keys(x), ...Object.keys(y)])) {
+        if (min && typeof x[k] === "number" && typeof y[k] === "number") o[k] = Math.min(x[k], y[k]);
+        else o[k] = k in x ? (k in y ? rec(x[k], y[k], path ? path + "." + k : k) : x[k]) : y[k];
+      }
+      return o;
+    }
+    if (typeof x === "number" && typeof y === "number") return Math.max(x, y);
+    if (typeof x === "boolean" || typeof y === "boolean") return !!(x || y);
+    return x ?? y;
+  };
+  const m = rec(a, b, "");
+  m.maj = Math.max(a.maj || 0, b.maj || 0); m.v = SAVE_VERSION;
+  return m;
+}
 // Remet tout à zéro (écran des options, avec confirmation) : les réglages ne bougent pas
-function resetGame() { SAVE = newSave(); SAVE.flags.armes = 1; saveGame(); checkUnlocks(true); }
+// wiped : date de l'effacement ; une sauvegarde plus ancienne (serveur, autre appareil) ne revient pas par la fusion
+function resetGame() { SAVE = newSave(); SAVE.flags.armes = 1; SAVE.wiped = Date.now(); saveGame(); checkUnlocks(true); }
 
 /* ---- Compteurs ---- */
 const SOCK_ROOMS = Object.keys(AJOUTS.socks || {});
@@ -4312,6 +4375,7 @@ function enterHub(opts = {}) {
   hub.arrive = opts.arrive ? { t: 0 } : null;
   if (hub.arrive) { hubSetRoom("salle", 398); for (const p of players) p.hidden = true; }
   state = "hub"; voice.stop();
+  if (curProfil()) syncPull();   // progrès faits sur un autre appareil (profils.js)
   // à faire en arrivant : prologue, réparation d'une pièce, souvenir, fin de la campagne
   hub.queue = [];
   if (!SAVE.flags.prologue) hub.queue.push(() => startDialog(STORY.prologue, () => { SAVE.flags.prologue = 1; emit("met", { npc: "bulle" }); hub.msg = { text: say("Approche-toi de la machine et appuie sur Haut", "Approche-toi de la machine et appuie sur ▲", "Approche-toi de la machine et appuie sur {JUMP}"), t: 6 }; }, { prologue: true }));
@@ -4466,7 +4530,7 @@ function updateHub(rdt) {
 }
 function openHubMenu() { state = "hubmenu"; hubMenuSel = 0; audio.sfx("pause"); }
 let hubMenuSel = 0;
-const HUB_MENU = [["Reprendre", () => { state = "hub"; }], ["Options", () => openOptions("hub")], ["Changer de héros", () => openChars("hub")], ["Écran titre", () => goMenu()]];
+const HUB_MENU = [["Reprendre", () => { state = "hub"; }], ["Options", () => openOptions("hub")], ["Changer de héros", () => openChars("hub")], ["Changer de joueur", () => openProfiles()], ["Écran titre", () => goMenu()]];
 const hubMenuRect = i => ({ x: 170, y: 92 + i * 28, w: 140, h: 22 });
 SCREENS.hubmenu = {
   update() {
@@ -4947,7 +5011,7 @@ const hoverable = () => !TOUCH && !PAD;
 
 /* ---------------- Collections : cartes, badges, chaussettes ---------------- */
 const ALB = { tab: 0, cat: 0, world: 0, sel: 0, focus: "list", page: 0 };
-const ALB_TABS = ["Cartes", "Badges", "Chaussettes", "Trésors"];
+const ALB_TABS = ["Cartes", "Badges", "Chaussettes", "Trésors", "Famille"];
 const WORLD_FILTERS = [["all", "Tous les lieux"], ["laverie", "Laverie"], ...CWORLDS.map(W => [W.id, W.name]), ["bonus", "Ancienne aventure"]];
 function openAlbum() { state = "album"; ALB.sel = 0; ALB.focus = "list"; audio.sfx("page"); }
 function albumCards() {
@@ -4961,7 +5025,8 @@ const ALB_PAGE = 15;
 SCREENS.album = {
   update() {
     if (uiBack()) { backToHub(); return; }
-    const t = clickTab(4, 72, VW - 80); if (t >= 0) { ALB.tab = t; ALB.sel = 0; audio.sfx("page"); }
+    const t = clickTab(ALB_TABS.length, 72, VW - 80); if (t >= 0) { ALB.tab = t; ALB.sel = 0; audio.sfx("page"); if (t === 4) openFamily(); }
+    if (ALB.tab === 4 && (hit("KeyC", "GX") || (hit("Mouse0") && inside({ x: 150, y: 25, w: 96, h: 14 })))) { const i = DIFFS.findIndex(d => d.id === FAM.diff); FAM.diff = DIFFS[(i + 1) % DIFFS.length].id; audio.sfx("page"); }
     const n = ALB.tab === 0 ? Math.min(ALB_PAGE, albumCards().length - ALB.page * ALB_PAGE) : ALB.tab === 1 ? BADGES.length : ALB.tab === 3 ? TREASURES.length : 0;
     if (ALB.tab === 0) {
       // filtres : catégorie (4 boutons) et lieu (bouton qui change à chaque clic)
@@ -4976,13 +5041,13 @@ SCREENS.album = {
       if (hit("KeyV", "GY")) { ALB.world = (ALB.world + 1) % WORLD_FILTERS.length; ALB.sel = 0; ALB.page = 0; audio.sfx("page"); }
     } else if (ALB.tab === 1 && hit("Mouse0")) for (let i = 0; i < BADGES.length; i++) if (inside(badgeRect(i))) { ALB.sel = i; audio.sfx("select"); }
     else if (ALB.tab === 3 && hit("Mouse0")) for (let i = 0; i < TREASURES.length; i++) if (inside(tresRect(i))) { ALB.sel = i; ALB.focus = "list"; audio.sfx("select"); }
-    if (gridNav(ALB, n, ALB.tab === 0 ? 5 : ALB.tab === 1 ? 5 : ALB.tab === 3 ? 6 : 1, 4) === "tab") ALB.page = 0;
+    if (gridNav(ALB, n, ALB.tab === 0 ? 5 : ALB.tab === 1 ? 5 : ALB.tab === 3 ? 6 : 1, ALB_TABS.length) === "tab") { ALB.page = 0; if (ALB.tab === 4) openFamily(); }
     ALB.sel = clamp(ALB.sel, 0, Math.max(0, n - 1));
   },
   draw() {
     drawHub(); R(0, 0, VW, VH, "rgba(10,6,24,0.86)");
     drawTabs(ALB_TABS, ALB.tab, ALB.focus === "tabs", 72, VW - 80); drawBack();
-    if (ALB.tab === 0) drawAlbumCards(); else if (ALB.tab === 1) drawAlbumBadges(); else if (ALB.tab === 2) drawAlbumSocks(); else drawAlbumTreasures();
+    if (ALB.tab === 0) drawAlbumCards(); else if (ALB.tab === 1) drawAlbumBadges(); else if (ALB.tab === 2) drawAlbumSocks(); else if (ALB.tab === 3) drawAlbumTreasures(); else drawAlbumFamily();
   },
 };
 function drawAlbumCards() {
@@ -6069,7 +6134,9 @@ function coopCharsUpdate() {
   const n = CHARS.length, mv = i => { COOP.ci = (COOP.ci + i + n) % n; audio.sfx("select"); };
   if (hit(...K2.left)) mv(-1);
   if (hit(...K2.right)) mv(1);
-  if (hit(...K2.drop, ...(K2.act || []))) mv(4);
+  // haut / bas : le nom du joueur 2 (un profil, ou « Invité »), pour les records à deux
+  const names = coopNames(), cur = Math.max(0, names.indexOf(COOP.nom || "Invité")), dn = hit(...K2.drop) ? 1 : hit(...(K2.act || [])) ? -1 : 0;
+  if (dn) { const nm = names[(cur + dn + names.length) % names.length]; COOP.nom = nm === "Invité" ? null : nm; audio.sfx("select"); }
 }
 function coopCharsDraw() {
   const r = COOP_BOX;
@@ -6088,7 +6155,8 @@ function coopCharsDraw() {
   const C2 = CHARS[COOP.ci];
   drawChar(C2, Math.floor(time * 5) % 4, r.x + 20, r.y + r.h - 4, 1, 0.8);
   text(`Joueur 2 : ${C2.name}`, r.x + 38, r.y + 11, 9, C2.ui);
-  text(COOP.dev === "pad" ? "Croix pour choisir, Select pour partir" : `Flèches pour choisir, ${keyName("Digit2")} pour partir`, r.x + 38, r.y + 24, 7, "#e8dcff");
+  text(`${COOP.nom || "Invité"} ▲▼`, r.x + r.w - 6, r.y + 11, 7, "#fccc28", "right");
+  text(COOP.dev === "pad" ? "◀ ▶ héros, ▲ ▼ nom, Select pour partir" : `◀ ▶ héros, ▲ ▼ nom, ${keyName("Digit2")} pour partir`, r.x + 38, r.y + 24, 7, "#e8dcff");
   text(COOP.dev === "pad" ? "Manette 2" : "Clavier : flèches, " + [K2_KB.attack[0], K2_KB.special[0], K2_KB.power[0]].map(keyName).join(" "), r.x + 38, r.y + 34, 7, "#b9a6e0");
 }
 
@@ -6146,7 +6214,7 @@ function updateRush(dt) {
 }
 function rushEnd() {
   const k = rushKey(), prev = rushBest(), rec = prev === undefined || rush.t < prev;
-  if (rec) SAVE.rush.best[k] = rush.t;
+  if (rec) { SAVE.rush.best[k] = rush.t; if (COOP.on) SAVE.rush.avec[k] = COOP.nom || "Invité"; }
   rush.res = { time: rush.t, rec, prev, t: 0, sel: 0 };
   emit("rush", { time: rush.t, diff: df().id, duo: COOP.on });
   saveGame(); setTimeFx(false, false);
@@ -6191,6 +6259,302 @@ SCREENS.rushres = {
     RR_BTN.forEach((bt, i) => drawButton(bt, bt.label, (PAD || TOUCH) ? r.sel === i : inside(bt), i ? "#b9a6e0" : "#ff5a7a", 9));
   },
 };
+
+/* ---------------- Profils et sauvegarde partagée ---------------- */
+// Écran « Qui joue ? » (state "profils", après le titre) : chaque profil a sa sauvegarde (sauvegarde.js, PROFILS).
+// Nouveau profil : écran "nomprofil" (nom tapé au clavier, ou clavier à l'écran à la manette et au toucher).
+// Synchronisation avec le service de la maison (deploy/lunelio_api.py, derrière /api/) : à l'ouverture d'un profil, en
+// arrivant à la laverie et quelques secondes après chaque sauvegarde. Les deux versions sont fusionnées (mergeSave) ;
+// sans service (fichier local, version autonome, GitHub Pages…) ou sans connexion famille, le jeu garde la sauvegarde
+// de l'appareil, sans message d'erreur.
+// SYNC.st : "off" (pas de service), "auth" (Cloudflare Access demande la connexion famille), "ok", "wait" (en cours).
+const SYNC = { st: "wait", rev: {}, timer: null, busy: false, again: false, remote: [], scores: null };
+const NOM_OK = /^[\p{L}\p{N}](?:[\p{L}\p{N}' -]{0,10}[\p{L}\p{N}])?$/u;   // comme le service : 1 à 12 caractères
+const syncPossible = () => AUDIO_MODE !== "embed" && /^https?:$/.test(location.protocol);
+async function api(path, opts = {}) {
+  if (!syncPossible()) { SYNC.st = "off"; return null; }
+  const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 6000);
+  try {
+    const r = await fetch("api/" + path, { method: opts.method || "GET", body: opts.body, keepalive: !!opts.keepalive, cache: "no-store", credentials: "same-origin",
+      redirect: "manual", signal: ctl.signal, headers: opts.body ? { "Content-Type": "application/json" } : {} });
+    if (r.type === "opaqueredirect" || r.status === 401 || (r.status === 403 && !opts.body)) { SYNC.st = "auth"; return null; }   // Cloudflare Access
+    const ct = r.headers.get("Content-Type") || "";
+    if (!ct.includes("application/json")) { SYNC.st = "off"; return null; }   // pas de service (page d'erreur, autre hébergement)
+    SYNC.st = "ok";
+    return { status: r.status, data: await r.json() };
+  } catch (e) { if (SYNC.st !== "auth") SYNC.st = "off"; return null; }
+  finally { clearTimeout(to); }
+}
+async function syncCheck() {
+  const r = await api("etat"); if (!r) return;
+  const l = await api("profils"); if (l && l.status === 200) SYNC.remote = (l.data.profils || []).filter(p => p && typeof p.id === "string" && typeof p.nom === "string");
+}
+// Récupère la sauvegarde du profil en cours, la fusionne avec celle de l'appareil, puis renvoie le résultat si besoin
+async function syncPull() {
+  const P = curProfil(); if (!P) return;
+  const r = await api("save/" + P.id); if (!r || P !== curProfil()) return;
+  if (r.status === 404) { SYNC.rev[P.id] = 0; return syncPush(); }
+  if (r.status !== 200 || !r.data.save) return;
+  SYNC.rev[P.id] = r.data.rev;
+  const before = JSON.stringify(r.data.save), merged = fillSave(mergeSave(SAVE, r.data.save));
+  SAVE = merged; try { localStorage.setItem(saveKey(), JSON.stringify(SAVE)); } catch (e) {}
+  checkUnlocks(true);
+  if (JSON.stringify(SAVE) !== before) syncPush();
+}
+async function syncPush(keepalive) {
+  const P = curProfil(); if (!P || SYNC.st === "off" || SYNC.st === "auth") return;
+  if (SYNC.busy) { SYNC.again = true; return; }
+  SYNC.busy = true;
+  try {
+    for (let tries = 0; tries < 3; tries++) {
+      const r = await api("save/" + P.id, { method: "PUT", keepalive, body: JSON.stringify({ nom: P.nom, rev: SYNC.rev[P.id] || 0, save: SAVE }) });
+      if (!r || P !== curProfil()) return;
+      if (r.status === 200) { SYNC.rev[P.id] = r.data.rev; return; }
+      if (r.status === 409 && r.data.conflit === "version") {   // un autre appareil a joué entre-temps : on fusionne et on renvoie
+        SYNC.rev[P.id] = r.data.rev; SAVE = fillSave(mergeSave(SAVE, r.data.save));
+        try { localStorage.setItem(saveKey(), JSON.stringify(SAVE)); } catch (e) {}
+        continue;
+      }
+      if (r.status === 409 && r.data.conflit === "nom" && typeof r.data.id === "string") { adoptRemote(P, r.data.id); return syncPull(); }
+      return;
+    }
+  } finally { SYNC.busy = false; if (SYNC.again) { SYNC.again = false; syncSoon(); } }
+}
+// Le nom existe déjà sur le serveur (créé sur un autre appareil) : ce profil devient celui du serveur
+function adoptRemote(P, id) {
+  const sv = readSave(saveKey(P.id));
+  try { if (sv) localStorage.setItem(saveKey(id), JSON.stringify(mergeSave(readSave(saveKey(id)), sv))); localStorage.removeItem(saveKey(P.id)); } catch (e) {}
+  PROFILS.list = PROFILS.list.filter(p => p.id !== id && p !== P); P.id = id; PROFILS.list.push(P);
+  if (PROFILS.cur !== id) PROFILS.cur = id;
+  saveProfils(); SYNC.rev[id] = 0;
+}
+function syncSoon() {
+  if (!curProfil() || SYNC.st === "off" || SYNC.st === "auth") return;
+  clearTimeout(SYNC.timer); SYNC.timer = setTimeout(() => syncPush(), 3000);
+}
+addEventListener("pagehide", () => { if (SYNC.timer) { clearTimeout(SYNC.timer); SYNC.timer = null; syncPush(true); } });
+async function syncScores() {
+  const r = await api("scores");
+  SYNC.scores = r && r.status === 200 ? (r.data.profils || []) : null;
+}
+
+/* ---- Choisir, créer ---- */
+const profileMenu = () => {
+  const m = new Map(PROFILS.list.map(p => [p.id, { id: p.id, nom: p.nom, local: true }]));
+  for (const p of SYNC.remote) { const o = m.get(p.id) || { id: p.id, nom: p.nom }; o.remote = true; o.mondes = p.mondes; o.maj = p.maj; m.set(p.id, o); }
+  return [...m.values()];
+};
+const PF = { sel: 0, msg: null, busy: false };
+function openProfiles() {
+  state = "profils"; PF.msg = null; PF.busy = false;
+  const list = profileMenu(); PF.sel = Math.max(0, list.findIndex(p => p.id === PROFILS.cur));
+  syncCheck().then(() => { if (state === "profils") { const l = profileMenu(); if (PROFILS.cur) PF.sel = Math.max(0, l.findIndex(p => p.id === PROFILS.cur)); } });
+}
+async function selectProfile(p) {
+  if (PF.busy) return; PF.busy = true;
+  if (!PROFILS.list.some(q => q.id === p.id)) PROFILS.list.push({ id: p.id, nom: p.nom });
+  PROFILS.cur = p.id; saveProfils();
+  // profil créé sur un autre appareil : on part de sa sauvegarde du serveur (pas d'une partie neuve)
+  if (!readSave(saveKey(p.id)) && SYNC.st === "ok") {
+    const r = await api("save/" + p.id);
+    if (r && r.status === 200 && r.data.save) { try { localStorage.setItem(saveKey(p.id), JSON.stringify(r.data.save)); } catch (e) {} SYNC.rev[p.id] = r.data.rev; }
+  }
+  loadGame(); afterProfile();
+  PF.busy = false;
+  syncPull();
+  audio.sfx("start"); openChars("menu");
+}
+// Le héros, les armes et le reste suivent la sauvegarde du profil
+function afterProfile() {
+  const i = CHARS.findIndex(C => C.id === SAVE.lastChar); charIdx = i >= 0 ? i : 0; charSel = charIdx;
+  if (COOP.nom === curProfil()?.nom) COOP.nom = null;
+}
+function createProfile(nom) {
+  const same = profileMenu().find(p => p.nom.toLocaleLowerCase("fr") === nom.toLocaleLowerCase("fr"));
+  if (same) { PF.msg = `« ${same.nom} » existe déjà : on le reprend`; return selectProfile(same); }
+  const b = new Uint8Array(8); crypto.getRandomValues(b);
+  const id = "p" + [...b].map(x => x.toString(16).padStart(2, "0")).join("").slice(0, 14);
+  // le premier profil reprend la partie d'avant les profils (s'il y en avait une)
+  const old = !PROFILS.legacy && !PROFILS.list.length ? readSave(SAVE_KEY) : null;
+  if (old) { try { localStorage.setItem(saveKey(id), JSON.stringify(old)); } catch (e) {} }
+  PROFILS.legacy = true;
+  PROFILS.list.push({ id, nom }); saveProfils();
+  if (old) toast("Ta partie continue", `dans le profil ${nom}`, "start", "#7dffb0");
+  return selectProfile({ id, nom });
+}
+const PF_ROW = i => ({ x: 120, y: 44 + i * 20, w: 240, h: 17 });
+const PF_PAGE = 8;
+const PF_LOGIN = { x: 170, y: 232, w: 140, h: 16 };
+SCREENS.profils = {
+  update() {
+    const list = profileMenu(), n = list.length + 1;
+    PF.sel = clamp(PF.sel, 0, n - 1);
+    if (hit("Escape", "GB", "Backspace") || (hit("Mouse0") && inside(BACK_RECT))) { audio.sfx("back"); goMenu(); return; }
+    if (hit("ArrowUp", "KeyW", "GUp")) { PF.sel = (PF.sel + n - 1) % n; audio.sfx("select"); }
+    if (hit("ArrowDown", "KeyS", "GDown")) { PF.sel = (PF.sel + 1) % n; audio.sfx("select"); }
+    const page = Math.floor(PF.sel / PF_PAGE);
+    if (hit("Mouse0")) {
+      if (SYNC.st === "auth" && inside(PF_LOGIN)) { location.href = "api/connexion"; return; }
+      for (let i = 0; i < PF_PAGE; i++) { const k = page * PF_PAGE + i; if (k < n && inside(PF_ROW(i))) { if (PF.sel === k || TOUCH) { PF.sel = k; this.go(list); return; } PF.sel = k; audio.sfx("select"); } }
+    }
+    if (hit("Enter", "NumpadEnter", "Space", "GA", "GStart")) this.go(list);
+  },
+  go(list) {
+    if (PF.sel >= list.length) { openNameEntry(); return; }
+    if (list[PF.sel]) selectProfile(list[PF.sel]);
+  },
+  draw() {
+    drawMenuBg(); R(0, 0, VW, VH, "rgba(13,8,32,0.6)");
+    text("Qui joue ?", VW / 2, 22, 16, ch().ui, "center", ch().ui);
+    drawBack("◀ Titre");
+    const list = profileMenu(), n = list.length + 1, page = Math.floor(PF.sel / PF_PAGE);
+    for (let i = 0; i < PF_PAGE; i++) {
+      const k = page * PF_PAGE + i; if (k >= n) break;
+      const r = PF_ROW(i), sel = k === PF.sel, p = list[k];
+      R(r.x, r.y, r.w, r.h, sel ? "rgba(255,255,255,0.16)" : "rgba(20,12,40,0.85)");
+      ctx.strokeStyle = sel ? ch().ui : "#3a2a5c"; ctx.lineWidth = 1; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+      if (!p) { text("+ Nouveau profil", r.x + 10, r.y + 9, 9, "#7dffb0"); continue; }
+      text(p.nom, r.x + 10, r.y + 9, 9, sel ? "#ffffff" : "#e8dcff");
+      const mondes = p.id === PROFILS.cur ? SAVE.camp.done : p.local ? ((readSave(saveKey(p.id)) || {}).camp || {}).done || 0 : p.mondes || 0;
+      text(`${mondes}/${CWORLDS.length} mondes`, r.x + r.w - 8, r.y + 9, 7, "#b9a6e0", "right");
+      if (p.id === PROFILS.cur) text("◆", r.x + r.w + 8, r.y + 9, 7, ch().ui, "center");
+    }
+    if (n > PF_PAGE) text(`Page ${page + 1}/${Math.ceil(n / PF_PAGE)}`, VW / 2, 210, 7, "#b9a6e0", "center");
+    // état de la sauvegarde partagée
+    if (SYNC.st === "ok") text("✓ Sauvegardes partagées avec la maison", VW / 2, 222, 8, "#7dffb0", "center");
+    else if (SYNC.st === "auth") { text("Pour partager les sauvegardes :", VW / 2, 222, 7, "#b9a6e0", "center"); drawButton(PF_LOGIN, "Connexion famille", !TOUCH && inside(PF_LOGIN), "#fccc28", 8); }
+    else if (SYNC.st === "off") text("Sauvegarde sur cet appareil", VW / 2, 222, 8, "#b9a6e0", "center");
+    if (PF.msg) text(PF.msg, VW / 2, 36, 8, "#fccc28", "center");
+    text(say("Flèches pour choisir, Entrée pour jouer", "Touche ton nom pour jouer", "Croix pour choisir, {A} pour jouer"), VW / 2, 256, 8, "#b9a6e0", "center");
+  },
+};
+
+/* ---- Saisie du nom : clavier, ou clavier à l'écran (manette, toucher, souris) ---- */
+const NK_ROWS = ["ABCDEFGHIJ", "KLMNOPQRST", "UVWXYZÉÈÇÏ", "0123456789", "-' ⌫✓"];
+const NE = { nom: "", r: 0, c: 0, err: null };
+function openNameEntry() { state = "nomprofil"; Object.assign(NE, { nom: "", r: 0, c: 0, err: null }); audio.sfx("select"); }
+addEventListener("keydown", e => {
+  if (state !== "nomprofil" || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key && e.key.length === 1 && /[\p{L}\p{N}' -]/u.test(e.key)) { e.preventDefault(); nameType(e.key); }
+});
+function nameType(ch1) {
+  if (NE.nom.length >= 12) { audio.sfx("nope"); return; }
+  if (ch1 === " " && (!NE.nom || NE.nom.endsWith(" "))) return;
+  NE.nom += NE.nom ? ch1.toLocaleLowerCase("fr") : ch1.toLocaleUpperCase("fr");   // une majuscule au début, comme un prénom
+  NE.err = null; audio.sfx("select");
+}
+function nameOk() {
+  const nom = NE.nom.trim();
+  if (!NOM_OK.test(nom)) { NE.err = "Un nom de 1 à 12 lettres"; audio.sfx("nope"); return; }
+  createProfile(nom);
+}
+const nkRect = (r, c) => { const row = NK_ROWS[r], w = row.length === 10 ? 30 : r === 4 ? 46 : 30; return { x: VW / 2 - (row.length * (w + 4) - 4) / 2 + c * (w + 4), y: 110 + r * 26, w, h: 22 }; };
+function nkPress(k) {
+  if (k === "⌫") { NE.nom = NE.nom.slice(0, -1); audio.sfx("back"); }
+  else if (k === "✓") nameOk();
+  else nameType(k);
+}
+SCREENS.nomprofil = {
+  update() {
+    if (hit("Escape", "GB") || (hit("Mouse0") && inside(BACK_RECT))) { audio.sfx("back"); openProfiles(); return; }
+    if (hit("Backspace")) { NE.nom = NE.nom.slice(0, -1); audio.sfx("back"); }
+    if (hit("Enter", "NumpadEnter", "GStart")) { nameOk(); return; }
+    // clavier à l'écran (seulement les flèches et la croix : les lettres tapées écrivent le nom)
+    if (hit("ArrowUp", "GUp")) { NE.r = (NE.r + NK_ROWS.length - 1) % NK_ROWS.length; NE.c = Math.min(NE.c, NK_ROWS[NE.r].length - 1); audio.sfx("select"); }
+    if (hit("ArrowDown", "GDown")) { NE.r = (NE.r + 1) % NK_ROWS.length; NE.c = Math.min(NE.c, NK_ROWS[NE.r].length - 1); audio.sfx("select"); }
+    if (hit("ArrowLeft", "GLeft")) { NE.c = (NE.c + NK_ROWS[NE.r].length - 1) % NK_ROWS[NE.r].length; audio.sfx("select"); }
+    if (hit("ArrowRight", "GRight")) { NE.c = (NE.c + 1) % NK_ROWS[NE.r].length; audio.sfx("select"); }
+    if (hit("GA")) { nkPress([...NK_ROWS[NE.r]][NE.c]); return; }
+    if (hit("GX", "GY")) { NE.nom = NE.nom.slice(0, -1); audio.sfx("back"); }
+    if (hit("Mouse0")) NK_ROWS.forEach((row, r) => [...row].forEach((k, c) => { if (state === "nomprofil" && inside(nkRect(r, c))) { NE.r = r; NE.c = c; nkPress(k); } }));
+  },
+  draw() {
+    drawMenuBg(); R(0, 0, VW, VH, "rgba(13,8,32,0.7)");
+    text("Nouveau profil", VW / 2, 22, 16, ch().ui, "center", ch().ui);
+    drawBack("◀ Retour");
+    text("Comment tu t'appelles ?", VW / 2, 50, 9, "#e8dcff", "center");
+    R(VW / 2 - 90, 62, 180, 26, "rgba(20,12,40,0.95)"); ctx.strokeStyle = ch().ui; ctx.strokeRect(VW / 2 - 89.5, 62.5, 179, 25);
+    text(NE.nom + (Math.floor(time * 2) % 2 ? "_" : " "), VW / 2, 76, 13, "#ffffff", "center");
+    if (NE.err) text(NE.err, VW / 2, 98, 8, "#ff8ab0", "center");
+    NK_ROWS.forEach((row, r) => [...row].forEach((k, c) => {
+      const b = nkRect(r, c), sel = PAD && r === NE.r && c === NE.c;
+      const label = k === " " ? "espace" : k === "⌫" ? "⌫ effacer" : k === "✓" ? "✓ OK" : k;
+      drawButton(b, label, sel || (!TOUCH && inside(b)), k === "✓" ? "#7dffb0" : "#e8dcff", k.length > 1 || label.length > 1 ? 7 : 10);
+    }));
+    text(say("Tape ton nom au clavier, puis Entrée", "Touche les lettres, puis ✓ OK", "Croix et {A} pour écrire, {X} pour effacer, {START} pour valider"), VW / 2, 256, 8, "#b9a6e0", "center");
+  },
+};
+
+/* ---- Coop : le joueur 2 peut choisir son nom, pour les records à deux ---- */
+function coopNames() { return ["Invité", ...profileMenu().map(p => p.nom).filter(nm => nm !== curProfil()?.nom)]; }
+
+/* ---- Tableau des scores familial (onglet « Famille » des collections) ---- */
+// Résumé d'une sauvegarde, comme celui du service (resume() de lunelio_api.py)
+function saveSummary(sv) {
+  sv = sv || {};
+  const best = {}; for (const [k, v] of Object.entries(sv.best || {})) if (k.startsWith("camp|") && v && typeof v.time === "number") best[k] = v.time;
+  const chal = {}; for (const [k, c] of Object.entries(sv.chal || {})) if (c && c.best) chal[k] = c.best;
+  return { mondes: (sv.camp || {}).done || 0, chaussettes: Object.keys(sv.socks || {}).length, badges: Object.keys(sv.got || {}).filter(k => k.startsWith("badge:")).length,
+    best, rush: (sv.rush || {}).best || {}, rushAvec: (sv.rush || {}).avec || {}, dahaka: (sv.dahaka || {}).best || {}, chal };
+}
+// Les profils du tableau : ceux du serveur (si on y a accès), complétés par ceux de cet appareil (le profil en cours est à jour)
+function familyRows() {
+  const m = new Map();
+  for (const p of SYNC.scores || []) m.set(p.id, { ...p });
+  for (const p of PROFILS.list) {
+    const sv = p.id === PROFILS.cur ? SAVE : readSave(saveKey(p.id)); if (!sv) continue;
+    const o = m.get(p.id), s = saveSummary(sv);
+    m.set(p.id, o && p.id !== PROFILS.cur ? o : { id: p.id, nom: p.nom, ...s });
+  }
+  return [...m.values()];
+}
+const FAM = { diff: null };
+function familyRecords(rows, d) {
+  const recs = [];
+  const bestOf = (get, better, fmt, label, medal) => {
+    let top = null;
+    for (const r of rows) { const v = get(r); if (typeof v === "number" && (!top || better(v, top.v))) top = { v, who: r.nom, r }; }
+    recs.push({ label, top, fmt, medal });
+  };
+  const lt = (a, b) => a < b, gt = (a, b) => a > b;
+  CWORLDS.forEach((W, i) => bestOf(r => r.best[`camp|${d}|${W.id}`], lt, fmtTime, `${i + 1}. ${W.name}`, v => medalOf(W.id, v)));
+  bestOf(r => r.rush[`${d}|1`], lt, fmtTime, "Boss rush (seul)", v => medalOf("rush", v));
+  bestOf(r => r.rush[`${d}|2`], lt, fmtTime, "Boss rush (à deux)", v => medalOf("rush", v));
+  const last = recs[recs.length - 1]; if (last.top) last.top.who += " + " + (last.top.r.rushAvec[`${d}|2`] || "Invité");
+  bestOf(r => r.dahaka[d], gt, v => `${Math.floor(v)} m`, "Dahaka : temple", null);
+  bestOf(r => r.dahaka[`grotte|${d}`], gt, v => `${Math.floor(v)} m`, "Dahaka : grotte", null);
+  return recs;
+}
+function openFamily() { FAM.diff = FAM.diff || df().id; syncScores(); }
+function drawAlbumFamily() {
+  const d = FAM.diff || df().id, D = DIFFS.find(x => x.id === d) || df(), rows = familyRows();
+  text("Records de la famille", 12, 32, 9, "#fccc28");
+  drawButton({ x: 150, y: 25, w: 96, h: 14 }, `${D.label} ▸`, !TOUCH && inside({ x: 150, y: 25, w: 96, h: 14 }), D.color || "#e8dcff", 7);
+  if (!rows.length) { text("Pas encore de profil.", 12, 60, 8, "#b9a6e0"); return; }
+  familyRecords(rows, d).forEach((rc, i) => {
+    const y = 50 + i * 19;
+    R(10, y - 7, 290, 16, i % 2 ? "rgba(20,12,40,0.55)" : "rgba(30,18,56,0.7)");
+    text(rc.label, 14, y + 1, 7, "#e8dcff");
+    if (!rc.top) { text("—", 296, y + 1, 7, "#5a4a80", "right"); return; }
+    const md = rc.medal ? rc.medal(rc.top.v) : 0;
+    text(rc.fmt(rc.top.v), 196, y + 1, 7, "#7dffb0", "right"); if (md) drawMedal(md, 206, y + 1, 0.55);
+    text(rc.top.who.length > 14 ? rc.top.who.slice(0, 13) + "…" : rc.top.who, 296, y + 1, 7, "#fccc28", "right");
+  });
+  // les joueurs de la famille
+  drawPanel(308, 26, 164, 226);
+  text("Les joueurs", 318, 36, 8, "#fccc28");
+  rows.sort((a, b) => b.mondes - a.mondes || b.chaussettes - a.chaussettes).slice(0, 10).forEach((r, i) => {
+    const y = 52 + i * 20;
+    text(r.nom, 316, y, 8, r.id === PROFILS.cur ? ch().ui : "#ffffff");
+    text(`${r.mondes}/${CWORLDS.length} mondes · ${r.chaussettes} chaussettes · ${r.badges} badges`, 316, y + 9, 6, "#b9a6e0");
+  });
+  const st = SYNC.st === "ok" ? "Toute la famille (serveur de la maison)" : "Profils de cet appareil";
+  text(st, 12, 250, 7, "#b9a6e0");
+}
+
+syncReady = true;
+// Au démarrage : le service répond-il ? Si oui, la sauvegarde du profil en cours se met à jour en arrière-plan.
+setTimeout(() => syncCheck().then(() => { if (curProfil() && SYNC.st === "ok") syncPull(); }), 1200);
 
 /* ---------------- Niveau secret : la course du Dahaka ---------------- */
 // Débloqué en tapant DAHAKA sur l'écran des mondes (SAVE.flags.dahaka). Deux parcours au choix (DK_LEVELS) : le temple et la grotte.
@@ -7066,7 +7430,7 @@ const UI = {
 };
 const inside = (r) => mouse.x >= r.x && mouse.x <= r.x + r.w && mouse.y >= r.y && mouse.y <= r.y + r.h;
 function goMenu() { state = "menu"; setTimeFx(false, false); }
-function startGame() { audio.sfx("start"); openChars("menu"); }
+function startGame() { audio.sfx("start"); openProfiles(); }   // « Qui joue ? » (profils.js), puis le choix du héros
 let worldSel = 0, thumbs = null, thumbsFor = null, curWorld = 0;
 // Choix des mondes : pages de 4 × 2 ; au-delà de 8 mondes, d'autres pages apparaissent (← → passent d'une page à l'autre)
 const WCOLS = 4, WPAGE = 8;

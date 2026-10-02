@@ -72,6 +72,7 @@ function enterHub(opts = {}) {
   hub.arrive = opts.arrive ? { t: 0 } : null;
   if (hub.arrive) { hubSetRoom("salle", 398); for (const p of players) p.hidden = true; }
   state = "hub"; voice.stop();
+  if (curProfil()) syncPull();   // progrès faits sur un autre appareil (profils.js)
   // à faire en arrivant : prologue, réparation d'une pièce, souvenir, fin de la campagne
   hub.queue = [];
   if (!SAVE.flags.prologue) hub.queue.push(() => startDialog(STORY.prologue, () => { SAVE.flags.prologue = 1; emit("met", { npc: "bulle" }); hub.msg = { text: say("Approche-toi de la machine et appuie sur Haut", "Approche-toi de la machine et appuie sur ▲", "Approche-toi de la machine et appuie sur {JUMP}"), t: 6 }; }, { prologue: true }));
@@ -226,7 +227,7 @@ function updateHub(rdt) {
 }
 function openHubMenu() { state = "hubmenu"; hubMenuSel = 0; audio.sfx("pause"); }
 let hubMenuSel = 0;
-const HUB_MENU = [["Reprendre", () => { state = "hub"; }], ["Options", () => openOptions("hub")], ["Changer de héros", () => openChars("hub")], ["Écran titre", () => goMenu()]];
+const HUB_MENU = [["Reprendre", () => { state = "hub"; }], ["Options", () => openOptions("hub")], ["Changer de héros", () => openChars("hub")], ["Changer de joueur", () => openProfiles()], ["Écran titre", () => goMenu()]];
 const hubMenuRect = i => ({ x: 170, y: 92 + i * 28, w: 140, h: 22 });
 SCREENS.hubmenu = {
   update() {

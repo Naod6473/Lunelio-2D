@@ -121,7 +121,9 @@ function coopCharsUpdate() {
   const n = CHARS.length, mv = i => { COOP.ci = (COOP.ci + i + n) % n; audio.sfx("select"); };
   if (hit(...K2.left)) mv(-1);
   if (hit(...K2.right)) mv(1);
-  if (hit(...K2.drop, ...(K2.act || []))) mv(4);
+  // haut / bas : le nom du joueur 2 (un profil, ou « Invité »), pour les records à deux
+  const names = coopNames(), cur = Math.max(0, names.indexOf(COOP.nom || "Invité")), dn = hit(...K2.drop) ? 1 : hit(...(K2.act || [])) ? -1 : 0;
+  if (dn) { const nm = names[(cur + dn + names.length) % names.length]; COOP.nom = nm === "Invité" ? null : nm; audio.sfx("select"); }
 }
 function coopCharsDraw() {
   const r = COOP_BOX;
@@ -140,6 +142,7 @@ function coopCharsDraw() {
   const C2 = CHARS[COOP.ci];
   drawChar(C2, Math.floor(time * 5) % 4, r.x + 20, r.y + r.h - 4, 1, 0.8);
   text(`Joueur 2 : ${C2.name}`, r.x + 38, r.y + 11, 9, C2.ui);
-  text(COOP.dev === "pad" ? "Croix pour choisir, Select pour partir" : `Flèches pour choisir, ${keyName("Digit2")} pour partir`, r.x + 38, r.y + 24, 7, "#e8dcff");
+  text(`${COOP.nom || "Invité"} ▲▼`, r.x + r.w - 6, r.y + 11, 7, "#fccc28", "right");
+  text(COOP.dev === "pad" ? "◀ ▶ héros, ▲ ▼ nom, Select pour partir" : `◀ ▶ héros, ▲ ▼ nom, ${keyName("Digit2")} pour partir`, r.x + 38, r.y + 24, 7, "#e8dcff");
   text(COOP.dev === "pad" ? "Manette 2" : "Clavier : flèches, " + [K2_KB.attack[0], K2_KB.special[0], K2_KB.power[0]].map(keyName).join(" "), r.x + 38, r.y + 34, 7, "#b9a6e0");
 }

@@ -41,6 +41,7 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   const req = e.request, url = new URL(req.url);
   if (url.origin !== location.origin) return;   // police Google Fonts : le navigateur s'en occupe
+  if (url.pathname.includes("/api/")) return;   // sauvegardes partagées (profils.js) : jamais en cache
   if (req.method === "HEAD") e.respondWith(head(req));
   else if (req.method !== "GET") return;
   else if (url.pathname.startsWith(AUDIO_PATH)) e.respondWith(audioFile(req));

@@ -3,7 +3,21 @@
 // SAVE.got est le registre des récompenses déjà données : grant() n'agit qu'une fois par clé, même après un rechargement.
 // Migration : les anciennes clés (lunelio-v2-…, lunelio-progress-…, lunelio-best-…) sont relues une fois, puis laissées en place
 // (une ancienne version du jeu reste donc jouable si on revient en arrière).
-const SAVE_KEY = "lunelio-save", SAVE_VERSION = 3;
+// Profils (profils.js) : chaque profil a sa sauvegarde, lunelio-save:<id> ; la liste et le profil en cours sont dans
+// lunelio-profils ({ list: [{ id, nom }], cur, legacy }). Sans profil choisi, la sauvegarde d'avant (lunelio-save) sert.
+const SAVE_KEY = "lunelio-save", SAVE_VERSION = 3, PROFILS_KEY = "lunelio-profils";
+let PROFILS = { list: [], cur: null, legacy: false };
+function loadProfils() {
+  try {
+    const o = JSON.parse(localStorage.getItem(PROFILS_KEY) || "null");
+    if (o && Array.isArray(o.list)) PROFILS = { list: o.list.filter(p => p && typeof p.id === "string" && typeof p.nom === "string"), cur: typeof o.cur === "string" ? o.cur : null, legacy: !!o.legacy };
+  } catch (e) {}
+  if (!PROFILS.list.some(p => p.id === PROFILS.cur)) PROFILS.cur = null;
+}
+function saveProfils() { try { localStorage.setItem(PROFILS_KEY, JSON.stringify(PROFILS)); } catch (e) {} }
+const curProfil = () => PROFILS.list.find(p => p.id === PROFILS.cur) || null;
+const saveKey = id => (id ?? PROFILS.cur) ? SAVE_KEY + ":" + (id ?? PROFILS.cur) : SAVE_KEY;
+loadProfils();
 function newSave() {
   return {
     v: SAVE_VERSION,
@@ -16,8 +30,8 @@ function newSave() {
     cos: { char: {}, machine: null, hub: { tile: "tile_damier", light: "light_blanc", sign: "sign_violet", items: {}, show: {} } },
     jukebox: null, lastChar: null,
     weapons: { owned: randomWeapons(2), eq: {} },            // armes du râtelier : possédées, et arme choisie par héros
-    dahaka: { best: {} },
-    rush: { best: {} },                                      // boss rush : record (secondes) par difficulté, en solo ou à deux                                    // niveau secret : record (mètres) par difficulté
+    dahaka: { best: {} },                                    // niveau secret : record (mètres) par difficulté
+    rush: { best: {}, avec: {} },                            // boss rush : record (secondes) par difficulté, en solo ou à deux ; avec : nom du joueur 2
   };
 }
 // n armes tirées au hasard parmi celles qu'on n'a pas encore (le sabre est toujours là)
@@ -33,7 +47,11 @@ function weaponReward(silent) {
   if (!silent) toast("Nouvelle arme !", WEAPON_BY_ID[id].name + " · au râtelier", "equip", "#ffb43c");
 }
 let SAVE = newSave();
-function saveGame() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) {} }
+// maj : date de la dernière sauvegarde (la fusion garde les choix les plus récents) ; syncSoon : envoi au serveur (profils.js,
+// chargé plus loin dans le script : syncReady devient vrai à la fin de profils.js)
+let syncReady = false;
+function saveGame() { SAVE.maj = Date.now(); try { localStorage.setItem(saveKey(), JSON.stringify(SAVE)); } catch (e) {} if (syncReady) syncSoon(); }
+function readSave(key) { try { const o = JSON.parse(localStorage.getItem(key) || "null"); return o && typeof o === "object" && o.v >= 3 ? o : null; } catch (e) { return null; } }
 // Complète une sauvegarde relue avec les champs manquants (versions futures ou fichier abîmé)
 function fillSave(o) {
   const base = newSave();
@@ -43,9 +61,9 @@ function fillSave(o) {
   return o;
 }
 function loadGame() {
-  let o = null;
-  try { o = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); } catch (e) { o = null; }
-  if (o && typeof o === "object" && o.v >= 3) { SAVE = fillSave(o); }
+  const o = readSave(saveKey());
+  if (o) SAVE = fillSave(o);
+  else if (PROFILS.cur) { SAVE = newSave(); SAVE.flags.armes = 1; saveGame(); }   // nouveau profil : une partie neuve
   else { SAVE = migrateOld(); saveGame(); }
   // armes : une partie commencée avant le râtelier reçoit une arme de plus par boss déjà vaincu
   if (!SAVE.flags.armes) { SAVE.flags.armes = 1; for (let i = 0; i < Object.keys(SAVE.seen.boss).length + Object.keys(SAVE.seen.oldBoss).length; i++) weaponReward(true); saveGame(); }
@@ -84,8 +102,53 @@ function migrateOld() {
   if (any) S.flags.migrated = 2;
   return S;
 }
+// Fusion de deux sauvegardes du même profil (cet appareil et le serveur) : rien de gagné ne se perd.
+// Ce qui est gagné s'additionne (union des registres, maximum des compteurs, état de quête le plus avancé) ; les records
+// gardent le meilleur (temps le plus court, distance la plus longue) ; les choix viennent de la sauvegarde la plus récente
+// (maj) : en entier pour le jukebox, le dernier héros et les salles de reprise ; héros par héros pour les tenues et les armes
+// (un choix fait sur un seul appareil reste).
+const MERGE_NEWER = ["jukebox", "lastChar", "camp.resume"], MERGE_NEWER_LEAF = ["cos", "weapons.eq"];
+const MERGE_MIN = ["chal.*.best", "rush.best"];   // valeurs : temps (le plus petit gagne)
+const QUEST_ORDER = { active: 1, ready: 2, done: 3 };
+function mergeSave(a, b) {
+  if (!a) return b; if (!b) return a;
+  if ((b.wiped || 0) > (a.maj || 0)) return b; if ((a.wiped || 0) > (b.maj || 0)) return a;   // partie effacée entre-temps
+  const newer = (b.maj || 0) > (a.maj || 0) ? b : a;
+  const match = (path, pats) => pats.some(p => { const x = p.split("."), y = path.split("."); return x.length === y.length && x.every((k, i) => k === "*" || k === y[i]); });
+  const rec = (x, y, path) => {
+    if (match(path, MERGE_NEWER)) return JSON.parse(JSON.stringify(path.split(".").reduce((o, k) => o && o[k], newer) ?? x ?? y ?? null));
+    if (MERGE_NEWER_LEAF.some(p => path === p || path.startsWith(p + "."))) {
+      if (x && y && typeof x === "object" && typeof y === "object") { const o = {}; for (const k of new Set([...Object.keys(x), ...Object.keys(y)])) o[k] = k in x && k in y ? rec(x[k], y[k], path + "." + k) : k in x ? x[k] : y[k]; return o; }
+      return newer === b ? (y ?? x) : (x ?? y);
+    }
+    if (path === "best") {   // { clé : { time, deaths } } : le meilleur temps
+      const o = { ...(x || {}) };
+      for (const k in y || {}) if (!o[k] || (y[k] && typeof y[k].time === "number" && y[k].time < o[k].time)) o[k] = y[k];
+      return o;
+    }
+    if (path.startsWith("quests.") && path.split(".").length === 2 && x && y) {
+      const st = (QUEST_ORDER[y.st] || 0) > (QUEST_ORDER[x.st] || 0) ? y.st : x.st;
+      return { ...x, ...y, st, items: { ...(x.items || {}), ...(y.items || {}) } };
+    }
+    if (x && y && typeof x === "object" && typeof y === "object" && !Array.isArray(x) && !Array.isArray(y)) {
+      const o = {}, min = match(path, MERGE_MIN);
+      for (const k of new Set([...Object.keys(x), ...Object.keys(y)])) {
+        if (min && typeof x[k] === "number" && typeof y[k] === "number") o[k] = Math.min(x[k], y[k]);
+        else o[k] = k in x ? (k in y ? rec(x[k], y[k], path ? path + "." + k : k) : x[k]) : y[k];
+      }
+      return o;
+    }
+    if (typeof x === "number" && typeof y === "number") return Math.max(x, y);
+    if (typeof x === "boolean" || typeof y === "boolean") return !!(x || y);
+    return x ?? y;
+  };
+  const m = rec(a, b, "");
+  m.maj = Math.max(a.maj || 0, b.maj || 0); m.v = SAVE_VERSION;
+  return m;
+}
 // Remet tout à zéro (écran des options, avec confirmation) : les réglages ne bougent pas
-function resetGame() { SAVE = newSave(); SAVE.flags.armes = 1; saveGame(); checkUnlocks(true); }
+// wiped : date de l'effacement ; une sauvegarde plus ancienne (serveur, autre appareil) ne revient pas par la fusion
+function resetGame() { SAVE = newSave(); SAVE.flags.armes = 1; SAVE.wiped = Date.now(); saveGame(); checkUnlocks(true); }
 
 /* ---- Compteurs ---- */
 const SOCK_ROOMS = Object.keys(AJOUTS.socks || {});

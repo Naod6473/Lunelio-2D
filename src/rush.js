@@ -52,7 +52,7 @@ function updateRush(dt) {
 }
 function rushEnd() {
   const k = rushKey(), prev = rushBest(), rec = prev === undefined || rush.t < prev;
-  if (rec) SAVE.rush.best[k] = rush.t;
+  if (rec) { SAVE.rush.best[k] = rush.t; if (COOP.on) SAVE.rush.avec[k] = COOP.nom || "Invité"; }
   rush.res = { time: rush.t, rec, prev, t: 0, sel: 0 };
   emit("rush", { time: rush.t, diff: df().id, duo: COOP.on });
   saveGame(); setTimeFx(false, false);

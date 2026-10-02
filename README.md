@@ -84,6 +84,12 @@ Sur l'écran du choix du héros, le joueur 2 rejoint la partie en appuyant sur *
 - **Bulles** : un héros qui n'a plus de cœur devient une bulle qui suit son copain ; il suffit de courir ou de sauter dedans pour le ramener avec 1 cœur. La salle recommence seulement si les deux sont tombés. En Doom, pas de bulle : la salle recommence dès qu'un héros tombe.
 - À deux : la campagne, l'ancienne aventure, l'église et le boss rush. Les programmes de lavage et la course du Dahaka se jouent seul (joueur 1). Dans la laverie, la caméra suit les deux héros et c'est le joueur 1 qui utilise les objets.
 
+## Profils et sauvegarde partagée
+
+Après l'écran titre, **« Qui joue ? »** : chacun choisit son nom, ou crée son profil (le nom se tape au clavier, ou avec le clavier affiché à l'écran à la manette et au toucher). Chaque profil a sa partie. Le premier profil créé reprend la partie d'avant.
+
+Avec le service de la maison (voir `docs/cloudflare_api.md`), les parties sont partagées entre tous les appareils : on retrouve sa partie sur la tablette comme sur le PC, et ce qui a été gagné sur l'un et sur l'autre s'additionne. Sur internet, il faut se connecter une fois (bouton « Connexion famille », code reçu par e-mail) ; sans connexion ou sans service, la partie reste simplement sur l'appareil. Le **tableau des scores de la famille** est dans les collections, onglet « Famille » : le meilleur temps de chaque monde et son détenteur, le boss rush (seul et à deux), la course du Dahaka, et la progression de chacun. En coop, le joueur 2 choisit son nom avec ▲ ▼ sur l'écran des héros.
+
 ## Boss rush et médailles
 
 Une fois les 6 mondes terminés, la carte **Boss rush** apparaît sur l'écran des mondes : les 6 boss d'affilée, dans leurs arènes, puis les combats de l'église (Brie, Jules, Laurène, puis Laurène et Jules ensemble), sans les dialogues : 10 combats en tout. Les cœurs sont gardés d'un boss à l'autre (+1 cœur après chaque victoire) ; perdre fait recommencer le boss en cours avec les cœurs du début de ce combat, sans arrêter le chrono. Le record est gardé par difficulté, en solo et à deux.
@@ -155,6 +161,8 @@ curl -fsSL https://raw.githubusercontent.com/Naod6473/Lunelio-2D/main/deploy/ins
 ```
 
 Le script installe Nginx et Git, clone ce dépôt dans `/var/www/lunelio` et configure le site. Le jeu est ensuite accessible sur `http://IP_DU_CONTENEUR`.
+
+Pour les sauvegardes partagées entre appareils et le tableau des scores, lancer une fois `bash /var/www/lunelio/deploy/installer-service.sh` (service Python sans dépendance, données dans `/var/lib/lunelio`), puis suivre `docs/cloudflare_api.md` si le jeu est ouvert sur internet.
 
 Pour récupérer une nouvelle version après un `git push` :
 
