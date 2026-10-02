@@ -299,6 +299,7 @@ function egFight(S) {
 // Musique d'un combat : le thème du boss s'il existe (musique/eglise/<boss>), sinon l'église ; le duo alterne les deux thèmes
 function egFightMusic(S) {
   const th = S.fight.map(id => "musique/eglise/" + id).filter(hasSound);
+  for (const m of th) audio.resume.add(m);   // en alternance, chaque thème reprend là où il s'était arrêté
   if (!th.length) return EG_MUSIC;
   if (S.duo && th.length > 1) return th[Math.floor((EG.fightT || 0) / 20) % th.length];
   return th[0];

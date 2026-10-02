@@ -86,7 +86,7 @@ audio/
 │   └── bonus/                         facultatif : ancienne aventure, une piste par monde ; dahaka.mp3 : niveau secret, les deux parcours (fourni : dahaka_8bit_arcade) ; dahaka_grotte.mp3 facultatif, pour la grotte seulement
 │       └── bar.mp3, immeuble.mp3, ruelle.mp3, cinema.mp3, avion.mp3, parking.mp3, metro.mp3, labo.mp3
 │   (église : musique/eglise/eglise.mp3, jouée « à fond » et reprise là où elle s'est arrêtée ; fournie : churchthememetal ;
-│    facultatif : musique/eglise/brie.mp3, jules.mp3, laurene.mp3, thème de chaque boss pendant son combat, en alternance pour le duo)
+│    jules.mp3 et laurene.mp3 (fournis) : thème de chaque boss pendant son combat, en alternance pour le duo ; brie.mp3 facultatif)
 │
 ├── jingles/
 │   ├── victoire_boss.mp3      ★ boss vaincu
