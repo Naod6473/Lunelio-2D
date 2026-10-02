@@ -293,7 +293,8 @@ function decoPick(it) {
   else if (slot === "show") H.show[it.id] = H.show[it.id] === false;
   else if (slot === "item") H.items[it.id] = !H.items[it.id];
   else H[slot] = it.id;
-  hubBg = null; saveGame(); audio.sfx("equip");
+  for (const k in hubBgs) delete hubBgs[k];   // le décor de la laverie sera redessiné
+  saveGame(); audio.sfx("equip");
 }
 SCREENS.deco = {
   update() {

@@ -5,7 +5,8 @@
 const CAMP = __CAMPAGNE__;
 const ATL = CAMP.atlas, CWORLDS = CAMP.worlds;
 const ASSET_EMBED = __ASSET_EMBED__, ASSET_VER = __ASSET_VER__;
-const ATLAS_SPRITE = { perso_helio: "helio", perso_lune: "lune" };   // planches d'origine, déjà intégrées au jeu (SPRITES)
+// planches d'origine d'Hélio et Lune, déjà intégrées au jeu (SPRITES), tant qu'une planche complète de laverie.json ne les remplace pas
+const ATLAS_SPRITE = Object.fromEntries([["perso_helio", "helio"], ["perso_lune", "lune"]].filter(([k]) => ATL[k] && ATL[k].src.startsWith("assets/sprites/")));
 const imgCache = {};
 const assetSrc = p => AUDIO_MODE === "embed" ? (ASSET_EMBED[p] || p) : p + (ASSET_VER[p] ? "?v=" + ASSET_VER[p] : "");
 function getImg(p) {
@@ -542,7 +543,7 @@ function damageFoe(e, dmg) {
   e.alive = false;
   foeDefeatFx(e.F.defeat, cx, cy);
   shake = Math.max(shake, 4); hitstop = Math.max(hitstop, 0.05);
-  audio.sfx("def_" + e.F.defeat); rumble(80, 0, 0.35);
+  audio.sfx(pickSfx("def_" + e.F.defeat, e.F.defeat === "robot" ? "hit_robot" : "hit_foe")); rumble(80, 0, 0.35);
   emit("foe", { sp: e.sp });
 }
 

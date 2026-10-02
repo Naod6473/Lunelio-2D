@@ -60,6 +60,7 @@ SPEC = {
     "chaussette_bonus": ("objets/chaussette_bonus.png", 4, 2, 28, 28, "center", {"flotte": [0, 4], "collecte": [4, 4]}, True),
     "objets_quete": ("objets/objets_quete.png", 8, 1, 16, 16, "center", {"play": [0, 8]}, False),
     "fx_vent": ("objets/fx_vent.png", 4, 1, 32, 16, "center", {"play": [0, 4]}, True),
+    "armes_icones": ("armes_icones.png", 5, 2, 32, 32, "center", {"play": [0, 10]}, False),
     "accessoires": ("cosmetiques/accessoires.png", 6, 2, 24, 24, "bottom", {"play": [0, 12]}, False),
     "autocollants_machine": ("cosmetiques/autocollants_machine.png", 6, 1, 16, 16, "center", {"play": [0, 6]}, False),
     **{f"souvenir_{i}": (f"souvenirs/souvenir_{i}.png", 1, 1, 240, 136, "bottom", {"play": [0, 1]}, True) for i in range(1, 7)},
@@ -144,8 +145,35 @@ def prepare(name, spec):
     ax, ay = cw // 2, ch if anchor in ("feet", "bottom") else ch // 2
     return {"src": f"assets/laverie/{name}{ext}", "cw": cw, "ch": ch, "ax": ax, "ay": ay, "cols": cols, "anims": anims, "note": f"laverie : {path}"}
 
+# Planche complète d'un héros livrée avec son découpage (<nom>.json : sourceRects et renderRects dans une case de 64 × 64,
+# pieds en (32, 60)) : chaque pose est réduite à son rectangle de rendu, aux mêmes indices que dans la planche (6 colonnes).
+HEROES = {
+    "perso_helio": ("perso_helio_complet", {"idle": [0, 4], "run": [6, 6], "attack": [12, 5], "jump": [18, 2], "special": [24, 2],
+        "idle_free": [30, 4], "run_free": [36, 6], "jump_free": [42, 2], "special_free": [48, 2], "shoot": [54, 3], "throw": [60, 3], "heavy": [66, 4]}),
+}
+
+def prepare_hero(name, base, anims):
+    png, meta = os.path.join(SRC, base + ".png"), os.path.join(SRC, base + ".json")
+    if not (os.path.exists(png) and os.path.exists(meta)): return None
+    M = json.load(open(meta, encoding="utf-8"))
+    im = Image.open(png).convert("RGBA")
+    cw, ch, cols, rows = M["logicalCell"]["width"], M["logicalCell"]["height"], M["columns"], M["rows"]
+    sheet = Image.new("RGBA", (cw * cols, ch * rows))
+    for f in M["frames"]:
+        x, y, w, h = f["sourceRect"]; rx, ry, rw, rh = f["renderRect"]
+        part = im.crop((x, y, x + w, y + h)).resize((max(1, round(rw)), max(1, round(rh))), Image.BOX)
+        part.putalpha(part.split()[3].point(lambda v: 255 if v > 110 else 0))   # alpha net
+        i = f["index"]; sheet.paste(part, ((i % cols) * cw + round(rx), (i // cols) * ch + round(ry)), part)
+    os.makedirs(OUT, exist_ok=True)
+    sheet.save(os.path.join(OUT, name + ".png"), optimize=True)
+    return {"src": f"assets/laverie/{name}.png", "cw": cw, "ch": ch, "ax": round(M["logicalAnchor"]["x"]), "ay": round(M["logicalAnchor"]["y"]),
+            "cols": cols, "anims": anims, "note": f"héros : {base}.png"}
+
 def main():
     atlas, missing = {}, []
+    for name, (base, anims) in HEROES.items():
+        a = prepare_hero(name, base, anims)
+        if a: atlas[name] = a
     for name, spec in SPEC.items():
         a = prepare(name, spec)
         if a: atlas[name] = a

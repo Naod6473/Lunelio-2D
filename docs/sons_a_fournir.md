@@ -195,3 +195,15 @@ audio/
 3. **Bruitages ★** : chaussette, saut, touché, défaites robot et slime, intro, coup et transformation de boss, porte, démarrage, départ et arrivée de la machine, bourrasques, chrono.
 
 Le reste peut venir petit à petit : chaque fichier ajouté remplace automatiquement le son synthétisé correspondant.
+
+## Ajouts d'octobre 2026 (fournis)
+
+| Fichier | Nom dans le jeu | Quand |
+| --- | --- | --- |
+| `sfx/joueur/coup2.mp3` | `slash` (variante) | coup de sabre dans le vide |
+| `sfx/joueur/coup_touche.mp3` | `sword_hit` | le sabre touche un ennemi ou un boss |
+| `sfx/ennemis/touche.mp3` … `touche5.mp3` | `hit_foe` | une créature de la campagne est vaincue (si pas de `defaite_<type>.mp3`) |
+| `sfx/ennemis/touche_robot.mp3`, `touche_robot2.mp3` | `hit_robot` | un robot ou un drone est vaincu (si pas de `defaite_robot.mp3`) |
+| `sfx/armes/<arme>-<son>.mp3` | `arme:<arme>-<son>` | armes du râtelier (à venir) : arc-tir (×3), arc-charge, arc-impact, lance-coup, laser-rayon, laser-surchauffe, boomerang-lancer, nunchaku-coup, espadon-coup, maillet-coup, maillet-sol, bouclier, arme-rebond (×2), arme-equipe (×6) |
+
+Encore attendus pour les armes : `lance-rebond`, `pistolet-tir`, `pistolet-bulle`, `pistolet-eclate`, `canon-tir`, `canon-confettis`, `boomerang-retour`, `boomerang-attrape`, `nunchaku-moulinet`, `espadon-onde`, `lancepierre-tir`, `lancepierre-rebond`. Variantes : `nom2.mp3`, `nom3.mp3`…

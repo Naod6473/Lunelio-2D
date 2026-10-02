@@ -1,5 +1,64 @@
 {
  "atlas": {
+  "perso_helio": {
+   "src": "assets/laverie/perso_helio.png",
+   "cw": 64,
+   "ch": 64,
+   "ax": 32,
+   "ay": 60,
+   "cols": 6,
+   "anims": {
+    "idle": [
+     0,
+     4
+    ],
+    "run": [
+     6,
+     6
+    ],
+    "attack": [
+     12,
+     5
+    ],
+    "jump": [
+     18,
+     2
+    ],
+    "special": [
+     24,
+     2
+    ],
+    "idle_free": [
+     30,
+     4
+    ],
+    "run_free": [
+     36,
+     6
+    ],
+    "jump_free": [
+     42,
+     2
+    ],
+    "special_free": [
+     48,
+     2
+    ],
+    "shoot": [
+     54,
+     3
+    ],
+    "throw": [
+     60,
+     3
+    ],
+    "heavy": [
+     66,
+     4
+    ]
+   },
+   "note": "héros : perso_helio_complet.png"
+  },
   "laverie_salle": {
    "src": "assets/laverie/laverie_salle.webp",
    "cw": 816,
@@ -499,6 +558,21 @@
     ]
    },
    "note": "laverie : objets_quete.png"
+  },
+  "armes_icones": {
+   "src": "assets/laverie/armes_icones.png",
+   "cw": 32,
+   "ch": 32,
+   "ax": 16,
+   "ay": 16,
+   "cols": 5,
+   "anims": {
+    "play": [
+     0,
+     10
+    ]
+   },
+   "note": "laverie : armes_icones.png"
   },
   "accessoires": {
    "src": "assets/laverie/accessoires.png",
