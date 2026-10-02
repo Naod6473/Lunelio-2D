@@ -477,7 +477,7 @@ const AUDIO_DIR = "audio/";
 // et mondes de l'ancienne aventure (musique/bonus/<monde>, ou WORLDS[].music / bossMusic).
 const MUSIC_BASES = { doom: "musique/doom/doombackground", boss: "musique/boss/bossbackground",
   laverie: "musique/laverie/laverie", laverie_nuit: "musique/laverie/laverie_nuit", defis: "musique/defis/defis",
-  prologue: "musique/histoire/prologue", souvenir: "musique/histoire/souvenir", fin: "musique/histoire/fin", generique: "musique/histoire/generique" };
+  prologue: "musique/histoire/prologue", souvenir: "musique/histoire/souvenir", fin: "musique/histoire/fin", generique: "musique/histoire/generique", intro: "musique/histoire/intro" };
 for (const C of CHARS) if (C.music) MUSIC_BASES["char:" + C.id] = "musique/heros/" + C.music;   // plusieurs héros peuvent partager les mêmes musiques
 for (const W of WORLDS) {
   MUSIC_BASES["bonus:" + W.id] = "musique/bonus/" + (W.music || W.id);
@@ -497,10 +497,10 @@ const SFX_FILES = {
   def_ombre: "sfx/ennemis/defaite_ombre", def_lave: "sfx/ennemis/defaite_lave", def_etoiles: "sfx/ennemis/defaite_etoiles",
   boss_intro: "sfx/boss/intro", eg_cloche: "sfx/eglise/cloche", eg_mariage: "sfx/eglise/cloche_mariage", eg_glas: "sfx/eglise/cloche_sinistre", eg_aboie: "sfx/eglise/brie_aboie", dk_cri: "sfx/boss/dahaka_cri", dk_croque: "sfx/boss/dahaka_croque", bosshit: "sfx/boss/coup_boss", transform: "sfx/boss/transformation", wave: "sfx/boss/onde_choc", boss_defeat: "sfx/boss/defaite",
   zap: "sfx/pieges/electricite", alert: "sfx/pieges/alerte", jet: "sfx/pieges/jet_eau", flames: "sfx/pieges/flammes", break: "sfx/pieges/mur_casse", flag: "sfx/pieges/drapeau",
-  door: "sfx/machine/porte", unlock: "sfx/machine/deverrouillage", machine: "sfx/machine/demarrage", drum: "sfx/machine/tambour", spin: "sfx/machine/depart", arrive: "sfx/machine/arrivee", dial: "sfx/machine/programmateur",
+  door: "sfx/machine/porte", unlock: "sfx/machine/deverrouillage", machine: "sfx/machine/demarrage", drum: "sfx/machine/tambour", mach_door: "sfx/machine/hublot", spin: "sfx/machine/depart", arrive: "sfx/machine/arrivee", dial: "sfx/machine/programmateur",
   page: "sfx/laverie/album_page", locker: "sfx/laverie/armoire", equip: "sfx/laverie/equiper", coin: "sfx/laverie/jukebox_piece", deco_book: "sfx/laverie/livre_deco",
   select: "sfx/interface/deplacer", start: "sfx/interface/valider", back: "sfx/interface/retour", nope: "sfx/interface/refus", pause: "sfx/interface/pause",
-  gust_warn: "sfx/defis/bourrasque_alerte", gust: "sfx/defis/bourrasque", tick: "sfx/defis/chrono_tic", chrono_end: "sfx/defis/chrono_fin", slip: "sfx/defis/glissade",
+  gust_warn: "sfx/defis/bourrasque_alerte", gust: "sfx/defis/bourrasque", tick: "sfx/defis/chrono_tic", chrono30: "sfx/defis/chrono", chrono_end: "sfx/defis/chrono_fin", slip: "sfx/defis/glissade",
 };
 const BOSS_IDS = ["roi_slime", "drone_titan", "maitre_ombres", "colosse_lave", "singe_roi_pirate", "reine_chauve_souris"];
 // Variantes d'un bruitage : « deverrouillage », puis « deverrouillage2 », « deverrouillage3 »… tant que les numéros se suivent
@@ -788,7 +788,7 @@ function campMusic() {
   if (lvl.bossSpawn && b) {
     const last = b.phase >= b.th.length + 1;
     return (last && pickList(audio.list("bossrage:" + W.boss, "musique/boss/" + W.boss + "_rage"), 0))
-      || pickList(audio.list("boss:" + W.boss, "musique/boss/" + W.boss), 0) || pickList(L("boss"), camp.wi) || "synth:boss";
+      || pickList(audio.list("boss:" + W.boss, "musique/boss/" + W.boss), b.mus) || pickList(L("boss"), camp.wi) || "synth:boss";
   }
   const wm = audio.list("world:" + W.id, "musique/mondes/" + W.short);
   if (!doom && wm.length) return pickList(wm, camp.ri);
@@ -798,6 +798,7 @@ function campMusic() {
 function musicKey() {
   const P = audio.playlists, L = k => P[k] || [];
   const doom = df().id === "doom";
+  if (state === "menu" || ((state === "options" || state === "keys") && optFrom === "menu")) { const m = pickList(audio.list("intro", MUSIC_BASES.intro), 0); if (m) return m; }   // écran titre
   if (state === "chars") return charMusic(CHARS[charSel]);
   if (state === "eglise") return egliseMusic();
   if (state === "dahaka") return DK.lv === "grotte"
@@ -2612,7 +2613,7 @@ function frame(now) {
   else if (state === "keys") { updateKeys(); if (state === "keys") drawKeys(); }
   else if (SCREENS[state]) { const st = state; SCREENS[st].update(rdt); if (state === st) SCREENS[st].draw(); }
   if (state !== "loading" && state !== "menu") { updateToasts(rdt); drawToasts(); }
-  hubAmbience();
+  hubAmbience(); chalChrono();
   const mk = OPT.music ? musicKey() : null;
   if (state !== "loading" && audio.ready && audio.wanted !== mk) audio.playMusic(mk);
   synthTick();

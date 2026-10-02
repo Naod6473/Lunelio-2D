@@ -112,13 +112,27 @@ SCREENS.chalres = {
 };
 
 /* ---- En jeu ---- */
+// Compte à rebours des 30 dernières secondes (sfx/defis/chrono, 30 s) : joué seulement en jeu, arrêté en pause ou à la fin,
+// et repris au bon endroit (runTime avance en temps réel, même au ralenti). Sans le fichier : le tic des 10 dernières secondes.
+const CHRONO_LEN = 30;
+let chronoSnd = null;
+function chalChrono() {
+  const f = SFX_FILES.chrono30, C = chal && !chal.res && chal.C, left = C && C.limit ? C.limit - runTime : 0;
+  const want = state === "play" && audio.ctx && OPT.sfx && left > 0 && left <= CHRONO_LEN && hasSound(f);
+  if (!want) { if (chronoSnd) { chronoSnd.stop(); chronoSnd = null; } return; }
+  if (chronoSnd) return;
+  const buf = audio.buffers[f]; if (!buf) { audio.load(f); return; }
+  const c = audio.ctx, s = c.createBufferSource(), g = c.createGain(); s.buffer = buf; g.gain.value = 0.8; s.connect(g); g.connect(audio.sfxG);
+  s.start(0, Math.max(0, Math.min(buf.duration - 0.05, buf.duration - left)));
+  chronoSnd = { stop() { const t = c.currentTime; g.gain.setTargetAtTime(0, t, 0.05); try { s.stop(t + 0.3); } catch (e) {} } };
+}
 // Appelé par updatePlay() après le déplacement des joueurs (dt : temps du jeu, rdt : temps réel)
 function chalUpdate(dt, rdt) {
   if (!chal || chal.res) return;
   const C = chal.C, p = players[0];
   if (C.limit) {
     const left = C.limit - runTime;
-    if (left < 10 && Math.floor(left + rdt) !== Math.floor(left) && left > 0) audio.sfx("tick");
+    if (left < 10 && Math.floor(left + rdt) !== Math.floor(left) && left > 0 && !chronoSnd) audio.sfx("tick");
     if (left <= 0) { audio.sfx("chrono_end"); chalFail(C.prog === "solitaire" ? "La chaussette est restée cachée…" : "Le chronomètre est arrivé à zéro"); return; }
   }
   if (C.gust) {

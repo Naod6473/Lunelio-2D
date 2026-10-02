@@ -274,7 +274,7 @@ function makeBig(o, W) {
   const hp = Math.max(4, Math.round(B.hp * df().bossHp));
   const bottom = o.anchor ? o.anchor.y : y + h, cx = o.anchor ? o.anchor.x : x + w / 2;
   return { type: "bigboss", id, B, name: B.name, atlas: "boss_" + id, x: cx - B.w / 2, y: bottom - B.h, w: B.w, h: B.h, vx: 0, vy: 0, face: -1,
-    hp, maxHp: hp, phase: 1, th, st: "intro", t: 1.8, at: 0, inv: 0, flashT: 0, alive: true, dying: false, mi: 0, stunT: 0, onGround: false,
+    hp, maxHp: hp, mus: Math.floor(Math.random() * 6), phase: 1, th, st: "intro", t: 1.8, at: 0, inv: 0, flashT: 0, alive: true, dying: false, mi: 0, stunT: 0, onGround: false,
     pose: "idle", shots: 0, target: null, hoverX: cx, spawnT: 0 };
 }
 // Charge une salle de la nouvelle campagne (restart : on recommence la même salle, sans annonce)
@@ -795,7 +795,7 @@ function machInteract(p) {
   if (!mach || mach.st !== "ready" || !p.onGround || p.inv > 1 || p.dead || !machNear(p)) return false;
   mach.st = "entering"; mach.t = 0; mach.ex = p.x; mach.ey = p.y; p.atkT = -1; p.dashT = 0;
   for (const q of players) q.powerOn = false;
-  setTimeFx(false, false); audio.sfx("door");
+  setTimeFx(false, false); audio.sfx(pickSfx("mach_door", "door"));   // le hublot s'ouvre
   return true;
 }
 // Après le boss, la machine ramène le héros à la laverie (la pièce y est remise en place)

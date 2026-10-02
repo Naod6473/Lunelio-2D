@@ -471,7 +471,7 @@ function hintText(tok) {
 // "embed" : les sons sont intégrés dans ce fichier (version autonome).
 // AUDIO_LIST : sons présents (chemins relatifs à audio/, sans .mp3), écrite par build.py : pas de requête de détection.
 const AUDIO_MODE = "files";
-const AUDIO_LIST = new Set(["jingles/gameover", "musique/bonus/dahaka", "musique/boss/colosse_lave", "musique/boss/drone_titan", "musique/boss/maitre_ombres", "musique/boss/reine_chauve_souris", "musique/boss/roi_slime", "musique/boss/singe_roi_pirate", "musique/doom/doombackground", "musique/doom/doombackground2", "musique/eglise/eglise", "musique/eglise/jules", "musique/eglise/laurene", "musique/heros/backgroundhelio", "musique/heros/backgroundhelio2", "musique/heros/backgroundlune", "musique/heros/backgroundlune2", "musique/heros/backgroundlune3", "musique/laverie/laverie", "musique/laverie/laverie2", "sfx/armes/arc-charge", "sfx/armes/arc-impact", "sfx/armes/arc-tir", "sfx/armes/arc-tir2", "sfx/armes/arc-tir3", "sfx/armes/arme-equipe", "sfx/armes/arme-equipe2", "sfx/armes/arme-equipe3", "sfx/armes/arme-equipe4", "sfx/armes/arme-equipe5", "sfx/armes/arme-equipe6", "sfx/armes/arme-rebond", "sfx/armes/arme-rebond2", "sfx/armes/boomerang-lancer", "sfx/armes/bouclier", "sfx/armes/espadon-coup", "sfx/armes/lance-coup", "sfx/armes/laser-rayon", "sfx/armes/laser-surchauffe", "sfx/armes/maillet-coup", "sfx/armes/maillet-sol", "sfx/armes/nunchaku-coup", "sfx/boss/attaque1", "sfx/boss/attaque2", "sfx/boss/attaque3", "sfx/boss/attaque4", "sfx/boss/attaque5", "sfx/boss/dahaka_cri", "sfx/boss/dahaka_croque", "sfx/boss/defaite_colosse_lave", "sfx/boss/defaite_drone_titan", "sfx/boss/defaite_maitre_ombres", "sfx/boss/defaite_reine_chauve_souris", "sfx/boss/defaite_roi_slime", "sfx/boss/defaite_singe_roi_pirate", "sfx/boss/intro", "sfx/eglise/ambiance", "sfx/eglise/ambiance2", "sfx/eglise/brie_aboie", "sfx/eglise/brie_aboie2", "sfx/eglise/brie_aboie3", "sfx/eglise/cloche", "sfx/eglise/cloche_mariage", "sfx/eglise/cloche_sinistre", "sfx/ennemis/laser", "sfx/ennemis/touche", "sfx/ennemis/touche2", "sfx/ennemis/touche3", "sfx/ennemis/touche4", "sfx/ennemis/touche5", "sfx/ennemis/touche_robot", "sfx/ennemis/touche_robot2", "sfx/joueur/coup", "sfx/joueur/coup2", "sfx/joueur/coup_touche", "sfx/laverie/livre_deco", "sfx/machine/demarrage", "sfx/machine/deverrouillage", "sfx/machine/deverrouillage2"]);
+const AUDIO_LIST = new Set(["jingles/badge", "jingles/badge2", "jingles/gameover", "jingles/reparation", "jingles/victoire_boss", "jingles/victoire_boss2", "jingles/victoire_boss3", "musique/bonus/dahaka", "musique/boss/colosse_lave", "musique/boss/colosse_lave2", "musique/boss/drone_titan", "musique/boss/drone_titan2", "musique/boss/maitre_ombres", "musique/boss/maitre_ombres2", "musique/boss/reine_chauve_souris", "musique/boss/reine_chauve_souris2", "musique/boss/roi_slime", "musique/boss/roi_slime2", "musique/boss/singe_roi_pirate", "musique/boss/singe_roi_pirate2", "musique/doom/doombackground", "musique/doom/doombackground2", "musique/eglise/eglise", "musique/eglise/jules", "musique/eglise/laurene", "musique/heros/backgroundhelio", "musique/heros/backgroundhelio2", "musique/heros/backgroundlune", "musique/heros/backgroundlune2", "musique/heros/backgroundlune3", "musique/histoire/fin", "musique/histoire/intro", "musique/laverie/laverie", "musique/laverie/laverie2", "sfx/armes/arc-charge", "sfx/armes/arc-impact", "sfx/armes/arc-tir", "sfx/armes/arc-tir2", "sfx/armes/arc-tir3", "sfx/armes/arme-equipe", "sfx/armes/arme-equipe2", "sfx/armes/arme-equipe3", "sfx/armes/arme-equipe4", "sfx/armes/arme-equipe5", "sfx/armes/arme-equipe6", "sfx/armes/arme-rebond", "sfx/armes/arme-rebond2", "sfx/armes/boomerang-lancer", "sfx/armes/bouclier", "sfx/armes/espadon-coup", "sfx/armes/lance-coup", "sfx/armes/laser-rayon", "sfx/armes/laser-surchauffe", "sfx/armes/maillet-coup", "sfx/armes/maillet-sol", "sfx/armes/nunchaku-coup", "sfx/boss/attaque1", "sfx/boss/attaque2", "sfx/boss/attaque3", "sfx/boss/attaque4", "sfx/boss/attaque5", "sfx/boss/dahaka_cri", "sfx/boss/dahaka_croque", "sfx/boss/defaite_colosse_lave", "sfx/boss/defaite_drone_titan", "sfx/boss/defaite_maitre_ombres", "sfx/boss/defaite_reine_chauve_souris", "sfx/boss/defaite_roi_slime", "sfx/boss/defaite_singe_roi_pirate", "sfx/boss/intro", "sfx/boss/transformation", "sfx/collecte/chaussette", "sfx/defis/bourrasque", "sfx/defis/chrono", "sfx/eglise/ambiance", "sfx/eglise/ambiance2", "sfx/eglise/brie_aboie", "sfx/eglise/brie_aboie2", "sfx/eglise/brie_aboie3", "sfx/eglise/cloche", "sfx/eglise/cloche_mariage", "sfx/eglise/cloche_sinistre", "sfx/ennemis/defaite_slime", "sfx/ennemis/laser", "sfx/ennemis/touche", "sfx/ennemis/touche2", "sfx/ennemis/touche3", "sfx/ennemis/touche4", "sfx/ennemis/touche5", "sfx/ennemis/touche_robot", "sfx/ennemis/touche_robot2", "sfx/joueur/coup", "sfx/joueur/coup2", "sfx/joueur/coup_touche", "sfx/laverie/livre_deco", "sfx/machine/arrivee", "sfx/machine/demarrage", "sfx/machine/depart", "sfx/machine/deverrouillage", "sfx/machine/deverrouillage2", "sfx/machine/hublot", "sfx/machine/tambour"]);
 const AUDIO_EMBED = {};
 const AUDIO_DIR = "audio/";
 // Listes de musiques (nom de base → base, base2, base3… tant que les numéros se suivent).
@@ -479,7 +479,7 @@ const AUDIO_DIR = "audio/";
 // et mondes de l'ancienne aventure (musique/bonus/<monde>, ou WORLDS[].music / bossMusic).
 const MUSIC_BASES = { doom: "musique/doom/doombackground", boss: "musique/boss/bossbackground",
   laverie: "musique/laverie/laverie", laverie_nuit: "musique/laverie/laverie_nuit", defis: "musique/defis/defis",
-  prologue: "musique/histoire/prologue", souvenir: "musique/histoire/souvenir", fin: "musique/histoire/fin", generique: "musique/histoire/generique" };
+  prologue: "musique/histoire/prologue", souvenir: "musique/histoire/souvenir", fin: "musique/histoire/fin", generique: "musique/histoire/generique", intro: "musique/histoire/intro" };
 for (const C of CHARS) if (C.music) MUSIC_BASES["char:" + C.id] = "musique/heros/" + C.music;   // plusieurs héros peuvent partager les mêmes musiques
 for (const W of WORLDS) {
   MUSIC_BASES["bonus:" + W.id] = "musique/bonus/" + (W.music || W.id);
@@ -499,10 +499,10 @@ const SFX_FILES = {
   def_ombre: "sfx/ennemis/defaite_ombre", def_lave: "sfx/ennemis/defaite_lave", def_etoiles: "sfx/ennemis/defaite_etoiles",
   boss_intro: "sfx/boss/intro", eg_cloche: "sfx/eglise/cloche", eg_mariage: "sfx/eglise/cloche_mariage", eg_glas: "sfx/eglise/cloche_sinistre", eg_aboie: "sfx/eglise/brie_aboie", dk_cri: "sfx/boss/dahaka_cri", dk_croque: "sfx/boss/dahaka_croque", bosshit: "sfx/boss/coup_boss", transform: "sfx/boss/transformation", wave: "sfx/boss/onde_choc", boss_defeat: "sfx/boss/defaite",
   zap: "sfx/pieges/electricite", alert: "sfx/pieges/alerte", jet: "sfx/pieges/jet_eau", flames: "sfx/pieges/flammes", break: "sfx/pieges/mur_casse", flag: "sfx/pieges/drapeau",
-  door: "sfx/machine/porte", unlock: "sfx/machine/deverrouillage", machine: "sfx/machine/demarrage", drum: "sfx/machine/tambour", spin: "sfx/machine/depart", arrive: "sfx/machine/arrivee", dial: "sfx/machine/programmateur",
+  door: "sfx/machine/porte", unlock: "sfx/machine/deverrouillage", machine: "sfx/machine/demarrage", drum: "sfx/machine/tambour", mach_door: "sfx/machine/hublot", spin: "sfx/machine/depart", arrive: "sfx/machine/arrivee", dial: "sfx/machine/programmateur",
   page: "sfx/laverie/album_page", locker: "sfx/laverie/armoire", equip: "sfx/laverie/equiper", coin: "sfx/laverie/jukebox_piece", deco_book: "sfx/laverie/livre_deco",
   select: "sfx/interface/deplacer", start: "sfx/interface/valider", back: "sfx/interface/retour", nope: "sfx/interface/refus", pause: "sfx/interface/pause",
-  gust_warn: "sfx/defis/bourrasque_alerte", gust: "sfx/defis/bourrasque", tick: "sfx/defis/chrono_tic", chrono_end: "sfx/defis/chrono_fin", slip: "sfx/defis/glissade",
+  gust_warn: "sfx/defis/bourrasque_alerte", gust: "sfx/defis/bourrasque", tick: "sfx/defis/chrono_tic", chrono30: "sfx/defis/chrono", chrono_end: "sfx/defis/chrono_fin", slip: "sfx/defis/glissade",
 };
 const BOSS_IDS = ["roi_slime", "drone_titan", "maitre_ombres", "colosse_lave", "singe_roi_pirate", "reine_chauve_souris"];
 // Variantes d'un bruitage : « deverrouillage », puis « deverrouillage2 », « deverrouillage3 »… tant que les numéros se suivent
@@ -790,7 +790,7 @@ function campMusic() {
   if (lvl.bossSpawn && b) {
     const last = b.phase >= b.th.length + 1;
     return (last && pickList(audio.list("bossrage:" + W.boss, "musique/boss/" + W.boss + "_rage"), 0))
-      || pickList(audio.list("boss:" + W.boss, "musique/boss/" + W.boss), 0) || pickList(L("boss"), camp.wi) || "synth:boss";
+      || pickList(audio.list("boss:" + W.boss, "musique/boss/" + W.boss), b.mus) || pickList(L("boss"), camp.wi) || "synth:boss";
   }
   const wm = audio.list("world:" + W.id, "musique/mondes/" + W.short);
   if (!doom && wm.length) return pickList(wm, camp.ri);
@@ -800,6 +800,7 @@ function campMusic() {
 function musicKey() {
   const P = audio.playlists, L = k => P[k] || [];
   const doom = df().id === "doom";
+  if (state === "menu" || ((state === "options" || state === "keys") && optFrom === "menu")) { const m = pickList(audio.list("intro", MUSIC_BASES.intro), 0); if (m) return m; }   // écran titre
   if (state === "chars") return charMusic(CHARS[charSel]);
   if (state === "eglise") return egliseMusic();
   if (state === "dahaka") return DK.lv === "grotte"
@@ -2342,7 +2343,7 @@ function makeBig(o, W) {
   const hp = Math.max(4, Math.round(B.hp * df().bossHp));
   const bottom = o.anchor ? o.anchor.y : y + h, cx = o.anchor ? o.anchor.x : x + w / 2;
   return { type: "bigboss", id, B, name: B.name, atlas: "boss_" + id, x: cx - B.w / 2, y: bottom - B.h, w: B.w, h: B.h, vx: 0, vy: 0, face: -1,
-    hp, maxHp: hp, phase: 1, th, st: "intro", t: 1.8, at: 0, inv: 0, flashT: 0, alive: true, dying: false, mi: 0, stunT: 0, onGround: false,
+    hp, maxHp: hp, mus: Math.floor(Math.random() * 6), phase: 1, th, st: "intro", t: 1.8, at: 0, inv: 0, flashT: 0, alive: true, dying: false, mi: 0, stunT: 0, onGround: false,
     pose: "idle", shots: 0, target: null, hoverX: cx, spawnT: 0 };
 }
 // Charge une salle de la nouvelle campagne (restart : on recommence la même salle, sans annonce)
@@ -2863,7 +2864,7 @@ function machInteract(p) {
   if (!mach || mach.st !== "ready" || !p.onGround || p.inv > 1 || p.dead || !machNear(p)) return false;
   mach.st = "entering"; mach.t = 0; mach.ex = p.x; mach.ey = p.y; p.atkT = -1; p.dashT = 0;
   for (const q of players) q.powerOn = false;
-  setTimeFx(false, false); audio.sfx("door");
+  setTimeFx(false, false); audio.sfx(pickSfx("mach_door", "door"));   // le hublot s'ouvre
   return true;
 }
 // Après le boss, la machine ramène le héros à la laverie (la pièce y est remise en place)
@@ -3925,7 +3926,7 @@ const TRACKS = [
   { id: "boss_synth", group: "Boss", name: "Combat (composition)", base: "synth:boss", cond: { boss: "roi_slime" }, how: "Bats un boss" },
   { id: "doom_1", group: "Doom", name: "Mode Doom", base: "musique/doom/doombackground", cond: { flag: "doomRoom" }, how: "Termine une salle en mode Doom" },
   { id: "doom_2", group: "Doom", name: "Mode Doom 2", base: "musique/doom/doombackground2", cond: { flag: "doomRoom" }, how: "Termine une salle en mode Doom" },
-  { id: "prologue", group: "Histoire", name: "Prologue", base: "musique/histoire/prologue", cond: { met: "bulle" }, how: "" },
+  { id: "prologue", group: "Histoire", name: "Introduction", base: "musique/histoire/intro", cond: { met: "bulle" }, how: "" },
   { id: "souvenir", group: "Histoire", name: "Souvenirs", base: "musique/histoire/souvenir", cond: { memories: 1 }, how: "Débloque un souvenir" },
   { id: "fin", group: "Histoire", name: "Retour à la maison", base: "musique/histoire/fin", cond: { world: 6 }, how: "Termine la campagne" },
   { id: "generique", group: "Histoire", name: "Générique", base: "musique/histoire/generique", cond: { world: 6 }, how: "Termine la campagne" },
@@ -4737,6 +4738,7 @@ function hubMusic() {
   return charMusic(ch());
 }
 function screenMusic() {
+  if (state === "hub" && hub.dlg && hub.dlg.o && hub.dlg.o.prologue) { const P = audio.playlists.intro || []; if (P.length) return P[0]; }   // prologue : musique de l'intro
   if (HUB_STATES.includes(state) || ((state === "options" || state === "keys") && optFrom === "hub") || (state === "chars" && charsFrom === "hub" && false)) return hubMusic();
   if (state === "memview") { const P = audio.playlists.souvenir || []; return P.length ? P[0] : hubMusic(); }
   if (state === "campwin") { const P = audio.playlists.fin || []; return P.length ? P[0] : charMusic(ch()); }
@@ -5492,13 +5494,27 @@ SCREENS.chalres = {
 };
 
 /* ---- En jeu ---- */
+// Compte à rebours des 30 dernières secondes (sfx/defis/chrono, 30 s) : joué seulement en jeu, arrêté en pause ou à la fin,
+// et repris au bon endroit (runTime avance en temps réel, même au ralenti). Sans le fichier : le tic des 10 dernières secondes.
+const CHRONO_LEN = 30;
+let chronoSnd = null;
+function chalChrono() {
+  const f = SFX_FILES.chrono30, C = chal && !chal.res && chal.C, left = C && C.limit ? C.limit - runTime : 0;
+  const want = state === "play" && audio.ctx && OPT.sfx && left > 0 && left <= CHRONO_LEN && hasSound(f);
+  if (!want) { if (chronoSnd) { chronoSnd.stop(); chronoSnd = null; } return; }
+  if (chronoSnd) return;
+  const buf = audio.buffers[f]; if (!buf) { audio.load(f); return; }
+  const c = audio.ctx, s = c.createBufferSource(), g = c.createGain(); s.buffer = buf; g.gain.value = 0.8; s.connect(g); g.connect(audio.sfxG);
+  s.start(0, Math.max(0, Math.min(buf.duration - 0.05, buf.duration - left)));
+  chronoSnd = { stop() { const t = c.currentTime; g.gain.setTargetAtTime(0, t, 0.05); try { s.stop(t + 0.3); } catch (e) {} } };
+}
 // Appelé par updatePlay() après le déplacement des joueurs (dt : temps du jeu, rdt : temps réel)
 function chalUpdate(dt, rdt) {
   if (!chal || chal.res) return;
   const C = chal.C, p = players[0];
   if (C.limit) {
     const left = C.limit - runTime;
-    if (left < 10 && Math.floor(left + rdt) !== Math.floor(left) && left > 0) audio.sfx("tick");
+    if (left < 10 && Math.floor(left + rdt) !== Math.floor(left) && left > 0 && !chronoSnd) audio.sfx("tick");
     if (left <= 0) { audio.sfx("chrono_end"); chalFail(C.prog === "solitaire" ? "La chaussette est restée cachée…" : "Le chronomètre est arrivé à zéro"); return; }
   }
   if (C.gust) {
@@ -7220,7 +7236,7 @@ function frame(now) {
   else if (state === "keys") { updateKeys(); if (state === "keys") drawKeys(); }
   else if (SCREENS[state]) { const st = state; SCREENS[st].update(rdt); if (state === st) SCREENS[st].draw(); }
   if (state !== "loading" && state !== "menu") { updateToasts(rdt); drawToasts(); }
-  hubAmbience();
+  hubAmbience(); chalChrono();
   const mk = OPT.music ? musicKey() : null;
   if (state !== "loading" && audio.ready && audio.wanted !== mk) audio.playMusic(mk);
   synthTick();

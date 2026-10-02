@@ -405,7 +405,7 @@ const TRACKS = [
   { id: "boss_synth", group: "Boss", name: "Combat (composition)", base: "synth:boss", cond: { boss: "roi_slime" }, how: "Bats un boss" },
   { id: "doom_1", group: "Doom", name: "Mode Doom", base: "musique/doom/doombackground", cond: { flag: "doomRoom" }, how: "Termine une salle en mode Doom" },
   { id: "doom_2", group: "Doom", name: "Mode Doom 2", base: "musique/doom/doombackground2", cond: { flag: "doomRoom" }, how: "Termine une salle en mode Doom" },
-  { id: "prologue", group: "Histoire", name: "Prologue", base: "musique/histoire/prologue", cond: { met: "bulle" }, how: "" },
+  { id: "prologue", group: "Histoire", name: "Introduction", base: "musique/histoire/intro", cond: { met: "bulle" }, how: "" },
   { id: "souvenir", group: "Histoire", name: "Souvenirs", base: "musique/histoire/souvenir", cond: { memories: 1 }, how: "Débloque un souvenir" },
   { id: "fin", group: "Histoire", name: "Retour à la maison", base: "musique/histoire/fin", cond: { world: 6 }, how: "Termine la campagne" },
   { id: "generique", group: "Histoire", name: "Générique", base: "musique/histoire/generique", cond: { world: 6 }, how: "Termine la campagne" },

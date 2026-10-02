@@ -552,6 +552,7 @@ function hubMusic() {
   return charMusic(ch());
 }
 function screenMusic() {
+  if (state === "hub" && hub.dlg && hub.dlg.o && hub.dlg.o.prologue) { const P = audio.playlists.intro || []; if (P.length) return P[0]; }   // prologue : musique de l'intro
   if (HUB_STATES.includes(state) || ((state === "options" || state === "keys") && optFrom === "hub") || (state === "chars" && charsFrom === "hub" && false)) return hubMusic();
   if (state === "memview") { const P = audio.playlists.souvenir || []; return P.length ? P[0] : hubMusic(); }
   if (state === "campwin") { const P = audio.playlists.fin || []; return P.length ? P[0] : charMusic(ch()); }

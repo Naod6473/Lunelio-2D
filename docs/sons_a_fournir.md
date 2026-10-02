@@ -21,7 +21,22 @@ Tes fichiers ont été renommés et rangés ainsi (les noms d'origine sont entre
 | `sfx/boss/intro.mp3` | `evillaughtboss` | Arrivée d'un boss |
 | `sfx/boss/defaite_<boss>.mp3` | `deathboss1` à `deathboss6` (dans l'ordre des mondes) | Défaite de ce boss |
 | `sfx/boss/attaque1.mp3` … `attaque5.mp3` | `bossattack1` à `bossattack5` | Attaques des boss : 1 frappe au sol et pluie de rochers, 2 tirs et orbes, 3 coup de sabre et charge, 4 sauts et noix de coco, 5 plongeon et renforts (au plus un son toutes les 1,2 s) |
-| `sfx/machine/demarrage.mp3` | `washingmachineeffect` | La machine temporelle s'allume |
+| `sfx/machine/tambour.mp3` | `washingmachineeffect` | Ouverture des programmes de lavage (avant : démarrage de la machine) |
+| `musique/boss/<boss>2.mp3` | `boss1` à `boss6` (dans l'ordre des mondes) | Deuxième musique de chaque boss : à chaque combat, l'une des deux est tirée au hasard (pour en faire la musique de dernière phase, renommer en `<boss>_rage.mp3`) |
+| `musique/histoire/intro.mp3` | `intro` | Écran titre (et ses options) et prologue avec Mme Bulle ; « Introduction » au jukebox |
+| `musique/histoire/fin.mp3` | `ending` | Scène « Retour à la maison » |
+| `jingles/victoire_boss.mp3`, `2`, `3` | `victoire-boss-1` à `3` | Boss vaincu (tiré au hasard) |
+| `jingles/badge.mp3`, `badge2.mp3` | `badge`, `badge2` | Nouveau badge |
+| `jingles/reparation.mp3` | `reparation` | Pièce posée sur la machine dans la laverie |
+| `sfx/boss/transformation.mp3` | `bosstransformation` | Changement de phase d'un boss |
+| `sfx/collecte/chaussette.mp3` | `chausette` | Chaussette trouvée |
+| `sfx/ennemis/defaite_slime.mp3` | `slimedeath` | Slime vaincu |
+| `sfx/defis/bourrasque.mp3` | `bourrasque` | Coup de vent (programme Essorage) |
+| `sfx/defis/chrono.mp3` | `chrono` (30 s) | 30 dernières secondes d'un programme chronométré, arrêté en pause et repris au bon endroit (remplace le tic des 10 dernières secondes) |
+| `sfx/machine/demarrage.mp3` | `machinedemarrage` | La machine temporelle s'allume |
+| `sfx/machine/hublot.mp3` | `machineporte` | Le héros entre dans la machine (hublot qui s'ouvre) |
+| `sfx/machine/depart.mp3` | `machinedepart` | Aspiration dans le hublot |
+| `sfx/machine/arrivee.mp3` | `machinearrive` | Sortie du hublot dans la laverie |
 
 Si une musique de boss ne va pas avec son boss, il suffit d'échanger les deux fichiers dans `audio/musique/boss/`.
 
@@ -75,9 +90,9 @@ audio/
 │   ├── defis/
 │   │   └── defis.mp3                  machine de défis : rapide, ludique, un peu de compte à rebours
 │   ├── histoire/
-│   │   ├── prologue.mp3               ★ la machine s'emballe et aspire le héros (30 s à 1 min, sans boucle)
+│   │   ├── intro.mp3                  ✓ écran titre et prologue (fourni : intro)
 │   │   ├── souvenir.mp3               douce, nostalgique, boîte à musique (scènes de souvenir)
-│   │   ├── fin.mp3                    ★ « Retour à la maison » : triomphale et tendre
+│   │   ├── fin.mp3                    ✓ « Retour à la maison » (fourni : ending)
 │   │   └── generique.mp3              générique de fin
 │   ├── quetes/                        pistes gagnées par les quêtes, ajoutées au jukebox
 │   │   ├── chanson_capitaine.mp3      récompense de la quête du Capitaine Barbe-Mouillée
