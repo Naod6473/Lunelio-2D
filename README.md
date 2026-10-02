@@ -53,15 +53,17 @@ Chaque monde de l'ancienne aventure compte trois salles puis un combat de boss. 
 
 ## La laverie
 
-La laverie est une zone sûre : on s'y promène et on utilise chaque objet en se plaçant devant (Haut, ▲ en tactile, A à la manette) ou en cliquant / touchant dessus.
+La laverie est une zone sûre en trois pièces reliées par des portes : la grande salle (qui défile avec le héros), la salle des chaussettes et la salle des trophées. On s'y promène et on utilise chaque objet en se plaçant devant (Haut, ▲ en tactile, A à la manette) ou en cliquant / touchant dessus. Dans la grande salle, on grimpe sur le banc et les machines pour atteindre le jukebox.
 
-- **Machine temporelle** : choix du monde (et du monde bonus). Ses six voyants montrent les pièces déjà réparées.
+- **Machine temporelle** (grande salle) : choix du monde (et du monde bonus). Ses six voyants montrent les pièces déjà réparées.
+- **Salle des chaussettes** : le tas de chaussettes grandit avec la collection ; les machines à hublot magique lancent les programmes de lavage.
+- **Salle des trophées** : chaque boss vaincu laisse son trophée dans la vitrine de son monde (elle ouvre sa carte) ; le portail montre les souvenirs, le présentoir les badges.
 - **Vestiaire** : changer de héros et choisir sa tenue (accessoire de tête), ses couleurs (dont la variante brillante) et la couleur de son sabre. Les tenues changent l'apparence, jamais les capacités ; elles sont gardées pour chaque héros.
 - **Collections** : l'album de cartes (clients, héros, monstres, boss ; filtres par catégorie et par lieu), les badges, et les chaussettes (compteur global, par monde, salle par salle, et paliers avec leurs récompenses). Les cartes de monstres donnent leurs faiblesses, celles des boss leurs phases vues.
 - **Jukebox** : écouter les musiques découvertes ; une musique pas encore fournie est marquée « à venir ».
 - **Souvenirs** : les six scènes de l'histoire de la machine, à revoir quand on veut.
 - **Programmes de lavage** : cinq défis sur des salles déjà connues (Express : contre la montre ; Délicat : sans être touché ; Essorage : bourrasques annoncées ; Lavage à froid : sol gelé ; Chaussette solitaire : retrouver une chaussette avec des indices). Règles, réussite, échec, récompense et record sont affichés avant le départ ; les records sont gardés par difficulté.
-- **Décoration** : carrelage, éclairage, enseigne, couleur de la machine et objets du coin détente. Les affiches des boss, la vitrine à trophées, le présentoir à badges et l'étendoir à chaussettes se remplissent tout seuls.
+- **Décoration** : couleur du sol, éclairage, enseigne, couleur de la machine et objets du coin détente. Les trophées, le tas de chaussettes et le présentoir à badges se remplissent tout seuls.
 - **Mme Bulle et ses clients** : le robot Bobine (après l'usine), le ninja Kage (après le temple) et le capitaine Barbe-Mouillée (après le volcan) ont chacun une quête facultative, avec sa récompense (carte, tenue, décoration, musique). Ils restent ensuite dans la laverie et leurs phrases changent avec la progression.
 
 Chaque récompense n'est donnée qu'une fois, même après un rechargement. Les images de la laverie, des clients et des cartes sont pour l'instant dessinées par le jeu (provisoires), en attendant les images définitives.

@@ -86,14 +86,14 @@ function chalEnd(ok, why) {
   else { saveGame(); audio.sfx("chal_fail"); voice.say("Presque ! On réessaie ?", true); }
   state = "chalres";
 }
-function chalAbandon() { chal = null; enterHub({ x: 338, msg: "Programme abandonné" }); }
+function chalAbandon() { chal = null; enterHub({ room: "chaussettes", x: 160, msg: "Programme abandonné" }); }
 const CR_BTN = [{ x: 140, y: 196, w: 96, h: 22, label: "Recommencer" }, { x: 244, y: 196, w: 96, h: 22, label: "Laverie" }];
 SCREENS.chalres = {
   update(rdt) {
     const r = chal.res; r.t += rdt; updateParts(rdt);
     if (r.t < 0.6) return;
     if (hit(...K.left, ...K.right, ...K.up, ...K.down)) { r.sel = 1 - r.sel; audio.sfx("select"); }
-    const act = i => { if (i === 0) { const C = chal.C; startChallenge(C); } else { const C = chal.C; chal = null; enterHub({ x: 338 }); void C; } };
+    const act = i => { if (i === 0) { const C = chal.C; startChallenge(C); } else { chal = null; enterHub({ room: "chaussettes", x: 160 }); } };
     if (hit(...K.ok)) { act(r.sel); return; }
     if (hit("Escape", "GB")) { act(1); return; }
     if (hit("Mouse0")) CR_BTN.forEach((b, i) => { if (state === "chalres" && inside(b)) act(i); });

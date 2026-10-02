@@ -204,7 +204,7 @@ const COS_SLOTS = [["acc", "Tenue"], ["pal", "Couleurs"], ["fx", "Sabre et effet
 
 /* ---- Décoration de la laverie ---- */
 // slot : tile (carrelage), light (éclairage), sign (couleur de l'enseigne), item (objet du coin détente, à poser ou ranger).
-// Les affiches, la vitrine, le présentoir et l'étendoir suivent les progrès du joueur (show : on peut les masquer).
+// Les trophées, le tas de chaussettes et le présentoir suivent les progrès du joueur (show : on peut les masquer).
 const DECOR = [
   { id: "tile_damier", slot: "tile", name: "Damier", cond: { start: true }, how: "", colors: ["#d8d4e8", "#3a3450"] },
   { id: "tile_losanges", slot: "tile", name: "Losanges", cond: { socks: 18 }, how: "18 chaussettes", colors: ["#7a5aa8", "#3a2a5a"] },
@@ -231,7 +231,7 @@ const DECOR = [
 const DECOR_BY_ID = Object.fromEntries(DECOR.map(d => [d.id, d]));
 const DECOR_SLOTS = [["tile", "Carrelage"], ["light", "Éclairage"], ["sign", "Enseigne"], ["machine", "Machine"], ["item", "Coin détente"], ["show", "Trophées"]];
 // éléments qui reflètent les progrès (toujours débloqués, on peut seulement les masquer)
-const SHOWCASE = [["affiches", "Affiches des boss vaincus"], ["vitrine", "Vitrine à trophées"], ["presentoir", "Présentoir à badges"], ["etendoir", "Étendoir à chaussettes"]];
+const SHOWCASE = [["trophees", "Trophées des boss vaincus"], ["tas", "Tas de chaussettes"], ["presentoir", "Présentoir à badges"]];
 
 /* ---- Paliers de chaussettes ---- */
 // Annoncés dans le menu de collection ; les récompenses sont celles dont la condition est { socks: n }.
@@ -289,7 +289,7 @@ const CHAL_BY_ID = Object.fromEntries(CHALLENGES.map(c => [c.id, c]));
 // Les objets de quête sont placés dans AJOUTS.questItems et n'apparaissent que pendant la quête.
 // after : dialogues une fois la quête terminée, qui évoluent avec la progression (la dernière qui convient est choisie).
 const QUESTS = [
-  { id: "bobine", npc: "bobine", appear: { world: 2 }, x: 300,
+  { id: "bobine", npc: "bobine", appear: { world: 2 }, room: "salle", x: 196,
     intro: [["bobine", "Bip ! Bonjour ! Mon tee-shirt rétrécit à chaque lavage."], ["bobine", "Je le lave à 90 degrés. C'est normal, non ?"], ["bulle", "Ha ha ! Trop chaud, ça rétrécit !"], ["bobine", "Montre-moi le programme « Lavage à froid » ! Bip ?"]],
     goal: { type: "challenge", challenge: "froid_usine", text: "Réussis le programme « Lavage à froid » (machine de défis)" },
     outro: [["bobine", "BIP ! Mon linge reste à la bonne taille !"], ["bobine", "Tiens, voici une affiche de moi. Je suis très beau dessus."]],
@@ -297,14 +297,14 @@ const QUESTS = [
     after: [{ cond: { start: true }, lines: [["bobine", "Bip ! Je lave tout à froid maintenant."]] },
       { cond: { world: 4 }, lines: [["bobine", "Le volcan, c'est trop chaud pour le linge. Bip."]] },
       { cond: { world: 6 }, lines: [["bobine", "La machine est réparée ! Je vais laver mes boulons."]] }] },
-  { id: "kage", npc: "kage", appear: { world: 3 }, x: 386,
+  { id: "kage", npc: "kage", appear: { world: 3 }, room: "salle", x: 335,
     intro: [["kage", "… Pardon, je ne voulais pas te faire peur."], ["kage", "J'ai perdu ma ceinture dans les ombres du temple."], ["kage", "Elle s'est coupée en trois morceaux. Tu peux les retrouver ?"]],
     goal: { type: "items", items: ["ceinture_1", "ceinture_2", "ceinture_3"], text: "Retrouve les 3 morceaux de ceinture dans le temple" },
     outro: [["kage", "Ma ceinture ! Mon kimono ne flotte plus."], ["kage", "Prends cette écharpe de nuit. Elle rend… un peu plus discret."]],
     reward: ["card:pnj_kage", "cos:acc_echarpe", "decor:item_lanterne", "track:ombres_kage"], rewardText: "Carte de Kage, écharpe de nuit, lanterne et une musique",
     after: [{ cond: { start: true }, lines: [["kage", "… Tu ne m'avais pas vu ? C'est normal."]] },
       { cond: { world: 5 }, lines: [["kage", "Le capitaine fait beaucoup de bruit. Les ninjas, non."]] }] },
-  { id: "capitaine", npc: "capitaine", appear: { world: 4 }, x: 146,
+  { id: "capitaine", npc: "capitaine", appear: { world: 4 }, room: "salle", x: 500,
     intro: [["capitaine", "Mille sabords ! Ma chaussette rayée a disparu !"], ["capitaine", "La machine l'a envoyée dans le volcan, j'en suis sûr."], ["capitaine", "Trouve-la, moussaillon, et je te donne un trésor !"]],
     goal: { type: "items", items: ["chaussette_rayee"], text: "Retrouve la chaussette rayée du capitaine dans le volcan" },
     outro: [["capitaine", "Ma chaussette ! Encore un peu chaude, mais elle sent bon le pirate."], ["capitaine", "Voici mon vieux chapeau et mon drapeau. Et ma chanson !"]],
@@ -327,6 +327,7 @@ const TRACKS = [
   ...["robot", "singe", "ninja", "rumi", "steve", "homme"].map(id => ({ id: "synth_" + id, group: "Héros", name: `Thème : ${{ robot: "Robot", singe: "Singe", ninja: "Ninja", rumi: "Rumi", steve: "Steve", homme: "Randonneur" }[id]}`,
     base: "synth:" + id, cond: { char: id }, how: "Termine une salle avec ce héros" })),
   { id: "laverie", group: "Laverie", name: "La laverie", base: "musique/laverie/laverie", cond: { start: true }, how: "" },
+  { id: "laverie_2", group: "Laverie", name: "La laverie 2", base: "musique/laverie/laverie2", cond: { start: true }, how: "" },
   { id: "laverie_nuit", group: "Laverie", name: "La laverie, la nuit", base: "musique/laverie/laverie_nuit", cond: { world: 6 }, how: "Termine la campagne" },
   { id: "defis", group: "Laverie", name: "Programmes de lavage", base: "musique/defis/defis", cond: { challengesDone: 1 }, how: "Réussis un programme" },
   ...[["centrale", "01_centrale", "Centrale électrique"], ["usine", "02_usine", "Usine robotique"], ["temple", "03_temple", "Temple des ombres"],

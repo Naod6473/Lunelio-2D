@@ -10,6 +10,21 @@ Tout va dans **`audio/`**, à la racine du dépôt, dans les sous-dossiers ci-de
 - **Variantes** : `nom.mp3`, puis `nom2.mp3`, `nom3.mp3`… Les numéros doivent se suivre (pas de `nom3` sans `nom2`).
 - Noms en **minuscules, sans accent ni espace**, exactement comme ci-dessous.
 
+## Sons déjà fournis (octobre 2026)
+
+Tes fichiers ont été renommés et rangés ainsi (les noms d'origine sont entre parenthèses) :
+
+| Fichier dans le jeu | Fichier fourni | Quand on l'entend |
+| --- | --- | --- |
+| `musique/laverie/laverie.mp3`, `laverie2.mp3` | `backgroundlaundry`, `backgroundlaundry2` | Laverie (une musique différente à chaque retour) |
+| `musique/boss/roi_slime.mp3` … `reine_chauve_souris.mp3` | `bossfight1` à `bossfight6` (dans l'ordre des mondes) | Combat contre ce boss ; les boss de l'ancienne aventure les reprennent |
+| `sfx/boss/intro.mp3` | `evillaughtboss` | Arrivée d'un boss |
+| `sfx/boss/defaite_<boss>.mp3` | `deathboss1` à `deathboss6` (dans l'ordre des mondes) | Défaite de ce boss |
+| `sfx/boss/attaque1.mp3` … `attaque5.mp3` | `bossattack1` à `bossattack5` | Attaques des boss : 1 frappe au sol et pluie de rochers, 2 tirs et orbes, 3 coup de sabre et charge, 4 sauts et noix de coco, 5 plongeon et renforts (au plus un son toutes les 1,2 s) |
+| `sfx/machine/demarrage.mp3` | `washingmachineeffect` | La machine temporelle s'allume |
+
+Si une musique de boss ne va pas avec son boss, il suffit d'échanger les deux fichiers dans `audio/musique/boss/`.
+
 ## Format
 
 | | Musiques (boucles) | Jingles | Bruitages |

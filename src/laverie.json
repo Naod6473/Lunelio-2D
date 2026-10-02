@@ -1,0 +1,117 @@
+{
+ "atlas": {
+  "laverie_salle": {
+   "src": "assets/laverie/laverie_salle.webp",
+   "cw": 816,
+   "ch": 272,
+   "ax": 408,
+   "ay": 272,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : laundry_room.png"
+  },
+  "laverie_chaussettes": {
+   "src": "assets/laverie/laverie_chaussettes.webp",
+   "cw": 680,
+   "ch": 272,
+   "ax": 340,
+   "ay": 272,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : laundry_socks_room.png"
+  },
+  "laverie_trophees": {
+   "src": "assets/laverie/laverie_trophees.webp",
+   "cw": 680,
+   "ch": 272,
+   "ax": 340,
+   "ay": 272,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : trophyroom.png"
+  },
+  "portes_laverie": {
+   "src": "assets/laverie/portes_laverie.png",
+   "cw": 48,
+   "ch": 58,
+   "ax": 24,
+   "ay": 58,
+   "cols": 3,
+   "anims": {
+    "fermee": [
+     0,
+     3
+    ],
+    "ouverte": [
+     3,
+     3
+    ]
+   },
+   "note": "laverie : laundrydoors.png"
+  },
+  "tas_chaussettes": {
+   "src": "assets/laverie/tas_chaussettes.png",
+   "cw": 170,
+   "ch": 104,
+   "ax": 85,
+   "ay": 104,
+   "cols": 3,
+   "anims": {
+    "play": [
+     0,
+     6
+    ]
+   },
+   "note": "laverie : laundrysocks.png"
+  },
+  "trophees": {
+   "src": "assets/laverie/trophees.png",
+   "cw": 30,
+   "ch": 34,
+   "ax": 15,
+   "ay": 34,
+   "cols": 3,
+   "anims": {
+    "play": [
+     0,
+     6
+    ]
+   },
+   "note": "laverie : trophy_sprite.png"
+  },
+  "chaussette": {
+   "src": "assets/laverie/chaussette.png",
+   "cw": 28,
+   "ch": 28,
+   "ax": 14,
+   "ay": 14,
+   "cols": 4,
+   "anims": {
+    "flotte": [
+     0,
+     4
+    ],
+    "collecte": [
+     4,
+     4
+    ]
+   },
+   "note": "laverie : sock_sprite.png"
+  }
+ }
+}

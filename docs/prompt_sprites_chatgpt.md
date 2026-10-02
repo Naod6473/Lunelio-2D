@@ -1,5 +1,7 @@
 # Sprites à générer avec ChatGPT — laverie, collections, cartes, cosmétiques
 
+> **Déjà fournis** : les trois pièces de la laverie, les portes, la chaussette, le tas de chaussettes et les trophées (voir `docs/decisions_laverie.md`). Le fond A1, la vitrine A7, les trophées A8 et l'étendoir A10 ne sont plus nécessaires. Restent utiles en priorité : les clients (B), le vestiaire (A6), le lutrin (A5), les cartes (C), les badges (D) et les souvenirs (G). Les nouvelles images peuvent être déposées à la racine de `src/assets/pack_laverie/` ou dans les sous-dossiers indiqués ; `preparer_laverie.py` accepte les deux.
+
 ## Mode d'emploi
 
 1. Ouvre une **nouvelle conversation** ChatGPT et colle le **bloc STYLE** ci-dessous en premier message.

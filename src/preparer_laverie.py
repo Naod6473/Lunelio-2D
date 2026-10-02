@@ -19,8 +19,19 @@ OUT = os.path.join(HERE, "..", "assets", "laverie")
 
 # nom de l'atlas : (fichier source, colonnes, lignes, largeur et hauteur d'une case en jeu, ancrage, animations, même échelle pour toutes les cases)
 # ancrage : "feet" (milieu du bas), "center", "bottom" (bas, pour les décors)
+# Le fichier source peut être une liste : le premier qui existe est pris (noms du prompt ou noms des images déjà fournies).
+# FIT : pour une planche à même échelle, hauteur visée et images qui servent à la mesurer (sinon toutes, ajustées à la case).
 NPCS = ["bulle", "capitaine", "bobine", "kage"]
 SPEC = {
+    # images fournies : trois pièces de la laverie, portes, chaussette, tas de chaussettes, trophées
+    "laverie_salle": ("laundry_room.png", 1, 1, 816, 272, "bottom", {"play": [0, 1]}, True),
+    "laverie_chaussettes": ("laundry_socks_room.png", 1, 1, 680, 272, "bottom", {"play": [0, 1]}, True),
+    "laverie_trophees": ("trophyroom.png", 1, 1, 680, 272, "bottom", {"play": [0, 1]}, True),
+    "portes_laverie": ("laundrydoors.png", 3, 2, 48, 58, "bottom", {"fermee": [0, 3], "ouverte": [3, 3]}, True),
+    "tas_chaussettes": ("laundrysocks.png", 3, 2, 170, 104, "bottom", {"play": [0, 6]}, True),
+    "trophees": (["trophy_sprite.png", "laverie/trophees.png"], 3, 2, 30, 34, "bottom", {"play": [0, 6]}, True),
+    "chaussette": (["sock_sprite.png", "objets/chaussette.png"], 4, 2, 28, 28, "center", {"flotte": [0, 4], "collecte": [4, 4]}, True),
+    # images du prompt (docs/prompt_sprites_chatgpt.md), pas encore fournies
     "laverie_fond": ("laverie/laverie_fond.png", 1, 1, 480, 272, "bottom", {"play": [0, 1]}, True),
     "laverie_carrelage": ("laverie/laverie_carrelage.png", 4, 1, 16, 16, "center", {"damier": [0, 1], "losanges": [1, 1], "uni": [2, 1], "neon": [3, 1]}, False),
     "machine_defis": ("laverie/machine_defis.png", 4, 2, 48, 56, "bottom", {"repos": [0, 4], "marche": [4, 4]}, True),
@@ -28,7 +39,6 @@ SPEC = {
     "album_lutrin": ("laverie/album_lutrin.png", 4, 1, 32, 32, "bottom", {"ferme": [0, 1], "ouverture": [1, 3]}, True),
     "armoire": ("laverie/armoire.png", 4, 1, 40, 56, "bottom", {"fermee": [0, 1], "ouverture": [1, 3]}, True),
     "vitrine": ("laverie/vitrine.png", 1, 1, 48, 40, "bottom", {"play": [0, 1]}, True),
-    "trophees": ("laverie/trophees.png", 6, 1, 16, 16, "bottom", {"play": [0, 6]}, False),
     "presentoir_badges": ("laverie/presentoir_badges.png", 1, 1, 40, 32, "bottom", {"play": [0, 1]}, True),
     "etendoir": ("laverie/etendoir.png", 1, 1, 64, 40, "bottom", {"play": [0, 1]}, True),
     "affiches_boss": ("laverie/affiches_boss.png", 6, 1, 24, 32, "bottom", {"play": [0, 6]}, False),
@@ -42,7 +52,6 @@ SPEC = {
     "illus_monstres": ("cartes/illus_monstres.png", 6, 1, 40, 40, "bottom", {"play": [0, 6]}, False),
     "badges": ("icones/badges.png", 6, 3, 16, 16, "center", {"play": [0, 18]}, False),
     "icones_jeu": ("icones/icones_jeu.png", 8, 1, 12, 12, "center", {"play": [0, 8]}, False),
-    "chaussette": ("objets/chaussette.png", 6, 2, 16, 16, "center", {"flotte": [0, 6], "collecte": [6, 6]}, True),
     "chaussette_bonus": ("objets/chaussette_bonus.png", 6, 2, 16, 16, "center", {"flotte": [0, 6], "collecte": [6, 6]}, True),
     "objets_quete": ("objets/objets_quete.png", 8, 1, 16, 16, "center", {"play": [0, 8]}, False),
     "fx_vent": ("objets/fx_vent.png", 4, 1, 32, 16, "center", {"play": [0, 4]}, True),
@@ -52,11 +61,15 @@ SPEC = {
     "souvenir_fin": ("souvenirs/fin.png", 1, 1, 240, 136, "bottom", {"play": [0, 1]}, True),
 }
 
+# hauteur visée et images de référence pour l'échelle commune (la chaussette se mesure sans les étincelles de la collecte)
+FIT = {"chaussette": (22, [0, 1, 2, 3]), "tas_chaussettes": (100, None), "trophees": (32, None), "portes_laverie": (56, None)}
+
 def unmagenta(im):
     """Fond magenta (#FF00FF, à peu près) → transparent ; image déjà transparente : inchangée."""
     im = im.convert("RGBA")
     px = im.load(); w, h = im.size
     if any(px[x, y][3] < 250 for x in (0, w - 1) for y in (0, h - 1)): return im
+    if not (px[0, 0][0] > 200 and px[0, 0][2] > 200 and px[0, 0][1] < 90): return im   # fond plein (décor) : rien à détourer
     for y in range(h):
         for x in range(w):
             r, g, b, a = px[x, y]
@@ -69,8 +82,10 @@ def bbox(cell):
 
 def prepare(name, spec):
     path, cols, rows, cw, ch, anchor, anims, uniform = spec
-    full = os.path.join(SRC, path)
-    if not os.path.exists(full): return None
+    paths = path if isinstance(path, list) else [path]
+    full = next((os.path.join(SRC, q) for q in paths if os.path.exists(os.path.join(SRC, q))), None)
+    if not full: return None
+    path = os.path.relpath(full, SRC).replace(os.sep, "/")
     im = unmagenta(Image.open(full))
     W, H = im.size
     sw, sh = W / cols, H / rows
@@ -81,9 +96,12 @@ def prepare(name, spec):
         scales = [None] * len(cells)
     else:
         if uniform:   # animation : la même échelle pour toutes les images (le personnage ne change pas de taille)
-            mw = max((b[2] - b[0]) for b in boxes if b) if any(boxes) else 1
-            mh = max((b[3] - b[1]) for b in boxes if b) if any(boxes) else 1
-            s = min(cw / mw, ch / mh)
+            th, ref = FIT.get(name, (None, None))
+            ref_boxes = [boxes[i] for i in (ref or range(len(boxes))) if boxes[i]]
+            mw = max((b[2] - b[0]) for b in ref_boxes) if ref_boxes else 1
+            mh = max((b[3] - b[1]) for b in ref_boxes) if ref_boxes else 1
+            s = th / mh if th else min(cw / mw, ch / mh)
+            s = min(s, cw / mw)
             scales = [s] * len(cells)
         else:
             scales = [min(cw / (b[2] - b[0]), ch / (b[3] - b[1])) if b else 1 for b in boxes]
@@ -96,16 +114,23 @@ def prepare(name, spec):
             alpha = small.split()[3].point(lambda v: 255 if v > 110 else 0)   # alpha net : pas de bord flou
             small.putalpha(alpha)
             cell = Image.new("RGBA", (cw, ch))
-            if anchor == "center": ox, oy = (cw - nw) // 2, (ch - nh) // 2
+            if anchor == "center":
+                # centre de la case d'origine conservé (une étincelle décalée reste décalée)
+                cx0, cy0 = (b[0] + b[2]) / 2 - c.width / 2, (b[1] + b[3]) / 2 - c.height / 2
+                ox, oy = round((cw - nw) / 2 + cx0 * s * 0.5), round((ch - nh) / 2 + cy0 * s * 0.5)
             else: ox, oy = (cw - nw) // 2, ch - nh   # pieds ou bas : posé sur le bord bas, centré
             cell.paste(small, (ox, oy), small)
             crops.append(cell)
     sheet = Image.new("RGBA", (cw * cols, ch * rows))
     for i, c in enumerate(crops): sheet.paste(c, ((i % cols) * cw, (i // cols) * ch))
     os.makedirs(OUT, exist_ok=True)
-    sheet.save(os.path.join(OUT, name + ".png"), optimize=True)
+    for old in (os.path.join(OUT, name + e) for e in (".png", ".webp")):
+        if os.path.exists(old): os.remove(old)
+    ext = ".webp" if cw >= 200 else ".png"   # grands décors : WebP sans perte, plus léger
+    if ext == ".webp": sheet.save(os.path.join(OUT, name + ext), lossless=True, quality=100, method=6)
+    else: sheet.save(os.path.join(OUT, name + ext), optimize=True)
     ax, ay = cw // 2, ch if anchor in ("feet", "bottom") else ch // 2
-    return {"src": f"assets/laverie/{name}.png", "cw": cw, "ch": ch, "ax": ax, "ay": ay, "cols": cols, "anims": anims, "note": f"laverie : {path}"}
+    return {"src": f"assets/laverie/{name}{ext}", "cw": cw, "ch": ch, "ax": ax, "ay": ay, "cols": cols, "anims": anims, "note": f"laverie : {path}"}
 
 def main():
     atlas, missing = {}, []

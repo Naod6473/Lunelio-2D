@@ -275,14 +275,14 @@ function speakCampRoom() {
 
 /* ---------------- Nouvelle campagne : collisions ---------------- */
 function rectSolidAt(x, y) {
-  if (x < 0 || x >= VW) return true;
+  if (x < 0 || x >= (lvl.width || VW)) return true;   // lvl.width : pièces plus larges que l'écran (laverie)
   for (const s of lvl.solids) if (x >= s.x && x < s.x + s.w && y >= s.y && y < s.y + s.h) return true;
   return false;
 }
 // Un point sur lequel on peut se tenir (sol, plateforme ou bloc)
 function supportAt(x, y) {
   if (!lvl.json) return tileAt(x, y) !== 0;
-  if (rectSolidAt(x, y)) return x >= 0 && x < VW;
+  if (rectSolidAt(x, y)) return x >= 0 && x < (lvl.width || VW);
   for (const s of lvl.plats) if (x >= s.x && x < s.x + s.w && y >= s.y && y < s.y + s.h) return true;
   for (const s of lvl.blocks) if (x >= s.x && x < s.x + s.w && y >= s.y && y < s.y + s.h) return true;
   return false;
@@ -297,7 +297,8 @@ function moveBodyJ(e, dt) {
   e.blockedX = false;
   e.x += e.vx * dt;
   if (e.x < 0) { e.x = 0; e.blockedX = e.vx < 0; }
-  if (e.x + e.w > VW) { e.x = VW - e.w; e.blockedX = e.vx > 0; }
+  const RW = lvl.width || VW;
+  if (e.x + e.w > RW) { e.x = RW - e.w; e.blockedX = e.vx > 0; }
   for (const s of lvl.solids) if (ov(e, s)) {
     if (e.vx > 0 || (e.vx === 0 && e.x + e.w / 2 < s.x + s.w / 2)) e.x = s.x - e.w; else e.x = s.x + s.w;
     e.blockedX = true;
@@ -569,7 +570,7 @@ function updateBig(e, dt) {
       if (e.move === "dive") e.target.x += (clamp(pcx - e.w / 2, 10, VW - 10 - e.w) - e.target.x) * Math.min(1, dt * 2);
       else e.face = Math.sign(pcx - cx) || e.face;
       if (e.t <= 0) {
-        e.pose = "attack";
+        e.pose = "attack"; bossAtkSfx(e, BOSS_ATK_SFX[e.move]);
         if (e.move === "hop" || e.move === "leap") {
           e.st = "air"; e.vy = e.move === "leap" ? -470 : -520; e.vx = clamp((pcx - cx) * 1.25, -210, 210) * Math.min(1.3, sp); e.airT = 0; audio.sfx("jump");
         } else if (e.move === "slash") { e.st = "charge"; e.t = 0.5; e.vx = e.face * 300 * sp; audio.sfx("dash"); }
@@ -674,7 +675,7 @@ function damageBig(e, dmg) {
     for (const m of enemies) if (m !== e && m.alive) { m.alive = false; foeDefeatFx(m.F ? m.F.defeat : "etoiles", m.x + m.w / 2, m.y + m.h / 2); }
     for (const h of lvl.hazards) h.disabled = true;
     e.rocks = null;
-    shake = 12; flash = 0.25; hitstop = 0.25; audio.sfx("boss_defeat"); audio.sfx("victory"); rumble(700, 1, 1);
+    shake = 12; flash = 0.25; hitstop = 0.25; bossDefeatSfx(BOSS_IDS.indexOf(e.id)); audio.sfx("victory"); rumble(700, 1, 1);
     msg = { text: `${e.name} est vaincu !`, t: 3 }; voice.say(msg.text, true);
     if (!chal) emit("boss", { id: e.id, noDamage: !lvl.hurt, doom: df().id === "doom" });
     return;
@@ -876,10 +877,11 @@ function collectFx(it, col) {
   flash = Math.max(flash, 0.05);
 }
 // Chaussette puante (provisoire, dessinée par le code tant que l'atlas « chaussette » n'existe pas) : x, y = centre
+// o.s : taille (icônes de l'interface : plus petites que la chaussette des salles)
 function drawSock(x, y, o = {}) {
-  const aid = o.gold ? "chaussette_bonus" : "chaussette";
-  if (hasAtlas(aid) && !o.striped && !o.ghost) { drawFrame(aid, animFrame(aid, "flotte", time + (o.t || 0), 8), x, y, 1, o.alpha ?? 1); return; }
-  if (hasAtlas("chaussette") && o.ghost) { drawFrame("chaussette", ATL.chaussette.anims.flotte[0], x, y, 1, (o.alpha ?? 1) * 0.7); return; }
+  const aid = o.gold ? "chaussette_bonus" : "chaussette", sc = o.s ?? 1;
+  if (hasAtlas(aid) && !o.striped && !o.ghost) { drawFrame(aid, animFrame(aid, "flotte", time + (o.t || 0), 8), x, y, 1, o.alpha ?? 1, sc); return; }
+  if (hasAtlas("chaussette") && o.ghost) { drawFrame("chaussette", ATL.chaussette.anims.flotte[0], x, y, 1, (o.alpha ?? 1) * 0.7, sc); return; }
   if (o.striped && hasAtlas("objets_quete")) { drawFrame("objets_quete", 0, x, y, 1, o.alpha ?? 1); return; }
   const a = o.alpha ?? 1, body = o.gold ? "#ffd23c" : o.ghost ? "#8a80a8" : "#f4f0ff", band = o.gold ? "#ff8a3c" : o.striped ? "#d02a2a" : "#ff4f8a";
   ctx.globalAlpha = a;
@@ -1264,7 +1266,7 @@ function drawCampHUD() {
   // chaussettes du monde (icône pleine si celle de la salle est trouvée)
   if (!chal && AJOUTS.socks[R0.id]) {
     const got = !!SAVE.socks[R0.id], sx = 92;
-    drawSock(sx, VH - 9, got ? {} : { ghost: true, alpha: 0.6 });
+    drawSock(sx, VH - 9, got ? { s: 0.55 } : { ghost: true, alpha: 0.6, s: 0.55 });
     text(`${socksInWorld(W.id)}/${socksWorldTotal(W.id)}`, sx + 9, VH - 8, 8, got ? "#7dffb0" : "#b9a6e0");
   }
   if (chal) drawChalHUD();

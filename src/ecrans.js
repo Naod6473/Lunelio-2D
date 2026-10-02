@@ -152,7 +152,7 @@ function drawBadgeIcon(b, cx, cy, s = 1, own = true) {
   ctx.fillStyle = "#0e0a1a"; ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = col; ctx.beginPath(); ctx.arc(0, 0, 7.5, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = own ? "#ffffff44" : "#ffffff11"; ctx.beginPath(); ctx.arc(-2, -2, 3, 0, Math.PI * 2); ctx.fill();
-  if (b.icon === "sock" || b.icon === "gold") drawSock(0, 1, { ghost: !own, gold: b.icon === "gold" && own });
+  if (b.icon === "sock" || b.icon === "gold") drawSock(0, 1, { ghost: !own, gold: b.icon === "gold" && own, s: 0.6 });
   else if (b.icon === "machine") drawMachineIcon(0, 0, 0.5);
   else text(BADGE_GLYPH[b.icon] || "★", 0, 1, 9, own ? "#120828" : "#5a4a80", "center");
   ctx.restore();
@@ -180,7 +180,7 @@ function drawAlbumBadges() {
 }
 function drawAlbumSocks() {
   const n = socksCount(), T = socksTotal(), gold = AJOUTS.gold.filter(g => SAVE.gold[g.id]).length;
-  drawSock(20, 34, {}); text(`Chaussettes puantes : ${n}/${T}`, 30, 34, 10, "#7dffb0");
+  drawSock(20, 34, { s: 0.7 }); text(`Chaussettes puantes : ${n}/${T}`, 30, 34, 10, "#7dffb0");
   text(`Chaussettes dorées (chemins secrets) : ${gold}/${AJOUTS.gold.length}`, 30, 48, 7, "#ffd23c");
   // par monde : barre et une case par salle (pleine : chaussette trouvée ; bord vert : salle terminée)
   CWORLDS.forEach((W, i) => {
@@ -321,7 +321,7 @@ SCREENS.deco = {
       if (!own && it.how) text(it.how, r.x + r.w - 4, r.y + 8, 5, "#8a7aa8", "right");
       if (own && (it.color || it.colors)) R(r.x + r.w - 14, r.y + 4, 9, 7, it.colors ? it.colors[0] : it.color.startsWith("#") ? it.color : `rgb(${it.color})`);
     });
-    text("Les affiches, la vitrine, le présentoir et l'étendoir se remplissent avec tes progrès.", VW / 2, VH - 14, 6, "#e8dcff", "center");
+    text("Les trophées, le tas de chaussettes et le présentoir se remplissent avec tes progrès.", VW / 2, VH - 14, 6, "#e8dcff", "center");
   },
 };
 

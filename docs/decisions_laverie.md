@@ -17,7 +17,7 @@ Tout ce qui est décrit dans la demande est jouable ; les images et les sons dé
 | --- | --- | --- |
 | Sauvegarde commune v3 et migration | `src/sauvegarde.js` | Fait, anciennes clés reprises puis laissées en place |
 | 72 chaussettes, 6 chaussettes dorées | `src/campagne_ajouts.json` | Fait, vérifiées par `verifier_niveaux.py` |
-| Laverie (8 postes, Mme Bulle, 3 clients) | `src/laverie.js` | Fait, dessins provisoires |
+| Laverie en trois pièces (grande salle, salle des chaussettes, salle des trophées), Mme Bulle, 3 clients | `src/laverie.js` | Fait avec les décors fournis ; clients et quelques postes encore dessinés par le code |
 | Album (36 cartes), 19 badges, paliers | `src/registres.js`, `src/ecrans.js` | Fait |
 | 3 quêtes (Bobine, Kage, capitaine) | `src/registres.js` | Fait |
 | 5 programmes de lavage | `src/defis.js` | Fait, un défi par programme, testés |
@@ -27,11 +27,16 @@ Tout ce qui est décrit dans la demande est jouable ; les images et les sons dé
 | Boss : P1 / P2 / dernière phase, décor qui réagit | `src/campagne.js` | Fait (17 phases respectées) |
 | Mécaniques de monde, nouveaux secrets | `WORLD_MECHANICS`, `campagne_ajouts.json` | Points d'extension prêts, à remplir avec les prochaines salles |
 
+### Images déjà fournies (octobre 2026)
+
+Les trois décors de la laverie (`laundry_room.png`, `laundry_socks_room.png`, `trophyroom.png`), les portes entre les pièces (`laundrydoors.png`), la chaussette animée (`sock_sprite.png`), le tas de chaussettes en six tailles (`laundrysocks.png`) et les six trophées (`trophy_sprite.png`). Elles remplacent le fond unique prévu au départ : la laverie a maintenant trois pièces reliées par des portes, et la grande salle défile avec le héros. Dans la grande salle, le banc, les machines empilées et l'étagère sont des plateformes : on grimpe jusqu'au jukebox.
+
 ### Éléments provisoires (remplacés automatiquement dès que l'image existe)
 
 Dessinés par le code en attendant les images de `docs/prompt_sprites_chatgpt.md`, à déposer dans `src/assets/pack_laverie/` puis `python3 preparer_laverie.py` et `python3 build.py` :
 
-- branchés (l'image remplace le dessin dès qu'elle est là) : fond de la laverie, enseigne, machine de défis, jukebox, lutrin, armoire, affiches et trophées des boss, machine réparée (7 états), bulles des clients, sprites et portraits des 4 clients, illustrations des monstres, badges, chaussette et chaussette dorée, objets de quête, accessoires, scènes des souvenirs ;
+- encore dessinés par le code, à fournir en priorité : les 4 clients (sprites et portraits), le vestiaire, le lutrin des collections, le pot de peinture de la décoration, le présentoir à badges ;
+- branchés (l'image remplace le dessin dès qu'elle est là) : enseigne, machine de défis, jukebox, lutrin, armoire, machine réparée (7 états), bulles des clients, sprites et portraits des 4 clients, illustrations des monstres, badges, chaussette dorée, objets de quête, accessoires, scènes des souvenirs ;
 - découpés par le script mais pas encore utilisés (le dessin par le code reste) : carrelage, vitrine, présentoir, étendoir, coin détente, cadres des cartes, petites icônes, traînées de vent, autocollants de la machine, image de fin.
 
 Sons : tous facultatifs, voir `docs/sons_a_fournir.md`. Aujourd'hui seules les musiques des héros et du mode Doom, le coup de sabre, le laser et le game over sont des fichiers ; le reste est synthétisé.

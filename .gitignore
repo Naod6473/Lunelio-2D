@@ -9,3 +9,6 @@ selection_personnage.gif
 Lunelio_pack_complet/
 .claude/
 assets/Lunelio_logos_animes/
+
+# Les sons vont dans audio/ (pas dans le dossier des images) : on évite de les avoir en double dans le dépôt
+src/assets/pack_laverie/**/*.mp3

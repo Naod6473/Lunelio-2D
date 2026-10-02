@@ -4,43 +4,75 @@
 // de assets/laverie/ n'existent pas (voir docs/prompt_sprites_chatgpt.md).
 // États : "hub" (on se promène), "hubmenu" (menu Échap), plus les écrans de ecrans.js et defis.js (SCREENS).
 const SCREENS = {};
-const HUB_FLOOR = 240;
-let hub = { lvl: null, msg: null, dlg: null, near: null, t: 0, arrive: null, queue: [], machShake: 0 };
-// Postes : x = centre au sol. need : condition pour que le poste s'allume (sinon « bientôt »), with lockText.
+const HUB_FLOOR = 240;   // sol de la scène de fin (drawCampWin)
+// Pièces de la laverie : décor (atlas préparé par preparer_laverie.py, sinon dessin provisoire), largeur, hauteur du sol (pieds),
+// plateformes traversables [x, y, largeur] et portes (x, pièce d'arrivée, image : 0 trophées, 1 chaussettes, 2 retour à la laverie).
+// En passant une porte, on arrive devant la porte qui ramène d'où l'on vient.
+const HUB_ROOMS = {
+  salle: { name: "Laverie", bg: "laverie_salle", w: 816, floor: 236,
+    plats: [[598, 213, 46], [652, 158, 98], [712, 101, 88]],   // banc, machines empilées, étagère du jukebox
+    doors: [{ x: 36, to: "trophees", img: 0, label: "Salle des trophées" }, { x: 779, to: "chaussettes", img: 1, label: "Salle des chaussettes" }] },
+  chaussettes: { name: "Salle des chaussettes", bg: "laverie_chaussettes", w: 680, floor: 224, plats: [],
+    doors: [{ x: 30, to: "salle", img: 2, label: "Retour à la laverie" }] },
+  trophees: { name: "Salle des trophées", bg: "laverie_trophees", w: 680, floor: 229, plats: [],
+    doors: [{ x: 640, to: "salle", img: 2, label: "Retour à la laverie" }] },
+};
+let hub = { lvl: null, room: "salle", cam: 0, msg: null, dlg: null, near: null, t: 0, arrive: null, queue: [], machShake: 0, trans: null, visits: 0 };
+const hubRoom = () => HUB_ROOMS[hub.room];
+const hubArt = () => hasAtlas(hubRoom().bg);
+// Postes : pièce, x = centre, fy = hauteur des pieds pour s'en servir (sol par défaut), art : déjà dessiné dans le décor.
+// need : condition pour que le poste s'allume (sinon « bientôt », avec lockText).
+const PEDESTALS = [163, 234, 306, 378, 452, 533];
 const STATIONS = [
-  { id: "armoire", x: 28, w: 34, h: 58, label: "Vestiaire", open: () => openWardrobe() },
-  { id: "album", x: 72, w: 30, h: 36, label: "Collections", open: () => openAlbum() },
-  { id: "jukebox", x: 110, w: 30, h: 48, label: "Jukebox", open: () => openJukebox() },
-  { id: "souvenirs", x: 186, w: 28, h: 30, label: "Souvenirs", need: { memories: 1 }, lockText: "Ramène une pièce de la machine pour réveiller ses souvenirs", open: () => openMemories() },
-  { id: "machine", x: 240, w: 56, h: 64, label: "Machine temporelle", open: () => hubToMachine() },
-  { id: "defis", x: 338, w: 40, h: 50, label: "Programmes de lavage", need: { world: 1 }, lockText: "Termine la centrale pour allumer cette machine", open: () => openChallenges() },
-  { id: "deco", x: 420, w: 30, h: 40, label: "Décoration", open: () => openDeco() },
-  { id: "bulle", x: 460, w: 22, h: 38, label: "Mme Bulle", npc: "bulle" },
+  { id: "armoire", room: "salle", x: 100, w: 34, h: 58, label: "Vestiaire", open: () => openWardrobe() },
+  { id: "album", room: "salle", x: 268, w: 30, h: 36, label: "Collections", open: () => openAlbum() },
+  { id: "machine", room: "salle", x: 408, w: 56, h: 64, label: "Machine temporelle", open: () => hubToMachine() },
+  { id: "deco", room: "salle", x: 562, w: 30, h: 40, label: "Décoration", open: () => openDeco() },
+  { id: "bulle", room: "salle", x: 618, w: 22, h: 38, label: "Mme Bulle", npc: "bulle" },
+  { id: "jukebox", room: "salle", x: 770, fy: 101, w: 44, h: 56, art: true, label: "Jukebox", open: () => openJukebox() },
+  { id: "defis", room: "chaussettes", x: 139, w: 96, h: 120, art: true, label: "Programmes de lavage", need: { world: 1 }, lockText: "Termine la centrale pour allumer ces machines", open: () => openChallenges() },
+  { id: "tas", room: "chaussettes", x: 340, w: 110, h: 100, label: "Tas de chaussettes", open: () => { ALB.tab = 2; openAlbum(); } },
+  { id: "souvenirs", room: "trophees", x: 45, w: 50, h: 100, art: true, label: "Portail des souvenirs", need: { memories: 1 }, lockText: "Ramène une pièce de la machine pour réveiller ses souvenirs", open: () => openMemories() },
+  ...PEDESTALS.map((x, i) => ({ id: "vitrine" + i, room: "trophees", x, w: 40, h: 90, art: true, world: i, label: CWORLDS[i].name,
+    open: () => { ALB.tab = 0; ALB.cat = 3; ALB.world = WORLD_FILTERS.findIndex(f => f[0] === CWORLDS[i].id); ALB.page = 0; ALB.sel = 0; openAlbum(); } })),
+  { id: "presentoir", room: "trophees", x: 592, w: 34, h: 100, label: "Présentoir à badges", open: () => { ALB.tab = 1; openAlbum(); } },
 ];
 const stationOn = s => !s.need || testCond(s.need);
-// Clients présents : ceux dont la quête est apparue
-const hubNpcs = () => QUESTS.filter(q => testCond(q.appear)).map(q => ({ id: q.npc, x: q.x, w: 20, h: 38, label: NPCS[q.npc].name, npc: q.npc, quest: q }));
-function hubThings() { return [...STATIONS, ...hubNpcs()]; }
+// Clients présents : ceux dont la quête est apparue (dans la grande salle)
+const hubNpcs = () => QUESTS.filter(q => testCond(q.appear)).map(q => ({ id: q.npc, room: q.room || "salle", x: q.x, w: 20, h: 38, label: NPCS[q.npc].name, npc: q.npc, quest: q }));
+const hubDoors = () => hubRoom().doors.map(d => ({ ...d, id: "porte_" + d.to, room: hub.room, w: 30, h: 56, door: true }));
+function hubThings() { return [...STATIONS, ...hubNpcs(), ...hubDoors()].filter(t => t.room === hub.room); }
+const thingFloor = t => t.fy ?? hubRoom().floor;
 
 /* ---- Entrée dans la laverie ---- */
-// opts.arrive : retour par la machine (après un boss : pièce réparée, souvenir) ; opts.msg : message affiché en arrivant
+// opts.room : pièce (grande salle par défaut) ; opts.x : position ; opts.arrive : retour par la machine (après un boss :
+// pièce réparée, souvenir) ; opts.msg : message affiché en arrivant
+function hubSetRoom(id, x) {
+  hub.room = id; const H = HUB_ROOMS[id];
+  hub.lvl = { json: true, hub: true, width: H.w, solids: [{ x: -40, y: H.floor, w: H.w + 80, h: 40 }], plats: H.plats.map(([x0, y, w]) => ({ x: x0, y, w, h: 8 })),
+    blocks: [], hazards: [], dest: [], items: [], exits: [], decor: [], covers: [], gold: [], qitems: [], sock: null,
+    start: { x: clamp(x, 4, H.w - 14), y: H.floor - 32 }, lastSafe: null, W: CWORLDS[0], R: { id: "laverie", bg: "" }, leaving: false };
+  lvl = hub.lvl;
+  const p = players[0];
+  if (p && p.C === ch()) { p.x = lvl.start.x; p.y = lvl.start.y; p.vx = p.vy = 0; } else players = [makePlayer(ch(), K, 0)];
+  players[0].inv = 0;
+  hub.cam = clamp(players[0].x + 5 - VW / 2, 0, H.w - VW);
+}
 function enterHub(opts = {}) {
-  mode = "camp"; chal = null;
-  hub.lvl = { json: true, hub: true, solids: [{ x: -40, y: HUB_FLOOR, w: VW + 80, h: 40 }], plats: [], blocks: [], hazards: [], dest: [], items: [],
-    exits: [], decor: [], covers: [], gold: [], qitems: [], sock: null, start: { x: opts.x ?? 214, y: HUB_FLOOR - 32 }, lastSafe: null, W: CWORLDS[0], R: { id: "laverie", bg: "" }, leaving: false };
-  lvl = hub.lvl; mach = null; arrival = null; campTrans = null; campFade = 0;
-  players = [makePlayer(ch(), K, 0)]; players[0].inv = 0;
+  mode = "camp"; chal = null; players = [];
+  hubSetRoom(opts.room || "salle", opts.x ?? 380);
+  mach = null; arrival = null; campTrans = null; campFade = 0; hub.trans = null;
   enemies = []; lasers = []; parts = []; pickups = []; ghosts = []; fxs = [];
   setTimeFx(false, false);
-  hub.t = 0; hub.dlg = null; hub.msg = opts.msg ? { text: opts.msg, t: 5 } : null;
+  hub.t = 0; hub.dlg = null; hub.visits++; hub.msg = opts.msg ? { text: opts.msg, t: 5 } : null;
   hub.arrive = opts.arrive ? { t: 0 } : null;
-  if (hub.arrive) { players[0].hidden = true; players[0].x = 230; }
+  if (hub.arrive) { hubSetRoom("salle", 398); players[0].hidden = true; }
   state = "hub"; voice.stop();
   // à faire en arrivant : prologue, réparation d'une pièce, souvenir, fin de la campagne
   hub.queue = [];
   if (!SAVE.flags.prologue) hub.queue.push(() => startDialog(STORY.prologue, () => { SAVE.flags.prologue = 1; emit("met", { npc: "bulle" }); hub.msg = { text: say("Approche-toi de la machine et appuie sur Haut", "Approche-toi de la machine et appuie sur ▲", "Approche-toi de la machine et appuie sur {JUMP}"), t: 6 }; }, { prologue: true }));
   for (const W of CWORLDS.slice(0, SAVE.camp.done)) if (!SAVE.repaired[W.id]) {
-    hub.queue.push(() => { audio.sfx("repair"); hub.repairFx = { wid: W.id, t: 0 }; startDialog(STORY.repair[W.id], () => { SAVE.repaired[W.id] = 1; saveGame(); }); });
+    hub.queue.push(() => { if (hub.room !== "salle") hubSetRoom("salle", 380); audio.sfx("repair"); hub.repairFx = { wid: W.id, t: 0 }; startDialog(STORY.repair[W.id], () => { SAVE.repaired[W.id] = 1; saveGame(); }); });
     const M = MEMORIES.find(m => m.world === W.id);
     if (M) hub.queue.push(() => { if (has("mem:" + M.id) && !SAVE.memSeen[M.id]) openMemory(M.id, true); });
   }
@@ -49,6 +81,22 @@ function enterHub(opts = {}) {
 function hubToMachine() {
   audio.sfx("machine"); hub.machShake = 0.5;
   openWorlds();
+}
+// Porte : fondu, autre pièce, fondu
+function hubGo(door) {
+  hub.trans = { t: 0, door, done: false }; audio.sfx("door"); players[0].vx = 0;
+}
+function updateHubTrans(rdt) {
+  const T0 = hub.trans; if (!T0) return false;
+  T0.t += rdt;
+  if (T0.t >= 0.25 && !T0.done) {
+    T0.done = true;
+    const back = HUB_ROOMS[T0.door.to].doors.find(d => d.to === hub.room);
+    hubSetRoom(T0.door.to, back ? back.x - 5 : 40);
+    players[0].face = back && back.x > HUB_ROOMS[T0.door.to].w / 2 ? -1 : 1;
+  }
+  if (T0.t >= 0.5) hub.trans = null;
+  return true;
 }
 
 /* ---- Dialogues ---- */
@@ -105,6 +153,7 @@ function drawDialog() {
 /* ---- Mise à jour ---- */
 function hubInteract(it) {
   const p = players[0];
+  if (it.door) { hubGo(it); return; }
   if (it.npc) { talkTo(it); return; }
   if (!stationOn(it)) { audio.sfx("nope"); hub.msg = { text: it.lockText || "Pas encore…", t: 2.5 }; return; }
   audio.sfx("start"); p.vx = 0;
@@ -135,24 +184,32 @@ function updateHub(rdt) {
   hub.t += rdt; if (hub.msg && hub.msg.t > 0) hub.msg.t -= rdt;
   hub.machShake = Math.max(0, hub.machShake - rdt);
   if (hub.repairFx) { hub.repairFx.t += rdt; if (hub.repairFx.t > 2.5) hub.repairFx = null; }
-  const p = players[0];
+  const p = players[0], H = hubRoom();
+  hub.cam = clamp(p.x + 5 - VW / 2, 0, H.w - VW);
   if (hub.arrive) {
     const a = hub.arrive; a.t += rdt;
-    if (a.t > 0.9 && p.hidden) { p.hidden = false; p.inv = 0.4; p.vy = -200; p.vx = -60; addFx("fx_teleport", p.x + 5, p.y + p.h); burst(240, 200, 24, ["#7dffb0", "#ffffff", "#c86eff"], 160, 0.6, 100, 1); audio.sfx("arrive"); }
+    if (a.t > 0.9 && p.hidden) { p.hidden = false; p.inv = 0.4; p.vy = -200; p.vx = -60; addFx("fx_teleport", p.x + 5, p.y + p.h); burst(408, H.floor - 40, 24, ["#7dffb0", "#ffffff", "#c86eff"], 160, 0.6, 100, 1); audio.sfx("arrive"); }
     if (a.t > 1.4) hub.arrive = null;
   }
+  if (updateHubTrans(rdt)) { updateParts(rdt); updateFx(rdt); return; }
   if (updateDialog(rdt)) { updateParts(rdt); updateFx(rdt); return; }
   if (!hub.arrive && hub.queue.length) { hub.queue.shift()(); if (state !== "hub") return; }
   if (hit("Escape", "KeyP", "GStart", "TPause")) { openHubMenu(); return; }
   if (hit("KeyO", "GY")) { openOptions("hub"); return; }
-  // le poste le plus proche devant lequel on se tient
+  // le poste le plus proche devant lequel on se tient (à la bonne hauteur : le jukebox est sur une étagère)
   const things = hubThings();
   hub.near = null; let bd = 18;
-  for (const it of things) { const d = Math.abs(p.x + 5 - it.x); if (d < Math.max(bd, it.w / 2) && p.onGround && !p.hidden) { bd = d; hub.near = it; } }
+  for (const it of things) {
+    const d = Math.abs(p.x + 5 - it.x);
+    if (d < Math.max(bd, it.w / 2) && p.onGround && !p.hidden && Math.abs(p.y + p.h - thingFloor(it)) < 6) { bd = d; hub.near = it; }
+  }
   hub.cool = Math.max(0, (hub.cool || 0) - rdt);   // juste après un dialogue, Entrée ne relance pas un poste
   if (hub.near && hub.cool <= 0 && (hit(...K.jump) || hit("Enter", "NumpadEnter"))) { for (const k of [...K.jump, "Enter", "NumpadEnter"]) delete pressed[k]; p.jumpBuf = 0; hubInteract(hub.near); return; }
-  // clic ou toucher sur un poste ou un client
-  if (hit("Mouse0")) for (const it of things) if (inside({ x: it.x - it.w / 2, y: HUB_FLOOR - it.h, w: it.w, h: it.h })) { delete pressed.Mouse0; hubInteract(it); return; }
+  // clic ou toucher sur un poste, un client ou une porte (coordonnées de la pièce : la caméra défile)
+  if (hit("Mouse0")) {
+    const mx = mouse.x + hub.cam;
+    for (const it of things) { const fy = thingFloor(it); if (mx >= it.x - it.w / 2 && mx <= it.x + it.w / 2 && mouse.y >= fy - it.h && mouse.y <= fy + 4) { delete pressed.Mouse0; hubInteract(it); return; } }
+  }
   if (!hub.arrive) updatePlayer(p, rdt);
   updateParts(rdt); updateFx(rdt);
 }
@@ -183,64 +240,57 @@ function drawButton(r, label, hov, col = "#e8dcff", size = 9) {
 }
 SCREENS.hub = { update: updateHub, draw: () => { drawHub(); drawHubHUD(); drawDialog(); } };
 
-/* ---- Dessin de la laverie (provisoire) ---- */
+/* ---- Dessin de la laverie ---- */
 const hubDeco = () => SAVE.cos.hub;
 const decoOf = slot => DECOR_BY_ID[hubDeco()[slot]] || DECOR.find(d => d.slot === slot);
 const showOn = k => hubDeco().show[k] !== false;
-let hubBg = null, hubBgKey = "";
+// Décor de la pièce : l'image fournie, sinon un mur et un sol dessinés (provisoire)
+const hubBgs = {};
 function hubBgCanvas() {
-  const D = hubDeco(), img = hasAtlas("laverie_fond"), key = [D.tile, D.light, D.sign, SAVE.camp.done, img].join("|");
-  if (hubBg && key === hubBgKey) return hubBg;
-  hubBgKey = key;
-  const [c, x] = mkCanvas(VW, VH);
-  const F = (col, a, b, w, h) => { x.fillStyle = col; x.fillRect(a, b, w, h); };
-  const L = decoOf("light").color;
-  if (img) x.drawImage(atlasImg("laverie_fond"), 0, 0, VW, VH);   // fond fourni (laverie/laverie_fond.png)
+  const H = hubRoom(), key = hub.room + (hubArt() ? "a" : "c");
+  if (hubBgs[key]) return hubBgs[key];
+  const [c, x] = mkCanvas(H.w, VH);
+  if (hubArt()) x.drawImage(atlasImg(H.bg), 0, 0, H.w, VH);
   else {
-  // mur
-  F("#1c1430", 0, 0, VW, HUB_FLOOR);
-  for (let y = 60; y < 200; y += 10) for (let bx = (y / 10 % 2) * 10; bx < VW; bx += 20) F("#221a3a", bx, y, 19, 9);
-  F("#2a2046", 0, 196, VW, 44); for (let bx = 0; bx < VW; bx += 24) F("#241c3e", bx, 196, 1, 44); F("#3a2c5c", 0, 194, VW, 3);
-  F("#140e24", 0, 0, VW, 18);
-  // grande vitrine sur la rue, la nuit
-  const sky = x.createLinearGradient(0, 56, 0, 150); sky.addColorStop(0, "#0c0820"); sky.addColorStop(1, "#3a1a4a");
-  x.fillStyle = sky; x.fillRect(140, 58, 200, 92);
-  seed = 5; for (let i = 0; i < 30; i++) { x.fillStyle = `rgba(255,240,255,${0.3 + rnd() * 0.5})`; x.fillRect(140 + Math.floor(rnd() * 200), 60 + Math.floor(rnd() * 40), 1, 1); }
-  let bx = 140; while (bx < 340) { const w = 12 + Math.floor(rnd() * 22), h = 20 + Math.floor(rnd() * 40); F("#160c28", bx, 150 - h, w, h); for (let wy = 150 - h + 4; wy < 148; wy += 6) for (let wx = bx + 2; wx < bx + w - 2; wx += 5) if (rnd() < 0.3) F(["#5ef0ff55", "#ff4fd855", "#fccc2855"][Math.floor(rnd() * 3)], wx, wy, 2, 2); bx += w + 1; }
-  F("#0e0a1a", 136, 54, 208, 4); F("#0e0a1a", 136, 150, 208, 4); F("#0e0a1a", 136, 54, 4, 100); F("#0e0a1a", 340, 54, 4, 100); F("#0e0a1a", 238, 54, 4, 100);
-  x.fillStyle = "rgba(255,255,255,0.06)"; x.beginPath(); x.moveTo(150, 60); x.lineTo(180, 60); x.lineTo(150, 110); x.fill();
+    const F = (col, a, b, w, h) => { x.fillStyle = col; x.fillRect(a, b, w, h); };
+    F("#1c1430", 0, 0, H.w, H.floor);
+    for (let y = 60; y < H.floor - 40; y += 10) for (let bx = (y / 10 % 2) * 10; bx < H.w; bx += 20) F("#221a3a", bx, y, 19, 9);
+    F("#2a2046", 0, H.floor - 44, H.w, 44); F("#3a2c5c", 0, H.floor - 46, H.w, 3); F("#140e24", 0, 0, H.w, 18);
+    for (let tx = 0; tx < H.w; tx += 8) for (let ty = H.floor; ty < VH; ty += 8) F((tx / 8 + ty / 8) % 2 ? "#d8d4e8" : "#3a3450", tx, ty, 8, 8);
+    F("#0e0a1a", 0, H.floor, H.w, 2); F("rgba(10,6,24,0.45)", 0, H.floor + 2, H.w, VH - H.floor);
+    for (const [px, py, pw] of H.plats) { F("#0e0a1a", px, py, pw, 6); F("#8a5a3a", px, py, pw, 4); }
+    for (const d of H.doors) { F("#0e0a1a", d.x - 16, H.floor - 50, 32, 50); F("#120a24", d.x - 14, H.floor - 48, 28, 48); }
   }
-  // néons du plafond, couleur de l'éclairage choisi
-  for (const lx of [60, 240, 420]) { F(`rgb(${L})`, lx - 22, 18, 44, 3); cone(x, lx - 22, lx + 22, 21, 40, 200, L, 0.07); glow(x, lx, 20, 40, L, 0.25); }
-  // sol en carrelage
-  const [a, b2] = decoOf("tile").colors, tid = hubDeco().tile;
-  for (let ty = HUB_FLOOR; ty < VH; ty += 8) for (let tx = 0; tx < VW; tx += 8) {
-    const k = (tx / 8 + ty / 8) % 2;
-    if (tid === "tile_losanges") { F(k ? a : b2, tx, ty, 8, 8); F(k ? b2 : a, tx + 3, ty + 3, 2, 2); }
-    else if (tid === "tile_neon") { F(a, tx, ty, 8, 8); F(b2, tx, ty, 8, 1); F(b2, tx, ty, 1, 8); }
-    else if (tid === "tile_bleu") { F(k ? a : b2, tx, ty, 8, 8); F("#ffffff22", tx, ty, 8, 1); }
-    else F(k ? a : b2, tx, ty, 8, 8);
-  }
-  F("#0e0a1a", 0, HUB_FLOOR, VW, 2); x.fillStyle = "rgba(10,6,24,0.45)"; x.fillRect(0, HUB_FLOOR + 2, VW, VH - HUB_FLOOR);
-  // le décor reste plus sombre que les éléments avec lesquels on joue
-  F("rgba(6,3,16,0.18)", 0, 0, VW, HUB_FLOOR);
-  hubBg = c; return c;
+  return hubBgs[key] = c;
 }
-function drawSign() {
+// Teintes choisies dans la décoration : carrelage (couleur du sol) et éclairage (lumière de la pièce)
+function drawHubTints() {
+  const H = hubRoom(), T = hubDeco().tile, Lc = decoOf("light").color;
+  ctx.save();
+  if (T !== "tile_damier") {
+    ctx.globalCompositeOperation = "color"; ctx.globalAlpha = 0.55; R(0, H.floor - 6, H.w, 16, decoOf("tile").colors[T === "tile_neon" ? 1 : 0]);
+    ctx.globalCompositeOperation = "source-over";
+    if (T === "tile_neon") { ctx.globalAlpha = 0.5 + 0.2 * Math.sin(time * 3); R(0, H.floor - 6, H.w, 1, decoOf("tile").colors[1]); }
+  }
+  if (hubDeco().light !== "light_blanc") { ctx.globalCompositeOperation = "overlay"; ctx.globalAlpha = 0.28; R(0, 0, H.w, VH, `rgb(${Lc})`); }
+  ctx.restore();
+}
+function drawSign(x, y) {
   const col = decoOf("sign").color, flick = Math.floor(time * 8) % 37 === 0;
   ctx.globalAlpha = flick ? 0.5 : 1;
-  if (hasAtlas("enseigne")) { drawFrame("enseigne", flick ? 1 : 0, VW / 2, 34, 1, 1, 1.4, null); ctx.globalAlpha = 1; text("LAVERIE LUNELIO", VW / 2, 35, 11, col, "center", col); }
-  else neon(ctx, "LAVERIE LUNELIO", VW / 2, 34, col, 12);
+  if (hasAtlas("enseigne")) { drawFrame("enseigne", flick ? 1 : 0, x, y, 1, 1, 1.4, null); ctx.globalAlpha = 1; text("LAVERIE LUNELIO", x, y + 1, 11, col, "center", col); }
+  else neon(ctx, "LAVERIE LUNELIO", x, y, col, 9);
   ctx.globalAlpha = 1;
-  drawSock(VW / 2 - 66, 34, {}); drawSock(VW / 2 + 66, 34, {});
 }
 function drawHub() {
+  const H = hubRoom();
+  ctx.save(); ctx.translate(-Math.round(hub.cam), 0);
   ctx.drawImage(hubBgCanvas(), 0, 0);
-  drawSign();
-  drawShowcase(false);
-  for (const s of STATIONS) drawStation(s);
-  for (const n of hubNpcs()) drawNpc(n.npc, n.x, HUB_FLOOR, n.x > players[0].x ? -1 : 1, hub.dlg && hub.dlg.lines[hub.dlg.i][0] === n.npc, n.quest);
-  drawShowcase(true);
+  drawHubTints();
+  drawShowcase();
+  for (const d of hubDoors()) drawHubDoor(d);
+  for (const s of STATIONS) if (s.room === hub.room) drawStation(s);
+  for (const n of hubNpcs()) if (n.room === hub.room) drawNpc(n.npc, n.x, H.floor, n.x > players[0].x ? -1 : 1, hub.dlg && hub.dlg.lines[hub.dlg.i][0] === n.npc, n.quest);
   drawFxList(true);
   drawGhosts(); for (const p of players) drawCampPlayer(p);
   drawFxList(false);
@@ -248,56 +298,68 @@ function drawHub() {
   ctx.globalAlpha = 1;
   // invite au-dessus du poste le plus proche
   const n = hub.near;
-  if (n && !hub.dlg && state === "hub") drawPrompt(n.x, HUB_FLOOR - (n.h || 40) - 12, stationOn(n) || n.npc ? n.label : n.label + " (bientôt)");
+  if (n && !hub.dlg && !hub.trans && state === "hub") drawPrompt(clamp(n.x, hub.cam + 60, hub.cam + VW - 60), thingFloor(n) - (n.h || 40) - 10, stationOn(n) || n.npc || n.door ? n.label : n.label + " (bientôt)");
+  ctx.restore();
+  if (hub.trans) { ctx.globalAlpha = Math.min(1, hub.trans.t < 0.25 ? hub.trans.t / 0.25 : (0.5 - hub.trans.t) / 0.25); R(0, 0, VW, VH, "#0d0820"); ctx.globalAlpha = 1; }
 }
-// Éléments qui reflètent les progrès : affiches, vitrine, présentoir, étendoir, coin détente
-function drawShowcase(front) {
-  const items = hubDeco().items;
-  if (!front) {
-    // étendoir : une corde au mur avec les chaussettes trouvées
-    if (showOn("etendoir")) {
-      const n = socksCount(), y0 = 64;
-      ctx.strokeStyle = "#8a80a8"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(20, y0); ctx.quadraticCurveTo(70, y0 + 8, 124, y0); ctx.stroke();
-      R(18, y0 - 2, 3, 4, "#5a4a80"); R(123, y0 - 2, 3, 4, "#5a4a80");
-      const shown = Math.min(n, 13);
-      for (let i = 0; i < shown; i++) { const sx = 26 + i * 7.5, sy = y0 + 2 + Math.sin(i / 12 * Math.PI) * 4 + 5; drawSock(sx, sy + Math.sin(time * 2 + i) * 0.5, { t: i }); R(Math.round(sx - 1), Math.round(sy - 7), 2, 2, ["#ff4fd8", "#5ef0ff", "#fccc28"][i % 3]); }
-      if (n > shown) text(`+${n - shown}`, 112, y0 + 16, 7, "#7dffb0", "center");
-      if (!n) text("Étendoir vide", 72, y0 + 10, 6, "#6a5a88", "center");
-    }
-    // affiches des boss vaincus
-    if (showOn("affiches")) CWORLDS.forEach((W, i) => {
-      const x = 356 + (i % 3) * 22, y = 58 + Math.floor(i / 3) * 30, ok = SAVE.seen.boss[W.boss];
-      R(x, y, 18, 24, "#0e0a1a");
-      if (ok && hasAtlas("affiches_boss")) drawFrame("affiches_boss", i, x + 9, y + 24, 1, 1, 0.75);
-      else if (ok) { R(x + 1, y + 1, 16, 22, BIG[W.boss].color + "55"); ctx.save(); ctx.beginPath(); ctx.rect(x + 1, y + 1, 16, 22); ctx.clip(); drawFrame("portraits_boss", Object.keys(BIG).indexOf(W.boss), x + 9, y + 28, 1, 1, 0.55); ctx.restore(); R(x + 7, y - 1, 4, 2, "#e8e0c8"); }
-      else { R(x + 1, y + 1, 16, 22, "#2a2244"); text("?", x + 9, y + 12, 8, "#4a3a68", "center"); }
-    });
-    // présentoir à badges (au mur, au-dessus de la décoration)
-    if (showOn("presentoir")) {
-      R(426, 58, 48, 36, "#0e0a1a"); R(427, 59, 46, 34, "#8a5a3a"); R(429, 61, 42, 30, "#c89a6a");
-      BADGES.filter(b => has("badge:" + b.id)).slice(0, 15).forEach((b, i) => drawBadgeIcon(b, 434 + (i % 5) * 8, 67 + Math.floor(i / 5) * 9, 0.55));
-    }
-    // coin détente
-    // vitrine à trophées (accrochée au mur, au-dessus des clients)
-    if (showOn("vitrine")) {
-      const x = 362, y = 122;
-      R(x, y, 46, 54, "#0e0a1a"); R(x + 1, y + 1, 44, 52, "rgba(160,220,255,0.12)"); R(x + 1, y + 26, 44, 2, "#5a4a80"); R(x + 1, y + 44, 44, 9, "#3a2a5c");
-      CWORLDS.forEach((W, i) => { if (!SAVE.seen.boss[W.boss]) return; const tx = x + 8 + (i % 3) * 15, ty = y + (i < 3 ? 24 : 42); if (hasAtlas("trophees")) { drawFrame("trophees", i, tx, ty, 1, 1, 0.8); return; } R(tx - 3, ty - 2, 7, 2, "#c8a020"); R(tx - 2, ty - 9, 5, 7, "#ffd23c"); R(tx - 4, ty - 10, 9, 2, "#ffd23c"); R(tx - 1, ty - 7, 1, 3, BIG[W.boss].color); });
-      ctx.globalAlpha = 0.15; R(x + 4, y + 3, 3, 46, "#ffffff"); ctx.globalAlpha = 1;
-    }
-    if (items.item_plante) { R(2, 222, 10, 18, "#8a4a2a"); R(0, 204, 4, 18, "#2fa85a"); R(5, 198, 4, 24, "#3fd070"); R(9, 206, 4, 16, "#2fa85a"); }
-    if (items.item_canape) { R(150, 216, 50, 24, "#0e0a1a"); R(152, 218, 46, 12, "#6a3a8a"); R(150, 226, 50, 10, "#5a2a7a"); R(152, 236, 4, 4, "#2a1a3a"); R(194, 236, 4, 4, "#2a1a3a"); }
-    if (items.item_table) { R(262, 230, 26, 3, "#8a5a3a"); R(264, 233, 2, 7, "#5a3a2a"); R(284, 233, 2, 7, "#5a3a2a"); R(266, 226, 8, 4, "#5ef0ff"); }
-    if (items.item_distributeur) { R(364, 192, 22, 48, "#0e0a1a"); R(365, 193, 20, 46, "#c8302a"); R(368, 197, 14, 22, "#ffd0a0"); for (let i = 0; i < 3; i++) R(370 + i * 4, 200, 2, 16, ["#ff8a3c", "#7dffb0", "#ff4fd8"][i]); R(368, 226, 14, 4, "#0e0a1a"); }
-    if (items.item_panier) { R(126, 228, 22, 12, "#0e0a1a"); R(127, 229, 20, 10, "#c89a5a"); R(129, 225, 6, 5, "#5ef0ff"); R(137, 224, 7, 6, "#ff8ab0"); }
-    if (items.item_drapeau) { R(150, 70, 1, 40, "#8a8070"); R(151, 72, 24, 16, "#0e0a1a"); R(152, 73, 22, 14, "#1a1a24"); drawSock(163, 80, {}); }
-    if (items.item_affiche_bobine) { R(98, 92, 24, 30, "#0e0a1a"); R(99, 93, 22, 28, "#ff8a3c"); drawNpc("bobine", 110, 120, 1, false, null, 0.6); }
-    if (items.item_lanterne) { R(30, 96, 1, 14, "#3a2a2a"); R(25, 110, 12, 16, "#0e0a1a"); R(26, 111, 10, 14, "#c8302a"); glow(ctx, 31, 118, 18, "255,120,80", 0.35 + 0.1 * Math.sin(time * 3)); }
-  } else {
+// Portes entre les pièces : image fournie (fermée, ouverte quand on est devant), sinon dessin provisoire
+function drawHubDoor(d) {
+  const by = hubRoom().floor, open = hub.near && hub.near.id === d.id || (hub.trans && hub.trans.door.id === d.id);
+  if (hasAtlas("portes_laverie")) drawFrame("portes_laverie", d.img + (open ? 3 : 0), d.x, by + 2);
+  else {
+    R(d.x - 15, by - 50, 30, 50, "#0e0a1a"); R(d.x - 13, by - 48, 26, 48, open ? "#3a1a6a" : "#2a6a6a");
+    text(["♜", "🧦", "⌂"][d.img], d.x, by - 38, 9, "#fccc28", "center");
   }
 }
+// Éléments qui reflètent les progrès : enseigne et coin détente (grande salle), tas de chaussettes, trophées et badges
+function drawShowcase() {
+  const items = hubDeco().items, H = hubRoom(), fl = H.floor;
+  if (hub.room === "salle") {
+    drawSign(408, 109);
+    // coin détente : objets à poser (dessins provisoires), devant les machines
+    if (items.item_plante) { R(218, fl - 18, 10, 18, "#8a4a2a"); R(216, fl - 36, 4, 18, "#2fa85a"); R(221, fl - 42, 4, 24, "#3fd070"); R(225, fl - 34, 4, 16, "#2fa85a"); }
+    if (items.item_canape) { R(440, fl - 24, 50, 24, "#0e0a1a"); R(442, fl - 22, 46, 12, "#6a3a8a"); R(440, fl - 14, 50, 10, "#5a2a7a"); R(442, fl - 4, 4, 4, "#2a1a3a"); R(484, fl - 4, 4, 4, "#2a1a3a"); }
+    if (items.item_table) { R(300, fl - 10, 26, 3, "#8a5a3a"); R(302, fl - 7, 2, 7, "#5a3a2a"); R(322, fl - 7, 2, 7, "#5a3a2a"); R(304, fl - 14, 8, 4, "#5ef0ff"); }
+    if (items.item_distributeur) { R(160, fl - 48, 22, 48, "#0e0a1a"); R(161, fl - 47, 20, 46, "#c8302a"); R(164, fl - 43, 14, 22, "#ffd0a0"); for (let i = 0; i < 3; i++) R(166 + i * 4, fl - 40, 2, 16, ["#ff8a3c", "#7dffb0", "#ff4fd8"][i]); R(164, fl - 14, 14, 4, "#0e0a1a"); }
+    if (items.item_panier) { R(526, fl - 12, 22, 12, "#0e0a1a"); R(527, fl - 11, 20, 10, "#c89a5a"); R(529, fl - 15, 6, 5, "#5ef0ff"); R(537, fl - 16, 7, 6, "#ff8ab0"); }
+    if (items.item_drapeau) { R(250, 104, 1, 34, "#8a8070"); R(251, 106, 24, 16, "#0e0a1a"); R(252, 107, 22, 14, "#1a1a24"); drawSock(263, 114, { s: 0.6 }); }
+    if (items.item_affiche_bobine) { R(118, 130, 24, 30, "#0e0a1a"); R(119, 131, 22, 28, "#ff8a3c"); drawNpc("bobine", 130, 158, 1, false, null, 0.6); }
+    if (items.item_lanterne) { R(690, 108, 1, 14, "#3a2a2a"); R(685, 122, 12, 16, "#0e0a1a"); R(686, 123, 10, 14, "#c8302a"); glow(ctx, 691, 130, 18, "255,120,80", 0.35 + 0.1 * Math.sin(time * 3)); }
+  } else if (hub.room === "chaussettes") {
+    const n = socksCount(), gold = AJOUTS.gold.filter(g => SAVE.gold[g.id]).length;
+    // tas de chaussettes qui grandit avec la collection (6 tailles)
+    if (showOn("tas") && n > 0) {
+      const stage = [1, 6, 18, 36, 54, 72].filter(t => n >= t).length - 1;
+      if (hasAtlas("tas_chaussettes")) drawFrame("tas_chaussettes", stage, 340, fl + 1);
+      else for (let i = 0; i < Math.min(n, 30); i++) drawSock(340 + ((i * 37) % 80) - 40, fl - 6 - Math.floor(i / 8) * 7, { t: i, s: 0.7 });
+    }
+    R(300, 96, 80, 22, "rgba(10,6,24,0.55)");
+    text(`${n} / ${socksTotal()}`, 340, 103, 10, "#7dffb0", "center", "#7dffb0");
+    text(`dorées : ${gold} / ${AJOUTS.gold.length}`, 340, 113, 6, "#ffd23c", "center");
+  } else if (hub.room === "trophees") {
+    // trophée du boss vaincu de chaque monde, posé sur son socle
+    if (showOn("trophees")) PEDESTALS.forEach((x, i) => {
+      const ok = SAVE.seen.boss[CWORLDS[i].boss], y = 196 + Math.sin(time * 2 + i) * 1;
+      if (ok) { glow(ctx, x, y - 14, 22, "255,220,120", 0.25); if (hasAtlas("trophees")) drawFrame("trophees", i, x, y); else { R(x - 4, y - 3, 9, 3, "#c8a020"); R(x - 3, y - 14, 7, 11, "#ffd23c"); R(x - 6, y - 16, 13, 3, "#ffd23c"); } }
+      else text("?", x, y - 10, 10, "rgba(200,200,255,0.25)", "center");
+    });
+    // présentoir à badges (provisoire), entre la dernière vitrine et la porte
+    if (showOn("presentoir")) {
+      R(572, 108, 42, 50, "#0e0a1a"); R(573, 109, 40, 48, "#8a5a3a"); R(575, 111, 36, 44, "#c89a6a");
+      BADGES.filter(b => has("badge:" + b.id)).slice(0, 16).forEach((b, i) => drawBadgeIcon(b, 581 + (i % 4) * 8, 118 + Math.floor(i / 4) * 10, 0.5));
+    }
+  }
+}
+// Postes : ceux qui font partie du décor fourni ne sont pas redessinés (seulement un petit signe de vie)
 function drawStation(s) {
-  const on = stationOn(s), x = s.x, by = HUB_FLOOR, near = hub.near === s;
+  const on = stationOn(s), x = s.x, by = thingFloor(s), near = hub.near === s;
+  if (s.art && hubArt()) {
+    if (s.id === "jukebox" && SAVE.jukebox) for (let i = 0; i < 2; i++) { const k = (time * 0.7 + i * 0.5) % 1; ctx.globalAlpha = 1 - k; text("♪", x - 6 + i * 12, by - 58 - k * 16, 8, "#fccc28", "center"); ctx.globalAlpha = 1; }
+    if (s.id === "defis") CHALLENGES.forEach((c, i) => { const P = PROGRAMS[c.prog]; R(x - 22 + i * 10, by - 118, 6, 4, (SAVE.chal[c.id] || {}).done ? "#7dffb0" : on ? P.color : "#4a4a5a"); });
+    if (s.id === "souvenirs" && on && memoriesCount() > Object.keys(SAVE.memSeen).length && Math.random() < 0.3) parts.push({ x: x + (Math.random() - 0.5) * 30, y: by - 40 - Math.random() * 50, vx: 0, vy: -20, life: 0.6, max: 0.6, color: "#ff8ab0", size: 1, grav: 0 });
+    if (near && on) { ctx.globalAlpha = 0.25 + 0.15 * Math.sin(time * 6); R(x - s.w / 2, by - 1, s.w, 2, "#7dffb0"); ctx.globalAlpha = 1; }
+    return;
+  }
   ctx.save(); if (!on) ctx.globalAlpha = 0.45;
   const A = { armoire: "armoire", album: "album_lutrin", jukebox: "jukebox", defis: "machine_defis" }[s.id];
   if (A && hasAtlas(A)) {
@@ -327,24 +389,18 @@ function drawStation(s) {
       R(x - 15, by - 48, 30, 48, "#0e0a1a"); R(x - 14, by - 47, 28, 46, "#8a2a6a");
       ctx.fillStyle = "#c8408a"; ctx.beginPath(); ctx.arc(x, by - 34, 13, Math.PI, 0); ctx.fill();
       for (let i = 0; i < 5; i++) R(x - 12 + i * 5, by - 34 + Math.sin(time * 4 + i) * (playing ? 2 : 0.5), 3, 18, ["#ff4fd8", "#fccc28", "#5ef0ff", "#7dffb0", "#ff8a3c"][(i + Math.floor(time * (playing ? 4 : 1))) % 5]);
-      // petit hublot de machine à laver à la place des disques
       R(x - 6, by - 14, 12, 10, "#0e0a1a"); R(x - 5, by - 13, 10, 8, "#5ef0ff"); R(x - 3 + Math.round(Math.sin(time * 6) * 2), by - 11, 3, 3, "#ffffff");
-      if (playing) for (let i = 0; i < 2; i++) { const k = (time * 0.7 + i * 0.5) % 1; ctx.globalAlpha = 1 - k; text("♪", x - 6 + i * 12, by - 50 - k * 16, 8, "#fccc28", "center"); ctx.globalAlpha = 1; }
       break;
     }
     case "souvenirs": {
-      // cadre photo au mur et petit coffre au sol
-      R(x - 14, by - 92, 28, 22, "#0e0a1a"); R(x - 13, by - 91, 26, 20, "#c89a5a"); R(x - 11, by - 89, 22, 16, "#2a1a3a");
-      if (on) { R(x - 5, by - 85, 6, 6, "#f0c8a0"); R(x - 6, by - 87, 8, 3, "#ffffff"); R(x - 4, by - 79, 4, 4, "#4a6aa8"); drawMachineIcon(x + 6, by - 81, 0.35); }
-      R(x - 12, by - 18, 24, 18, "#0e0a1a"); R(x - 11, by - 17, 22, 16, "#7a4a24"); R(x - 11, by - 12, 22, 2, "#c89a5a"); R(x - 2, by - 13, 4, 4, "#fccc28");
-      if (on && memoriesCount() > Object.keys(SAVE.memSeen).length) { ctx.globalAlpha = 0.5 + 0.5 * Math.sin(time * 6); R(x - 1, by - 24, 2, 4, "#ff8ab0"); ctx.globalAlpha = 1; }
+      ctx.fillStyle = "#3a1a6a"; ctx.beginPath(); ctx.arc(x, by - 50, 22, 0, Math.PI * 2); ctx.fill();
+      for (let i = 0; i < 6; i++) { const a = time * 2 + i; R(Math.round(x + Math.cos(a) * (8 + i * 2)), Math.round(by - 50 + Math.sin(a) * (8 + i * 2)), 2, 2, "#c86eff"); }
       break;
     }
     case "machine": drawHubMachine(x, by); break;
     case "defis": {
       const sh = on ? Math.round(Math.sin(time * 30) * 0.6) : 0;
       R(x - 20 + sh, by - 50, 40, 50, "#0e0a1a"); R(x - 19 + sh, by - 49, 38, 48, "#d8dce8"); R(x - 19 + sh, by - 49, 38, 10, "#a8b0c8");
-      // cadran à cinq programmes
       CHALLENGES.forEach((c, i) => { const P = PROGRAMS[c.prog]; R(x - 16 + i * 7 + sh, by - 46, 5, 4, (SAVE.chal[c.id] || {}).done ? "#7dffb0" : on ? P.color : "#6a6a7a"); });
       R(x - 13 + sh, by - 34, 26, 26, "#0e0a1a"); R(x - 11 + sh, by - 32, 22, 22, on ? "#2a6aa8" : "#3a3a4a");
       if (on) for (let i = 0; i < 4; i++) { const a = time * 5 + i * 1.6; R(Math.round(x + sh + Math.cos(a) * 6 - 1), Math.round(by - 21 + Math.sin(a) * 6 - 1), 3, 3, ["#ffffff", "#5ef0ff", "#ff8ab0", "#fccc28"][i]); }
@@ -356,11 +412,7 @@ function drawStation(s) {
       R(x + 6, by - 36, 2, 22, "#8a5a3a"); R(x - 2, by - 40, 16, 6, "#0e0a1a"); R(x - 1, by - 39, 14, 4, decoOf("sign").color);
       break;
     }
-    case "bulle": {
-      R(x - 22, by - 24, 30, 24, "#0e0a1a"); R(x - 21, by - 23, 28, 22, "#7a4a24"); R(x - 22, by - 26, 32, 3, "#c89a5a");
-      drawNpc("bulle", x + 6, by - 2, -1, hub.dlg && hub.dlg.lines[hub.dlg.i][0] === "bulle", null);
-      break;
-    }
+    case "bulle": drawNpc("bulle", x, by, x > players[0].x ? -1 : 1, hub.dlg && hub.dlg.lines[hub.dlg.i][0] === "bulle", null); break;
   }
   ctx.restore();
   if (near && on) { ctx.globalAlpha = 0.25 + 0.15 * Math.sin(time * 6); R(x - s.w / 2, by - 1, s.w, 2, "#7dffb0"); ctx.globalAlpha = 1; }
@@ -416,7 +468,7 @@ function drawNpc(id, x, by, face = 1, talk = false, quest = null, alpha = 1) {
     R(-6, -36, 12, 12, O); R(-5, -35, 10, 10, N.skin);
     R(1, -32, 2, 2, O); if (talk && Math.floor(time * 10) % 2) R(1, -28, 3, 2, "#8a2a2a"); else R(1, -28, 3, 1, "#8a2a2a");
     if (id === "bulle") { R(-6, -38, 11, 5, N.hair); for (let i = 0; i < 3; i++) R(-6 + i * 4, -40, 3, 3, ["#ff8ab0", "#5ef0ff", "#fccc28"][i]); R(0, -33, 5, 3, O); R(1, -32, 3, 1, "#bfefff"); }
-    else if (id === "capitaine") { R(-9, -41, 18, 4, O); R(-7, -44, 14, 4, "#2a1a24"); drawSock(0, -42, {}); R(-6, -28, 10, 6, N.hair); R(-5, -22, 8, 3, N.hair); if (Math.floor(time * 3) % 3 === 0) R(-2, -19, 1, 2, "#5ef0ff"); }
+    else if (id === "capitaine") { R(-9, -41, 18, 4, O); R(-7, -44, 14, 4, "#2a1a24"); drawSock(0, -42, { s: 0.5 }); R(-6, -28, 10, 6, N.hair); R(-5, -22, 8, 3, N.hair); if (Math.floor(time * 3) % 3 === 0) R(-2, -19, 1, 2, "#5ef0ff"); }
     else if (id === "kage") { R(-6, -37, 12, 4, N.hair); R(-5, -30, 10, 4, "#2a1a3a"); R(-7, -36, 2, 8, N.hair); }
     else if (id === "firmin") { R(-6, -37, 11, 3, N.hair); R(-1, -29, 6, 2, "#ffffff"); R(-6, -38, 11, 2, "#fccc28"); }
   }
@@ -442,13 +494,16 @@ function drawNpcPortrait(id, cx, cy, s = 1, talk = false) {
 /* ---- Interface de la laverie ---- */
 function drawHubHUD() {
   R(0, 0, VW, 16, "rgba(10,6,24,0.7)");
-  text("Laverie", 6, 8, 9, "#7dd8ff");
-  drawSock(62, 8, {}); text(`${socksCount()}/${socksTotal()}`, 70, 8, 8, "#7dffb0");
+  text(hubRoom().name, 6, 8, 9, "#7dd8ff");
+  ctx.font = `700 9px ${FONT}`; let x0 = 14 + ctx.measureText(hubRoom().name).width;
   const cards = CARDS.filter(c => has("card:" + c.id)).length;
-  text(`Cartes ${cards}/${CARDS.length}`, 112, 8, 8, "#e8dcff");
-  text(`Badges ${BADGES.filter(b => has("badge:" + b.id)).length}/${BADGES.length}`, 180, 8, 8, "#fccc28");
-  text(`Pièces ${SAVE.camp.done}/6`, 252, 8, 8, "#ff8ab0");
-  text(`${ch().name}  ·  ${df().label}`, VW - 6, 8, 8, ch().ui, "right");
+  drawSock(x0 + 6, 8, { s: 0.55 }); x0 += 14;
+  for (const [s, col] of [[`${socksCount()}/${socksTotal()}`, "#7dffb0"], [`Cartes ${cards}/${CARDS.length}`, "#e8dcff"],
+    [`Badges ${BADGES.filter(b => has("badge:" + b.id)).length}/${BADGES.length}`, "#fccc28"], [`Pièces ${SAVE.camp.done}/6`, "#ff8ab0"]]) {
+    text(s, x0, 8, 8, col); ctx.font = `700 8px ${FONT}`; x0 += ctx.measureText(s).width + 12;
+  }
+  const who = `${ch().name}  ·  ${df().label}`; ctx.font = `700 8px ${FONT}`;
+  text(x0 + ctx.measureText(who).width < VW - 6 ? who : ch().name.split(" ")[0], VW - 6, 8, 8, ch().ui, "right");
   if (hub.msg && hub.msg.t > 0) { ctx.globalAlpha = Math.min(1, hub.msg.t); R(VW / 2 - 170, 162, 340, 16, "rgba(10,6,24,0.8)"); text(hub.msg.text, VW / 2, 170, 8, "#7dffb0", "center"); ctx.globalAlpha = 1; }
   if (!hub.dlg) text(say("← → : marcher   Haut devant un objet : l'utiliser   Échap : menu", "Croix : marcher   ▲ devant un objet (ou touche-le)", "Croix : marcher   {JUMP} devant un objet   {START} : menu"), VW / 2, VH - 7, 7, "#b9a6e0", "center");
 }
@@ -464,7 +519,7 @@ function hubMusic() {
   if (T && has("track:" + T.id) && trackAvailable(T)) return T.base;
   const P = audio.playlists;
   if (SAVE.camp.done >= CWORLDS.length && (P.laverie_nuit || []).length) return P.laverie_nuit[0];
-  if ((P.laverie || []).length) return P.laverie[0];
+  if ((P.laverie || []).length) return pickList(P.laverie, hub.visits - 1);   // une musique différente à chaque retour à la laverie
   return charMusic(ch());
 }
 function screenMusic() {
