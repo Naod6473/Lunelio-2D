@@ -5620,7 +5620,7 @@ function updateWeapon(p, dt, boost) {
   if (p.wT >= 0 && p.wPose) { p.wT += dt * boost; if (p.wT >= p.wDur && !p.wHoldPose) { p.wPose = null; p.wT = -1; } }
   p.comboT = Math.max(0, (p.comboT || 0) - dt);
   if (!p.wHits) p.wHits = new Set();
-  const press = hit(...I.attack), held = down(...I.attack), ready = p.wCd <= 0 && p.dashT <= 0 && state === "play";
+  const press = hit(...I.attack), held = down(...I.attack), ready = p.wCd <= 0 && p.dashT <= 0 && state !== "hub";   // pas de tir dans la laverie
   const [hx, hy] = handPos(p);
   if (W.id !== "laser") { p.heat = Math.max(0, (p.heat || 0) - dt / 1.2); if (p.heat <= 0) p.over = false; p.beam = null; }
   switch (W.id) {
@@ -5658,7 +5658,7 @@ function updateWeapon(p, dt, boost) {
       }
       break;
     case "laser": {
-      const firing = held && !p.over && p.dashT <= 0 && state === "play";
+      const firing = held && !p.over && p.dashT <= 0 && state !== "hub";
       if (firing) {
         p.wHoldPose = true; setPose(p, "shoot", 1, 1);
         p.heat = (p.heat || 0) + dt / 2.2;
@@ -5743,7 +5743,7 @@ function updateWProj(l, dt) {
     if (!e.alive || l.hits.has(e) || !ov(l, e)) continue;
     l.hits.add(e);
     if (l.kind === "ball") { explodeBall(l); return; }
-    if (l.kind === "bubble" && e.type !== "bigboss" && e.type !== "boss") { e.bubT = 0.9; e.bubBy = l.p; wsfx("pistolet-bulle", "dj"); l.alive = false; return; }
+    if (l.kind === "bubble" && e.type !== "bigboss" && e.type !== "boss" && e.type !== "egboss") { e.bubT = 0.9; e.bubBy = l.p; wsfx("pistolet-bulle", "dj"); l.alive = false; return; }
     hitEnemy(e, "proj", l.p, l.dmg);
     if (l.kind === "arrow") wsfx("arc-impact", "deflect");
     if (l.kind === "boom") { burst(cx(), cy(), 12, ["#fccc28", "#ff8a3c", "#ffffff"], 120, 0.4, 0, 1); l.alive = false; return; }
