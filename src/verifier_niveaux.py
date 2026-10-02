@@ -91,6 +91,9 @@ def campaign_check(room, aj=None):
                 bad.append(f"piège contre la sortie {o['id']}")
         elif o["kind"] == "enemy_spawn" and o.get("movement", "ground") == "ground":
             if not reachable(x, x + w, y + h): bad.append(f"ennemi {o['id']} hors d'atteinte")
+        elif o["kind"] == "enemy_spawn":
+            # ennemi volant : une surface atteinte en dessous, à moins de 60 px de côté (un drone trop haut y descend)
+            if not any(j in seen and x + w > a - 60 and x < b + 60 and sy2 > y for j, (a, b, sy2) in enumerate(surf)): bad.append(f"ennemi volant {o['id']} hors d'atteinte")
         elif o["kind"] == "boss_spawn" and o.get("movement") not in ("hovering", "flying"):
             if not any(abs(fy - (y + h)) < 0.5 and x + w > a and x < b for a, b, fy in floors): bad.append("boss pas posé sur le sol")
         elif o["kind"] == "decor" and o.get("placement", {}).get("attachment", "floor") == "floor":

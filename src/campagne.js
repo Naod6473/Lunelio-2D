@@ -196,6 +196,8 @@ function buildRoom(wi, ri) {
   addRoomExtras(L, R);
   // salle de boss : sortie verrouillée jusqu'à la victoire
   if (L.bossSpawn) for (const e of L.exits) e.locked = true;
+  // salle normale : porte verrouillée tant qu'il reste des ennemis (foeLock : ouverte par updateDoorLocks) ; pas dans les programmes de lavage, qui ont leurs propres règles
+  else if (L.foeSpawns.length && !chal) for (const e of L.exits) if (e.kind === "door") { e.locked = true; e.foeLock = true; }
   if (L.bossSpawn && L.hazards.some(h => h.arena)) L.arena = { t: 1.5, cur: null, side: 0 };
   return L;
 }
@@ -469,14 +471,17 @@ function fireBolt(x, y, tx, ty, opts = {}) {
 function flyFoe(e, dt, p, dx, dy, can) {
   const F = e.F, A = e.atk, sp = F.speed * df().eSpeed, dist = Math.hypot(dx, dy);
   const ecx = e.x + e.w / 2, ecy = e.y + e.h / 2;
+  // drone hors de portée d'un saut : quand le héros passe dessous, il descend un moment à hauteur de saut (jamais de blocage)
+  if (e.sp === "drone") { if (can && Math.abs(dx) < 70 && dy > 70) e.dipT = 3; else if (e.dipT > 0) e.dipT -= dt; }
+  const lowY = y0 => e.dipT > 0 ? Math.max(y0, p.y - 44) : y0;
   const patrolMove = () => {
     if (e.beh === "horizontal_patrol" || e.beh === "vol_horizontal") {
       const lo = e.pb.x, hi = e.pb.x + Math.max(e.pb.w, e.w) - e.w;
       if (hi - lo > 4) { if (e.x <= lo) e.face = 1; else if (e.x >= hi) e.face = -1; e.x += e.face * sp * dt; }
-      e.y += (e.pb.y + Math.sin(e.animT * 2.2) * 4 - e.y) * Math.min(1, dt * 3);
+      e.y += (lowY(e.pb.y) + Math.sin(e.animT * 2.2) * 4 - e.y) * Math.min(1, dt * 3);
     } else {
       e.x += (e.homeX - e.x) * Math.min(1, dt * 2);
-      e.y += (e.homeY + Math.sin(e.animT * 2) * 5 - e.y) * Math.min(1, dt * 3);
+      e.y += (lowY(e.homeY) + Math.sin(e.animT * 2) * 5 - e.y) * Math.min(1, dt * 3);
       if (can && dist < 220) e.face = Math.sign(dx) || e.face;
     }
   };
@@ -985,6 +990,10 @@ function campTryInteract(p) {
   if (machInteract(p)) return true;
   if (mach && mach.st === "activating" && machNear(p)) return true;   // la machine s'ouvre : on attend sans sauter
   for (const x of lvl.exits) {
+    if (x.kind === "door" && x.locked && x.foeLock && ov(p, x) && !(x.shake > 0)) {
+      const n = enemies.filter(e => e.alive && e.type === "foe").length;
+      x.shake = 0.35; audio.sfx("nope"); msg = { text: n > 1 ? `Encore ${n} ennemis !` : "Encore un ennemi !", t: 1.6 };
+    }
     if (x.kind !== "door" || x.locked || !ov(p, x)) continue;
     lvl.leaving = true; campTrans = { kind: "door", ex: x, t: 0 }; x.st = "half"; x.t = 0;
     p.vx = 0; p.atkT = -1; audio.sfx("door"); setTimeFx(false, false);
@@ -1020,7 +1029,19 @@ function updateCampTransition(dt) {
     }
   }
 }
+// Portes des salles normales : le cadenas saute quand le dernier ennemi a disparu
+function updateDoorLocks(dt) {
+  for (const x of lvl.exits) { if (x.shake > 0) x.shake -= dt; if (x.pop > 0) x.pop -= dt; }
+  if (!lvl.exits.some(x => x.foeLock && x.locked) || enemies.some(e => e.alive && e.type === "foe")) return;
+  for (const x of lvl.exits) {
+    if (!x.foeLock || !x.locked) continue;
+    x.locked = false; x.pop = 1;
+    burst(x.draw.x + x.draw.w / 2, x.draw.y + 15, 18, ["#ffd23c", "#ffffff", "#7dffb0"], 110, 0.6, 0, 1);
+  }
+  audio.sfx("unlock"); msg = { text: "Sortie ouverte !", t: 2 }; voice.say("La porte est ouverte !");
+}
 function updateCamp(dt) {
+  updateDoorLocks(dt);
   // ennemis et boss
   for (const e of enemies) {
     if (!e.alive) continue;
@@ -1118,9 +1139,11 @@ function drawCampObjects() {
   for (const x of lvl.exits) {
     if (x.kind !== "door") continue;
     const aid = CWORLDS[camp.wi].door, A = ATL[aid];
-    const fr = A.anims[x.st] ? A.anims[x.st][0] : 0;
-    drawFrame(aid, fr, x.draw.x + x.draw.w / 2, x.draw.y + x.draw.h);
-    if (x.locked) { const lx = x.draw.x + x.draw.w / 2; R(lx - 4, x.draw.y + 14, 8, 7, "#ff3b5c"); R(lx - 3, x.draw.y + 10, 1, 4, "#ff3b5c"); R(lx + 2, x.draw.y + 10, 1, 4, "#ff3b5c"); R(lx - 2, x.draw.y + 9, 4, 1, "#ff3b5c"); R(lx - 1, x.draw.y + 16, 2, 3, "#2a1030"); }
+    const fr = A.anims[x.st] ? A.anims[x.st][0] : 0, jx = x.shake > 0 ? Math.round(Math.sin(x.shake * 60) * 1.5) : 0;
+    if (x.foeLock && x.locked) glow(ctx, x.draw.x + x.draw.w / 2, x.draw.y + 18, 20, "255,59,92", 0.12 + 0.05 * Math.sin(time * 3));
+    if (x.pop > 0) glow(ctx, x.draw.x + x.draw.w / 2, x.draw.y + 18, 26, "125,255,176", 0.35 * x.pop);
+    drawFrame(aid, fr, x.draw.x + x.draw.w / 2 + jx, x.draw.y + x.draw.h);
+    if (x.locked) { const lx = x.draw.x + x.draw.w / 2 + jx; R(lx - 4, x.draw.y + 14, 8, 7, "#ff3b5c"); R(lx - 3, x.draw.y + 10, 1, 4, "#ff3b5c"); R(lx + 2, x.draw.y + 10, 1, 4, "#ff3b5c"); R(lx - 2, x.draw.y + 9, 4, 1, "#ff3b5c"); R(lx - 1, x.draw.y + 16, 2, 3, "#2a1030"); }
   }
   if (lvl.ckpt) { const c = lvl.ckpt, a = ATL.interactifs.anims.checkpoint[0]; drawFrame("interactifs", c.on ? a + 1 + Math.floor(time * 4) % 2 : a, c.x + c.w / 2, c.y + c.h); }
   for (const d of lvl.dest) {
@@ -1311,6 +1334,7 @@ function drawCampHUD() {
   }
   const foes = enemies.filter(e => e.alive && e.type === "foe").length;
   if (foes && !lvl.bossSpawn) text(`Ennemis : ${foes}`, 6, VH - 8, 8, "#b9a6e0");
+  else if (lvl.exits.some(x => x.foeLock)) text("Sortie ouverte !", 6, VH - 8, 8, "#7dffb0");
   // chaussettes du monde (icône pleine si celle de la salle est trouvée)
   if (!chal && AJOUTS.socks[R0.id]) {
     const got = !!SAVE.socks[R0.id], sx = 92;

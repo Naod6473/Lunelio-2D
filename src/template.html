@@ -466,7 +466,7 @@ const SFX_FILES = {
   def_ombre: "sfx/ennemis/defaite_ombre", def_lave: "sfx/ennemis/defaite_lave", def_etoiles: "sfx/ennemis/defaite_etoiles",
   boss_intro: "sfx/boss/intro", bosshit: "sfx/boss/coup_boss", transform: "sfx/boss/transformation", wave: "sfx/boss/onde_choc", boss_defeat: "sfx/boss/defaite",
   zap: "sfx/pieges/electricite", alert: "sfx/pieges/alerte", jet: "sfx/pieges/jet_eau", flames: "sfx/pieges/flammes", break: "sfx/pieges/mur_casse", flag: "sfx/pieges/drapeau",
-  door: "sfx/machine/porte", machine: "sfx/machine/demarrage", drum: "sfx/machine/tambour", spin: "sfx/machine/depart", arrive: "sfx/machine/arrivee", dial: "sfx/machine/programmateur",
+  door: "sfx/machine/porte", unlock: "sfx/machine/deverrouillage", machine: "sfx/machine/demarrage", drum: "sfx/machine/tambour", spin: "sfx/machine/depart", arrive: "sfx/machine/arrivee", dial: "sfx/machine/programmateur",
   page: "sfx/laverie/album_page", locker: "sfx/laverie/armoire", equip: "sfx/laverie/equiper", coin: "sfx/laverie/jukebox_piece",
   select: "sfx/interface/deplacer", start: "sfx/interface/valider", back: "sfx/interface/retour", nope: "sfx/interface/refus", pause: "sfx/interface/pause",
   gust_warn: "sfx/defis/bourrasque_alerte", gust: "sfx/defis/bourrasque", tick: "sfx/defis/chrono_tic", chrono_end: "sfx/defis/chrono_fin", slip: "sfx/defis/glissade",
@@ -619,6 +619,7 @@ const audio = {
       case "block": this.tone("square", 180, t, 0.08, 0.15, d, 120); this.noiseHit(t, 0.06, 0.3, "lowpass", 1200, d); break;
       case "break": this.noiseHit(t, 0.3, 0.7, "lowpass", 1200, d); this.tone("square", 140, t, 0.2, 0.15, d, 60); break;
       case "nope": this.tone("square", 200, t, 0.1, 0.08, d, 150); break;
+      case "unlock": this.tone("square", 900, t, 0.05, 0.08, d, 900); this.arp([0, 4, 7, 12], 523, t + 0.06, 0.06, "triangle", 0.08, 0.2); break;
       case "transform": this.tone("sawtooth", 120, t, 0.6, 0.18, d, 520); this.noiseHit(t, 0.5, 0.4, "bandpass", 900, d); break;
       case "boss_intro": this.tone("sawtooth", 90, t, 0.8, 0.16, d, 60); this.tone("square", 180, t + 0.2, 0.5, 0.06, d, 170); break;
       // chaussette : un « pouic » puis un petit carillon
