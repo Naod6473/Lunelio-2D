@@ -40,7 +40,7 @@ t = t.replace("__AUDIO_LIST__", json.dumps(audio_list))
 t = t.replace("__AUDIO_EMBED__", json.dumps(sounds))
 t = t.replace("__WORLDS__", open(os.path.join(HERE, "worlds.json"), encoding="utf-8").read())
 # nouvelle campagne : moteur et systèmes (JS_FILES, dans cet ordre), données (campagne.json) et images de ../assets/
-JS_FILES = ["campagne.js", "registres.js", "sauvegarde.js", "laverie.js", "ecrans.js", "defis.js", "armes.js"]
+JS_FILES = ["campagne.js", "registres.js", "sauvegarde.js", "laverie.js", "ecrans.js", "defis.js", "armes.js", "dahaka.js"]
 t = t.replace("/*__CAMPAGNE_JS__*/", "\n".join(open(os.path.join(HERE, f), encoding="utf-8").read() for f in JS_FILES))
 camp = json.load(open(os.path.join(HERE, "campagne.json"), encoding="utf-8"))
 # images de la laverie, des cartes et des cosmétiques (écrites par preparer_laverie.py quand elles existent)

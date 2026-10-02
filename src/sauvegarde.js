@@ -16,6 +16,7 @@ function newSave() {
     cos: { char: {}, machine: null, hub: { tile: "tile_damier", light: "light_blanc", sign: "sign_violet", items: {}, show: {} } },
     jukebox: null, lastChar: null,
     weapons: { owned: randomWeapons(2), eq: {} },            // armes du râtelier : possédées, et arme choisie par héros
+    dahaka: { best: {} },                                    // niveau secret : record (mètres) par difficulté
   };
 }
 // n armes tirées au hasard parmi celles qu'on n'a pas encore (le sabre est toujours là)

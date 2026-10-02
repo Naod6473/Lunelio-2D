@@ -51,6 +51,8 @@ Les boss changent de comportement à chaque phase : en P1 ils attaquent posémen
 
 Chaque monde de l'ancienne aventure compte trois salles puis un combat de boss. Des cœurs à ramasser sont cachés dans certaines salles.
 
+**Niveau secret — La course du Dahaka** : sur l'écran des mondes, taper le mot de passe `DAHAKA` au clavier fait apparaître une carte de plus. Le Dahaka, gardien invincible du temps, poursuit le héros dans un temple sans fin : il faut courir, sauter de plateforme en plateforme et éviter les lames le plus longtemps possible. Tomber dans un trou ou toucher une lame ne fait pas perdre de cœur, mais ralentit… et le Dahaka se rapproche. Le score est la distance parcourue en mètres, avec un record par difficulté.
+
 ## La laverie
 
 La laverie est une zone sûre en trois pièces reliées par des portes : la grande salle (qui défile avec le héros), la salle des chaussettes et la salle des trophées. On s'y promène et on utilise chaque objet en se plaçant devant (Haut, ▲ en tactile, A à la manette) ou en cliquant / touchant dessus. Dans la grande salle, on grimpe sur le banc et les machines pour atteindre le jukebox.

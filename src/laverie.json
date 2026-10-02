@@ -1,5 +1,36 @@
 {
  "atlas": {
+  "dahaka": {
+   "src": "assets/laverie/dahaka.png",
+   "cw": 96,
+   "ch": 64,
+   "ax": 32,
+   "ay": 62,
+   "cols": 6,
+   "anims": {
+    "repos": [
+     0,
+     6
+    ],
+    "course": [
+     6,
+     6
+    ],
+    "attrape": [
+     12,
+     5
+    ],
+    "apparait": [
+     17,
+     6
+    ],
+    "disparait": [
+     23,
+     6
+    ]
+   },
+   "note": "Dahaka (niveau secret)"
+  },
   "perso_helio": {
    "src": "assets/laverie/perso_helio.png",
    "cw": 64,

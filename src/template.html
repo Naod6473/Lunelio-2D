@@ -253,6 +253,7 @@ function keyName(code) {
 
 /* ---------------- Entrées ---------------- */
 const keys = {}, pressed = {};
+let typedBuf = "";   // dernières lettres tapées (touche réelle, AZERTY ou QWERTY) : mots secrets
 const mouse = { x: 0, y: 0 };
 const GAME_KEYS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "Backspace"];
 let keyWait = false, keyCaught = null;   // choix d'une nouvelle touche dans les options
@@ -260,6 +261,7 @@ addEventListener("keydown", e => {
   if (keyWait) { e.preventDefault(); if (!e.repeat) keyCaught = { code: e.code, key: e.key }; keys[e.code] = true; setPad(false); audio.init(); return; }
   if (GAME_KEYS.includes(e.code) || Object.values(OPT.kb).some(l => l.includes(e.code))) e.preventDefault();
   if (!keys[e.code]) pressed[e.code] = true;
+  if (!e.repeat && e.key && /^[a-z]$/i.test(e.key)) typedBuf = (typedBuf + e.key.toUpperCase()).slice(-12);
   keys[e.code] = true;
   setPad(false); audio.init();
 });
@@ -336,16 +338,16 @@ bindBtn("bJump", "TJump"); bindBtn("bAtk", "TAtk"); bindBtn("bSpec", "TSpec"); b
 })();
 let uiShown = "";
 function syncTouchUI() {
-  const key = state + ch().id + df().id + PAD;
+  const key = state + ch().id + df().id + PAD + (state === "dahaka" ? DK.st : "");
   if (key === uiShown) return; uiShown = key;
-  const moving = state === "play" || state === "hub";
+  const moving = state === "play" || state === "hub" || (state === "dahaka" && DK.st !== "result");
   document.body.classList.toggle("playing", moving);
   const sp = specialOf(ch()), pw = powerOf(ch());
   const bs = document.getElementById("bSpec");
   bs.style.display = moving && sp && sp.button ? "" : "none";
   if (sp && sp.button) bs.innerHTML = `${sp.icon}<small>${sp.label}</small>`;
   const pow = document.getElementById("bPow");
-  pow.style.display = state === "play" && df().power && pw ? "" : "none";
+  pow.style.display = (state === "play" || state === "dahaka") && df().power && pw ? "" : "none";
   if (pw) { document.getElementById("powIcon").textContent = pw.icon; document.getElementById("powLbl").textContent = pw.label; }
   if (!moving) for (const k of ["TLeft", "TRight", "TDown", "TJump", "TAtk", "TSpec", "TPow"]) keys[k] = false;
 }
@@ -757,6 +759,7 @@ function musicKey() {
   const P = audio.playlists, L = k => P[k] || [];
   const doom = df().id === "doom";
   if (state === "chars") return charMusic(CHARS[charSel]);
+  if (state === "dahaka") return pickList(audio.list("dahaka", "musique/bonus/dahaka"), 0) || pickList(audio.list("boss:maitre_ombres", "musique/boss/maitre_ombres"), 0) || "synth:boss";
   if (typeof screenMusic === "function") { const m = screenMusic(); if (m !== undefined) return m; }   // laverie, souvenirs, fin, défis
   const inRoom = ["play", "clear", "worldclear", "pause"].includes(state) || (optFrom === "pause" && (state === "options" || state === "keys"));
   if (inRoom && lvl && lvl.json) return campMusic();
@@ -2090,10 +2093,12 @@ function drawWorlds() {
 }
 // Nouvelle campagne : 6 mondes, puis la carte du monde bonus (ancienne aventure, toujours ouverte)
 let bonusThumb = null, bonusThumbFor = null;
+const SECRET_CARD = () => SAVE.flags.dahaka ? CWORLDS.length + 1 : -1;   // carte du niveau secret, une fois le mot de passe trouvé
 function updateCampWorlds() {
-  const prog = campProgress(), n = CWORLDS.length + 1;
-  const open = i => i === CWORLDS.length || i <= prog;
-  const go = i => { if (i === CWORLDS.length) { mode = "bonus"; audio.sfx("select"); openWorlds(); } else startCampWorld(i); };
+  if (dahakaType()) return;
+  const prog = campProgress(), n = CWORLDS.length + (SAVE.flags.dahaka ? 2 : 1);
+  const open = i => i >= CWORLDS.length || i <= prog;
+  const go = i => { if (i === SECRET_CARD()) { audio.sfx("select"); startDahaka(); } else if (i === CWORLDS.length) { mode = "bonus"; audio.sfx("select"); openWorlds(); } else startCampWorld(i); };
   if (hit("Escape", "GB") || (hit("Mouse0") && inside({ x: 8, y: 6, w: 50, h: 20 }))) { audio.sfx("back"); enterHub({ x: 380 }); return; }
   if ((keys.ShiftLeft || keys.ShiftRight) && hit("KeyD")) { setCampProgress(CWORLDS.length); msg = { text: "Tous les mondes sont débloqués", t: 2 }; audio.sfx("door"); }
   if (hit(...K.left)) { worldSel = (worldSel + n - 1) % n; audio.sfx("select"); }
@@ -2108,17 +2113,22 @@ function drawCampWorlds() {
   ctx.drawImage(menuBgs[charIdx], 0, 0); R(0, 0, VW, VH, "rgba(13,8,32,0.55)");
   text("Choisis un monde", VW / 2, 18, 16, C.ui, "center", C.ui);
   text(`${C.name}  ·  ${df().label}`, VW - 10, 18, 8, "#e8dcff", "right");
-  const n = CWORLDS.length + 1;
+  const n = CWORLDS.length + (SAVE.flags.dahaka ? 2 : 1);
   for (let i = 0; i < n; i++) {
-    const r = WUI[i], sel = i === worldSel, bonus = i === CWORLDS.length, locked = !bonus && i > prog;
+    const r = WUI[i], sel = i === worldSel, secret = i === SECRET_CARD(), bonus = i === CWORLDS.length, locked = !bonus && !secret && i > prog;
     const tw = r.w - 8, th = Math.round(tw * VH / VW);
     R(r.x, r.y, r.w, r.h, "rgba(14,8,30,0.9)");
     ctx.imageSmoothingEnabled = true;
-    if (bonus) { if (bonusThumbFor !== C.id) { bonusThumb = oldThumb(0); bonusThumbFor = C.id; } ctx.drawImage(bonusThumb, r.x + 4, r.y + 4, tw, th); }
+    if (secret) drawDahakaCard(r, tw, th);
+    else if (bonus) { if (bonusThumbFor !== C.id) { bonusThumb = oldThumb(0); bonusThumbFor = C.id; } ctx.drawImage(bonusThumb, r.x + 4, r.y + 4, tw, th); }
     else { const im = getImg(CWORLDS[i].rooms[0].bg); if (im.ok) ctx.drawImage(im.img, r.x + 4, r.y + 4, tw, th); else R(r.x + 4, r.y + 4, tw, th, "#1a1030"); }
     ctx.imageSmoothingEnabled = false;
     if (locked) { R(r.x + 4, r.y + 4, tw, th, "rgba(10,6,24,0.75)"); text("Verrouillé", r.x + r.w / 2, r.y + 30, 8, "#8a7aa8", "center"); }
-    if (bonus) {
+    if (secret) {
+      text("✦ Niveau secret", r.x + 5, r.y + r.h - 22, 8, "#c86eff");
+      const b = (SAVE.dahaka.best || {})[df().id];
+      text(b ? `La course du Dahaka · ${b} m` : "La course du Dahaka", r.x + 5, r.y + r.h - 10, 6, "#b9a6e0");
+    } else if (bonus) {
       text("★ Monde bonus", r.x + 5, r.y + r.h - 22, 8, "#fccc28");
       text("Ancienne aventure (8 mondes)", r.x + 5, r.y + r.h - 10, 6, "#b9a6e0");
     } else {
