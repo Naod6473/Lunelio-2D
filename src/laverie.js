@@ -573,10 +573,10 @@ function headOf(aid, frame) {
   try {
     const [c, x] = mkCanvas(A.cw, A.ch); x.drawImage(img, (frame % A.cols) * A.cw, Math.floor(frame / A.cols) * A.ch, A.cw, A.ch, 0, 0, A.cw, A.ch);
     const d = x.getImageData(0, 0, A.cw, A.ch).data;
-    // haut de la tête : première ligne avec au moins 6 pixels pleins d'affilée (une lame de sabre levée est plus fine)
+    // haut de la tête : première ligne avec au moins 9 pixels pleins d'affilée (une lame de sabre levée est plus fine), 2 pixels plus haut
     outer: for (let y = 0; y < A.ch; y++) { let run = 0, best = 0, end = 0;
       for (let xx = 0; xx < A.cw; xx++) { if (d[(y * A.cw + xx) * 4 + 3] > 100) { if (++run > best) { best = run; end = xx; } } else run = 0; }
-      if (best >= 6) { res = { dx: end - (best - 1) / 2 - A.ax, dy: y - A.ay }; break outer; } }
+      if (best >= 9) { res = { dx: end - (best - 1) / 2 - A.ax, dy: y - 2 - A.ay }; break outer; } }
   } catch (e) {}
   return headCache[k] = res;
 }

@@ -1,0 +1,2027 @@
+{
+  "schemaVersion": 1,
+  "pack": "Lune_animation_complete",
+  "file": "perso_lune_complet.png",
+  "width": 887,
+  "height": 1774,
+  "sha256": "26bd211f4994f8acf962f72471707e769912867e4c63716323a920ed0eff46d8",
+  "logicalCell": {
+    "width": 64,
+    "height": 64
+  },
+  "logicalAnchor": {
+    "x": 32,
+    "y": 60,
+    "kind": "feet_proxy",
+    "status": "review_in_game"
+  },
+  "constantDrawScale": 0.3246899661781285,
+  "columns": 6,
+  "rows": 12,
+  "uniformNativeGrid": false,
+  "usedFrameCount": 43,
+  "unusedIndices": [
+    4,
+    5,
+    17,
+    20,
+    21,
+    22,
+    23,
+    26,
+    27,
+    28,
+    29,
+    34,
+    35,
+    44,
+    45,
+    46,
+    47,
+    50,
+    51,
+    52,
+    53,
+    57,
+    58,
+    59,
+    63,
+    64,
+    65,
+    70,
+    71
+  ],
+  "nativeSheetPreserved": true,
+  "rasterNormalizationApplied": false,
+  "alphaDiscardThresholdSuggested": 16,
+  "frames": [
+    {
+      "index": 0,
+      "row": 0,
+      "column": 0,
+      "sourceRect": [
+        29,
+        31,
+        101,
+        122
+      ],
+      "renderRect": [
+        12.843292,
+        21.361894,
+        32.793687,
+        39.612176
+      ],
+      "footPointNative": {
+        "x": 88.0,
+        "y": 150
+      },
+      "footPointLocal": {
+        "x": 59.0,
+        "y": 119
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": true,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 1,
+      "row": 0,
+      "column": 1,
+      "sourceRect": [
+        174,
+        32,
+        102,
+        120
+      ],
+      "renderRect": [
+        12.518602,
+        22.335964,
+        33.118377,
+        38.962796
+      ],
+      "footPointNative": {
+        "x": 234.0,
+        "y": 148
+      },
+      "footPointLocal": {
+        "x": 60.0,
+        "y": 116
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": true,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 2,
+      "row": 0,
+      "column": 2,
+      "sourceRect": [
+        320,
+        31,
+        103,
+        122
+      ],
+      "renderRect": [
+        12.356257,
+        21.361894,
+        33.443067,
+        39.612176
+      ],
+      "footPointNative": {
+        "x": 380.5,
+        "y": 150
+      },
+      "footPointLocal": {
+        "x": 60.5,
+        "y": 119
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": true,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 3,
+      "row": 0,
+      "column": 3,
+      "sourceRect": [
+        467,
+        31,
+        102,
+        122
+      ],
+      "renderRect": [
+        12.518602,
+        21.361894,
+        33.118377,
+        39.612176
+      ],
+      "footPointNative": {
+        "x": 527.0,
+        "y": 150
+      },
+      "footPointLocal": {
+        "x": 60.0,
+        "y": 119
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": true,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 6,
+      "row": 1,
+      "column": 0,
+      "sourceRect": [
+        30,
+        178,
+        100,
+        116
+      ],
+      "renderRect": [
+        16.901917,
+        23.310034,
+        32.468997,
+        37.664036
+      ],
+      "footPointNative": {
+        "x": 76.5,
+        "y": 291
+      },
+      "footPointLocal": {
+        "x": 46.5,
+        "y": 113
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": true,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 7,
+      "row": 1,
+      "column": 1,
+      "sourceRect": [
+        178,
+        176,
+        95,
+        118
+      ],
+      "renderRect": [
+        17.875986,
+        22.660654,
+        30.845547,
+        38.313416
+      ],
+      "footPointNative": {
+        "x": 221.5,
+        "y": 291
+      },
+      "footPointLocal": {
+        "x": 43.5,
+        "y": 115
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": true,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 8,
+      "row": 1,
+      "column": 2,
+      "sourceRect": [
+        326,
+        178,
+        98,
+        116
+      ],
+      "renderRect": [
+        17.713641,
+        23.634724,
+        31.819617,
+        37.664036
+      ],
+      "footPointNative": {
+        "x": 370.0,
+        "y": 290
+      },
+      "footPointLocal": {
+        "x": 44.0,
+        "y": 112
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": true,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 9,
+      "row": 1,
+      "column": 3,
+      "sourceRect": [
+        473,
+        179,
+        98,
+        115
+      ],
+      "renderRect": [
+        19.174746,
+        23.634724,
+        31.819617,
+        37.339346
+      ],
+      "footPointNative": {
+        "x": 512.5,
+        "y": 291
+      },
+      "footPointLocal": {
+        "x": 39.5,
+        "y": 112
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": true,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 10,
+      "row": 1,
+      "column": 4,
+      "sourceRect": [
+        620,
+        175,
+        96,
+        119
+      ],
+      "renderRect": [
+        18.850056,
+        23.310034,
+        31.170237,
+        38.638106
+      ],
+      "footPointNative": {
+        "x": 660.5,
+        "y": 288
+      },
+      "footPointLocal": {
+        "x": 40.5,
+        "y": 113
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": true,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 11,
+      "row": 1,
+      "column": 5,
+      "sourceRect": [
+        768,
+        174,
+        95,
+        120
+      ],
+      "renderRect": [
+        18.363021,
+        22.335964,
+        30.845547,
+        38.962796
+      ],
+      "footPointNative": {
+        "x": 810.0,
+        "y": 290
+      },
+      "footPointLocal": {
+        "x": 42.0,
+        "y": 116
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": true,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 12,
+      "row": 2,
+      "column": 0,
+      "sourceRect": [
+        29,
+        306,
+        88,
+        143
+      ],
+      "renderRect": [
+        15.440812,
+        15.192785,
+        28.572717,
+        46.430665
+      ],
+      "footPointNative": {
+        "x": 80.0,
+        "y": 444
+      },
+      "footPointLocal": {
+        "x": 51.0,
+        "y": 138
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": true,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 13,
+      "row": 2,
+      "column": 1,
+      "sourceRect": [
+        179,
+        315,
+        119,
+        135
+      ],
+      "renderRect": [
+        17.388952,
+        17.140924,
+        38.638106,
+        43.833145
+      ],
+      "footPointNative": {
+        "x": 224.0,
+        "y": 447
+      },
+      "footPointLocal": {
+        "x": 45.0,
+        "y": 132
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": true,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 14,
+      "row": 2,
+      "column": 2,
+      "sourceRect": [
+        327,
+        304,
+        138,
+        145
+      ],
+      "renderRect": [
+        7.972943,
+        14.543405,
+        44.807215,
+        47.080045
+      ],
+      "footPointNative": {
+        "x": 401.0,
+        "y": 444
+      },
+      "footPointLocal": {
+        "x": 74.0,
+        "y": 140
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": true,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 15,
+      "row": 2,
+      "column": 3,
+      "sourceRect": [
+        480,
+        328,
+        124,
+        121
+      ],
+      "renderRect": [
+        12.356257,
+        22.335964,
+        40.261556,
+        39.287486
+      ],
+      "footPointNative": {
+        "x": 540.5,
+        "y": 444
+      },
+      "footPointLocal": {
+        "x": 60.5,
+        "y": 116
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": true,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 16,
+      "row": 2,
+      "column": 4,
+      "sourceRect": [
+        621,
+        328,
+        91,
+        134
+      ],
+      "renderRect": [
+        14.629087,
+        17.465614,
+        29.546787,
+        43.508455
+      ],
+      "footPointNative": {
+        "x": 674.5,
+        "y": 459
+      },
+      "footPointLocal": {
+        "x": 53.5,
+        "y": 131
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": true,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 18,
+      "row": 3,
+      "column": 0,
+      "sourceRect": [
+        32,
+        474,
+        92,
+        119
+      ],
+      "renderRect": [
+        16.901917,
+        22.660654,
+        29.871477,
+        38.638106
+      ],
+      "footPointNative": {
+        "x": 78.5,
+        "y": 589
+      },
+      "footPointLocal": {
+        "x": 46.5,
+        "y": 115
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": true,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 19,
+      "row": 3,
+      "column": 1,
+      "sourceRect": [
+        175,
+        482,
+        125,
+        111
+      ],
+      "renderRect": [
+        18.038331,
+        24.933484,
+        40.586246,
+        36.040586
+      ],
+      "footPointNative": {
+        "x": 218.0,
+        "y": 590
+      },
+      "footPointLocal": {
+        "x": 43.0,
+        "y": 108
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": true,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 24,
+      "row": 4,
+      "column": 0,
+      "sourceRect": [
+        15,
+        620,
+        159,
+        96
+      ],
+      "renderRect": [
+        5.700113,
+        29.803833,
+        51.625705,
+        31.170237
+      ],
+      "footPointNative": {
+        "x": 96.0,
+        "y": 713
+      },
+      "footPointLocal": {
+        "x": 81.0,
+        "y": 93
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": true,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": null
+    },
+    {
+      "index": 25,
+      "row": 4,
+      "column": 1,
+      "sourceRect": [
+        174,
+        621,
+        160,
+        95
+      ],
+      "renderRect": [
+        7.648253,
+        30.128523,
+        51.950395,
+        30.845547
+      ],
+      "footPointNative": {
+        "x": 249.0,
+        "y": 713
+      },
+      "footPointLocal": {
+        "x": 75.0,
+        "y": 92
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": true,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": null
+    },
+    {
+      "index": 30,
+      "row": 5,
+      "column": 0,
+      "sourceRect": [
+        28,
+        741,
+        88,
+        122
+      ],
+      "renderRect": [
+        14.791432,
+        21.361894,
+        28.572717,
+        39.612176
+      ],
+      "footPointNative": {
+        "x": 81.0,
+        "y": 860
+      },
+      "footPointLocal": {
+        "x": 53.0,
+        "y": 119
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 31,
+      "row": 5,
+      "column": 1,
+      "sourceRect": [
+        174,
+        741,
+        88,
+        122
+      ],
+      "renderRect": [
+        15.116122,
+        21.361894,
+        28.572717,
+        39.612176
+      ],
+      "footPointNative": {
+        "x": 226.0,
+        "y": 860
+      },
+      "footPointLocal": {
+        "x": 52.0,
+        "y": 119
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 32,
+      "row": 5,
+      "column": 2,
+      "sourceRect": [
+        320,
+        741,
+        89,
+        122
+      ],
+      "renderRect": [
+        14.629087,
+        21.361894,
+        28.897407,
+        39.612176
+      ],
+      "footPointNative": {
+        "x": 373.5,
+        "y": 860
+      },
+      "footPointLocal": {
+        "x": 53.5,
+        "y": 119
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 33,
+      "row": 5,
+      "column": 3,
+      "sourceRect": [
+        467,
+        741,
+        89,
+        122
+      ],
+      "renderRect": [
+        15.278467,
+        21.361894,
+        28.897407,
+        39.612176
+      ],
+      "footPointNative": {
+        "x": 518.5,
+        "y": 860
+      },
+      "footPointLocal": {
+        "x": 51.5,
+        "y": 119
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 36,
+      "row": 6,
+      "column": 0,
+      "sourceRect": [
+        30,
+        881,
+        88,
+        120
+      ],
+      "renderRect": [
+        17.713641,
+        22.660654,
+        28.572717,
+        38.962796
+      ],
+      "footPointNative": {
+        "x": 74.0,
+        "y": 996
+      },
+      "footPointLocal": {
+        "x": 44.0,
+        "y": 115
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 37,
+      "row": 6,
+      "column": 1,
+      "sourceRect": [
+        177,
+        878,
+        89,
+        126
+      ],
+      "renderRect": [
+        16.739572,
+        20.063134,
+        28.897407,
+        40.910936
+      ],
+      "footPointNative": {
+        "x": 224.0,
+        "y": 1001
+      },
+      "footPointLocal": {
+        "x": 47.0,
+        "y": 123
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 38,
+      "row": 6,
+      "column": 2,
+      "sourceRect": [
+        327,
+        882,
+        93,
+        126
+      ],
+      "renderRect": [
+        17.875986,
+        21.361894,
+        30.196167,
+        40.910936
+      ],
+      "footPointNative": {
+        "x": 370.5,
+        "y": 1001
+      },
+      "footPointLocal": {
+        "x": 43.5,
+        "y": 119
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 39,
+      "row": 6,
+      "column": 3,
+      "sourceRect": [
+        472,
+        881,
+        88,
+        127
+      ],
+      "renderRect": [
+        16.090192,
+        21.037204,
+        28.572717,
+        41.235626
+      ],
+      "footPointNative": {
+        "x": 521.0,
+        "y": 1001
+      },
+      "footPointLocal": {
+        "x": 49.0,
+        "y": 120
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 40,
+      "row": 6,
+      "column": 4,
+      "sourceRect": [
+        613,
+        880,
+        93,
+        128
+      ],
+      "renderRect": [
+        15.603157,
+        20.712514,
+        30.196167,
+        41.560316
+      ],
+      "footPointNative": {
+        "x": 663.5,
+        "y": 1001
+      },
+      "footPointLocal": {
+        "x": 50.5,
+        "y": 121
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 41,
+      "row": 6,
+      "column": 5,
+      "sourceRect": [
+        766,
+        878,
+        93,
+        130
+      ],
+      "renderRect": [
+        16.252537,
+        20.063134,
+        30.196167,
+        42.209696
+      ],
+      "footPointNative": {
+        "x": 814.5,
+        "y": 1001
+      },
+      "footPointLocal": {
+        "x": 48.5,
+        "y": 123
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 42,
+      "row": 7,
+      "column": 0,
+      "sourceRect": [
+        29,
+        1035,
+        87,
+        118
+      ],
+      "renderRect": [
+        15.440812,
+        23.959414,
+        28.248027,
+        38.313416
+      ],
+      "footPointNative": {
+        "x": 80.0,
+        "y": 1146
+      },
+      "footPointLocal": {
+        "x": 51.0,
+        "y": 111
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 43,
+      "row": 7,
+      "column": 1,
+      "sourceRect": [
+        175,
+        1039,
+        91,
+        115
+      ],
+      "renderRect": [
+        16.901917,
+        23.959414,
+        29.546787,
+        37.339346
+      ],
+      "footPointNative": {
+        "x": 221.5,
+        "y": 1150
+      },
+      "footPointLocal": {
+        "x": 46.5,
+        "y": 111
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 48,
+      "row": 8,
+      "column": 0,
+      "sourceRect": [
+        15,
+        1196,
+        128,
+        98
+      ],
+      "renderRect": [
+        11.706877,
+        29.154453,
+        41.560316,
+        31.819617
+      ],
+      "footPointNative": {
+        "x": 77.5,
+        "y": 1291
+      },
+      "footPointLocal": {
+        "x": 62.5,
+        "y": 95
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 49,
+      "row": 8,
+      "column": 1,
+      "sourceRect": [
+        160,
+        1196,
+        132,
+        98
+      ],
+      "renderRect": [
+        10.895152,
+        29.479143,
+        42.859076,
+        31.819617
+      ],
+      "footPointNative": {
+        "x": 225.0,
+        "y": 1290
+      },
+      "footPointLocal": {
+        "x": 65.0,
+        "y": 94
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 54,
+      "row": 9,
+      "column": 0,
+      "sourceRect": [
+        29,
+        1318,
+        115,
+        119
+      ],
+      "renderRect": [
+        15.278467,
+        22.335964,
+        37.339346,
+        38.638106
+      ],
+      "footPointNative": {
+        "x": 80.5,
+        "y": 1434
+      },
+      "footPointLocal": {
+        "x": 51.5,
+        "y": 116
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 55,
+      "row": 9,
+      "column": 1,
+      "sourceRect": [
+        180,
+        1319,
+        115,
+        118
+      ],
+      "renderRect": [
+        13.492672,
+        22.660654,
+        37.339346,
+        38.313416
+      ],
+      "footPointNative": {
+        "x": 237.0,
+        "y": 1434
+      },
+      "footPointLocal": {
+        "x": 57.0,
+        "y": 115
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 56,
+      "row": 9,
+      "column": 2,
+      "sourceRect": [
+        330,
+        1315,
+        119,
+        122
+      ],
+      "renderRect": [
+        14.304397,
+        21.361894,
+        38.638106,
+        39.612176
+      ],
+      "footPointNative": {
+        "x": 384.5,
+        "y": 1434
+      },
+      "footPointLocal": {
+        "x": 54.5,
+        "y": 119
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 60,
+      "row": 10,
+      "column": 0,
+      "sourceRect": [
+        26,
+        1466,
+        93,
+        120
+      ],
+      "renderRect": [
+        13.817362,
+        22.335964,
+        30.196167,
+        38.962796
+      ],
+      "footPointNative": {
+        "x": 82.0,
+        "y": 1582
+      },
+      "footPointLocal": {
+        "x": 56.0,
+        "y": 116
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 61,
+      "row": 10,
+      "column": 1,
+      "sourceRect": [
+        180,
+        1466,
+        102,
+        120
+      ],
+      "renderRect": [
+        14.142052,
+        22.660654,
+        33.118377,
+        38.962796
+      ],
+      "footPointNative": {
+        "x": 235.0,
+        "y": 1581
+      },
+      "footPointLocal": {
+        "x": 55.0,
+        "y": 115
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 62,
+      "row": 10,
+      "column": 2,
+      "sourceRect": [
+        335,
+        1466,
+        119,
+        120
+      ],
+      "renderRect": [
+        17.388952,
+        23.310034,
+        38.638106,
+        38.962796
+      ],
+      "footPointNative": {
+        "x": 380.0,
+        "y": 1579
+      },
+      "footPointLocal": {
+        "x": 45.0,
+        "y": 113
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 66,
+      "row": 11,
+      "column": 0,
+      "sourceRect": [
+        29,
+        1621,
+        92,
+        126
+      ],
+      "renderRect": [
+        14.629087,
+        21.361894,
+        29.871477,
+        40.910936
+      ],
+      "footPointNative": {
+        "x": 82.5,
+        "y": 1740
+      },
+      "footPointLocal": {
+        "x": 53.5,
+        "y": 119
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 67,
+      "row": 11,
+      "column": 1,
+      "sourceRect": [
+        176,
+        1621,
+        90,
+        126
+      ],
+      "renderRect": [
+        15.440812,
+        20.712514,
+        29.222097,
+        40.910936
+      ],
+      "footPointNative": {
+        "x": 227.0,
+        "y": 1742
+      },
+      "footPointLocal": {
+        "x": 51.0,
+        "y": 121
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 68,
+      "row": 11,
+      "column": 2,
+      "sourceRect": [
+        326,
+        1641,
+        97,
+        106
+      ],
+      "renderRect": [
+        16.090192,
+        27.855693,
+        31.494927,
+        34.417136
+      ],
+      "footPointNative": {
+        "x": 375.0,
+        "y": 1740
+      },
+      "footPointLocal": {
+        "x": 49.0,
+        "y": 99
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    },
+    {
+      "index": 69,
+      "row": 11,
+      "column": 3,
+      "sourceRect": [
+        480,
+        1639,
+        99,
+        108
+      ],
+      "renderRect": [
+        16.739572,
+        27.206313,
+        32.144307,
+        35.066516
+      ],
+      "footPointNative": {
+        "x": 527.0,
+        "y": 1740
+      },
+      "footPointLocal": {
+        "x": 47.0,
+        "y": 101
+      },
+      "footPointMethod": "pink/white lower-silhouette shoe-color proxy",
+      "handAnchor": null,
+      "weaponEmbedded": false,
+      "foregroundContainedAbove16": true,
+      "noNeighborAbove16": true
+    }
+  ],
+  "animations": [
+    {
+      "id": "idle_sabre",
+      "name": "Repos avec sabre",
+      "row": 0,
+      "frames": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "frameMs": 160,
+      "loop": true,
+      "weaponEmbedded": true,
+      "playback": "loop",
+      "integration": {
+        "row": 0,
+        "frames": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "embeddedWeapon": "sabre",
+        "playback": "loop",
+        "loop": true,
+        "suggestedFrameDurationMs": 160
+      }
+    },
+    {
+      "id": "run_sabre",
+      "name": "Course avec sabre",
+      "row": 1,
+      "frames": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "frameMs": 80,
+      "loop": true,
+      "weaponEmbedded": true,
+      "playback": "loop",
+      "integration": {
+        "row": 1,
+        "frames": [
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "embeddedWeapon": "sabre",
+        "playback": "loop",
+        "loop": true,
+        "suggestedFrameDurationMs": 80
+      }
+    },
+    {
+      "id": "attack_sabre",
+      "name": "Coup de sabre",
+      "row": 2,
+      "frames": [
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "frameMs": 75,
+      "loop": false,
+      "weaponEmbedded": true,
+      "playback": "one_shot",
+      "integration": {
+        "row": 2,
+        "frames": [
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "embeddedWeapon": "sabre",
+        "playback": "one_shot",
+        "loop": false,
+        "suggestedFrameDurationMs": 75,
+        "onVisualEnd": "return_to_idle_sabre_or_current_movement_state"
+      }
+    },
+    {
+      "id": "jump_sabre",
+      "name": "Saut avec sabre",
+      "row": 3,
+      "frames": [
+        18,
+        19
+      ],
+      "frameMs": 160,
+      "loop": false,
+      "weaponEmbedded": true,
+      "playback": "physics_states",
+      "integration": {
+        "row": 3,
+        "frames": [
+          18,
+          19
+        ],
+        "embeddedWeapon": "sabre",
+        "playback": "physics_states",
+        "loop": false,
+        "states": {
+          "ascending": 18,
+          "descending": 19
+        },
+        "selection": "vertical_velocity_from_existing_physics"
+      }
+    },
+    {
+      "id": "dash_sabre",
+      "name": "Dash avec sabre",
+      "row": 4,
+      "frames": [
+        24,
+        25
+      ],
+      "frameMs": 80,
+      "loop": false,
+      "weaponEmbedded": true,
+      "playback": "action_states",
+      "integration": {
+        "row": 4,
+        "frames": [
+          24,
+          25
+        ],
+        "embeddedWeapon": "sabre",
+        "playback": "action_states",
+        "loop": false,
+        "suggestedFrameDurationMs": 80,
+        "physicalDuration": "existing_game_dash_duration"
+      }
+    },
+    {
+      "id": "idle_free",
+      "name": "Repos mains libres",
+      "row": 5,
+      "frames": [
+        30,
+        31,
+        32,
+        33
+      ],
+      "frameMs": 160,
+      "loop": true,
+      "weaponEmbedded": false,
+      "playback": "loop",
+      "integration": {
+        "row": 5,
+        "frames": [
+          30,
+          31,
+          32,
+          33
+        ],
+        "embeddedWeapon": null,
+        "weaponOverlay": "equipped_weapon_when_applicable",
+        "playback": "loop",
+        "loop": true,
+        "suggestedFrameDurationMs": 160
+      }
+    },
+    {
+      "id": "run_free",
+      "name": "Course mains libres",
+      "row": 6,
+      "frames": [
+        36,
+        37,
+        38,
+        39,
+        40,
+        41
+      ],
+      "frameMs": 80,
+      "loop": true,
+      "weaponEmbedded": false,
+      "playback": "loop",
+      "integration": {
+        "row": 6,
+        "frames": [
+          36,
+          37,
+          38,
+          39,
+          40,
+          41
+        ],
+        "embeddedWeapon": null,
+        "weaponOverlay": "equipped_weapon_when_applicable",
+        "playback": "loop",
+        "loop": true,
+        "suggestedFrameDurationMs": 80
+      }
+    },
+    {
+      "id": "jump_free",
+      "name": "Saut mains libres",
+      "row": 7,
+      "frames": [
+        42,
+        43
+      ],
+      "frameMs": 160,
+      "loop": false,
+      "weaponEmbedded": false,
+      "playback": "physics_states",
+      "integration": {
+        "row": 7,
+        "frames": [
+          42,
+          43
+        ],
+        "embeddedWeapon": null,
+        "weaponOverlay": "equipped_weapon_when_applicable",
+        "playback": "physics_states",
+        "loop": false,
+        "states": {
+          "ascending": 42,
+          "descending": 43
+        },
+        "selection": "vertical_velocity_from_existing_physics"
+      }
+    },
+    {
+      "id": "dash_free",
+      "name": "Dash mains libres",
+      "row": 8,
+      "frames": [
+        48,
+        49
+      ],
+      "frameMs": 80,
+      "loop": false,
+      "weaponEmbedded": false,
+      "playback": "action_states",
+      "integration": {
+        "row": 8,
+        "frames": [
+          48,
+          49
+        ],
+        "embeddedWeapon": null,
+        "weaponOverlay": "equipped_weapon_when_applicable",
+        "playback": "action_states",
+        "loop": false,
+        "suggestedFrameDurationMs": 80,
+        "physicalDuration": "existing_game_dash_duration"
+      }
+    },
+    {
+      "id": "shoot",
+      "name": "Tir",
+      "row": 9,
+      "frames": [
+        54,
+        55,
+        56
+      ],
+      "frameMs": 90,
+      "loop": false,
+      "weaponEmbedded": false,
+      "playback": "one_shot",
+      "integration": {
+        "row": 9,
+        "frames": [
+          54,
+          55,
+          56
+        ],
+        "embeddedWeapon": null,
+        "weaponOverlay": "runtime_shooting_weapon_in_right_hand",
+        "poseSequence": [
+          "right_arm_horizontal_ready",
+          "recoil",
+          "right_arm_horizontal_return"
+        ],
+        "playback": "one_shot",
+        "loop": false,
+        "suggestedFrameDurationMs": 90,
+        "onVisualEnd": "return_to_equipment_idle_or_current_movement_state"
+      }
+    },
+    {
+      "id": "throw",
+      "name": "Lancer",
+      "row": 10,
+      "frames": [
+        60,
+        61,
+        62
+      ],
+      "frameMs": 100,
+      "loop": false,
+      "weaponEmbedded": false,
+      "playback": "one_shot",
+      "integration": {
+        "row": 10,
+        "frames": [
+          60,
+          61,
+          62
+        ],
+        "embeddedWeapon": null,
+        "weaponOverlay": "runtime_object_until_gameplay_release_event",
+        "poseSequence": [
+          "hand_near_shoulder",
+          "arm_moves_forward",
+          "forward_follow_through"
+        ],
+        "playback": "one_shot",
+        "loop": false,
+        "suggestedFrameDurationMs": 100,
+        "onVisualEnd": "return_to_equipment_idle_or_current_movement_state"
+      }
+    },
+    {
+      "id": "heavy",
+      "name": "Coup lourd",
+      "row": 11,
+      "frames": [
+        66,
+        67,
+        68,
+        69
+      ],
+      "frameMs": 160,
+      "loop": false,
+      "weaponEmbedded": false,
+      "playback": "one_shot",
+      "integration": {
+        "row": 11,
+        "frames": [
+          66,
+          67,
+          68,
+          69
+        ],
+        "embeddedWeapon": null,
+        "weaponOverlay": "runtime_two_handed_object",
+        "poseSequence": [
+          "two_hand_preparation",
+          "both_hands_overhead",
+          "vertical_downward_motion",
+          "hands_low_toward_ground"
+        ],
+        "playback": "one_shot",
+        "loop": false,
+        "suggestedFrameDurationsMs": [
+          120,
+          90,
+          80,
+          160
+        ],
+        "onVisualEnd": "return_to_equipment_idle_or_current_movement_state"
+      }
+    }
+  ],
+  "identity": {
+    "facing": "right",
+    "hair": "blonde_ponytail_trailing_left",
+    "jacket": "pink_magenta_over_pale_shirt",
+    "trousers": "light_blue",
+    "shoes": "pink_white",
+    "bodyScaleConstant": "constant_render_scale",
+    "feetBaselineConstant": "runtime_registration_from_measured_proxies"
+  },
+  "weaponRendering": {
+    "embeddedSabreRows": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "freeRows": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "embeddedSabre": "pink_magenta_violet_with_pale_core_in_right_hand",
+    "freePoseHands": "closed_fists_as_grip_without_any_painted_weapon",
+    "allowOverlayOnEmbeddedSabre": false,
+    "heldWeaponCountMaximum": 1,
+    "attachmentPoints": {
+      "status": "right_and_left_hand_coordinates_to_confirm_visually",
+      "coordinateSpace": "source_frame_pixels",
+      "requiredPoints": [
+        "rightHand",
+        "leftHand_for_heavy"
+      ],
+      "framePoints": null
+    },
+    "flipWithBodyAndAttachmentPoints": true
+  },
+  "rendering": {
+    "smoothing": false,
+    "filter": "nearest",
+    "sourceRectAuthority": "individual_frame_measurements",
+    "collider": "keep_original_game_character_collider",
+    "physicalBodyHeightApprox": 38
+  },
+  "sourceRects": {
+    "0": [
+      29,
+      31,
+      101,
+      122
+    ],
+    "1": [
+      174,
+      32,
+      102,
+      120
+    ],
+    "2": [
+      320,
+      31,
+      103,
+      122
+    ],
+    "3": [
+      467,
+      31,
+      102,
+      122
+    ],
+    "6": [
+      30,
+      178,
+      100,
+      116
+    ],
+    "7": [
+      178,
+      176,
+      95,
+      118
+    ],
+    "8": [
+      326,
+      178,
+      98,
+      116
+    ],
+    "9": [
+      473,
+      179,
+      98,
+      115
+    ],
+    "10": [
+      620,
+      175,
+      96,
+      119
+    ],
+    "11": [
+      768,
+      174,
+      95,
+      120
+    ],
+    "12": [
+      29,
+      306,
+      88,
+      143
+    ],
+    "13": [
+      179,
+      315,
+      119,
+      135
+    ],
+    "14": [
+      327,
+      304,
+      138,
+      145
+    ],
+    "15": [
+      480,
+      328,
+      124,
+      121
+    ],
+    "16": [
+      621,
+      328,
+      91,
+      134
+    ],
+    "18": [
+      32,
+      474,
+      92,
+      119
+    ],
+    "19": [
+      175,
+      482,
+      125,
+      111
+    ],
+    "24": [
+      15,
+      620,
+      159,
+      96
+    ],
+    "25": [
+      174,
+      621,
+      160,
+      95
+    ],
+    "30": [
+      28,
+      741,
+      88,
+      122
+    ],
+    "31": [
+      174,
+      741,
+      88,
+      122
+    ],
+    "32": [
+      320,
+      741,
+      89,
+      122
+    ],
+    "33": [
+      467,
+      741,
+      89,
+      122
+    ],
+    "36": [
+      30,
+      881,
+      88,
+      120
+    ],
+    "37": [
+      177,
+      878,
+      89,
+      126
+    ],
+    "38": [
+      327,
+      882,
+      93,
+      126
+    ],
+    "39": [
+      472,
+      881,
+      88,
+      127
+    ],
+    "40": [
+      613,
+      880,
+      93,
+      128
+    ],
+    "41": [
+      766,
+      878,
+      93,
+      130
+    ],
+    "42": [
+      29,
+      1035,
+      87,
+      118
+    ],
+    "43": [
+      175,
+      1039,
+      91,
+      115
+    ],
+    "48": [
+      15,
+      1196,
+      128,
+      98
+    ],
+    "49": [
+      160,
+      1196,
+      132,
+      98
+    ],
+    "54": [
+      29,
+      1318,
+      115,
+      119
+    ],
+    "55": [
+      180,
+      1319,
+      115,
+      118
+    ],
+    "56": [
+      330,
+      1315,
+      119,
+      122
+    ],
+    "60": [
+      26,
+      1466,
+      93,
+      120
+    ],
+    "61": [
+      180,
+      1466,
+      102,
+      120
+    ],
+    "62": [
+      335,
+      1466,
+      119,
+      120
+    ],
+    "66": [
+      29,
+      1621,
+      92,
+      126
+    ],
+    "67": [
+      176,
+      1621,
+      90,
+      126
+    ],
+    "68": [
+      326,
+      1641,
+      97,
+      106
+    ],
+    "69": [
+      480,
+      1639,
+      99,
+      108
+    ]
+  }
+}

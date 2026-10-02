@@ -1717,7 +1717,10 @@ function drawSprite(id, frame, x, y, face, scale = 1, alpha = 1) {
 function playerFrame(p) {
   const C = ch();
   if (p.dashT > 0) return 24 + (Math.floor(time * 20) % 2);
-  if (p.djT > 0) return 24 + Math.min(3, Math.floor((0.32 - p.djT) / 0.08));
+  if (p.djT > 0) {   // double saut : pirouette de la ligne spéciale si la planche en a une (4 images), sinon la pose de saut
+    const sp = (ATL[charAtlas(C)] || { anims: {} }).anims.special;
+    return sp && sp[1] >= 4 ? sp[0] + Math.min(3, Math.floor((0.32 - p.djT) / 0.08)) : 18;
+  }
   if (p.atkT >= 0) return 12 + Math.min(4, Math.floor(p.atkT / 0.06));
   if (!p.onGround) return 18 + (p.vy < 0 ? 0 : 1);
   if (Math.abs(p.vx) > 20) return 6 + Math.floor(p.runT * 12) % 6;

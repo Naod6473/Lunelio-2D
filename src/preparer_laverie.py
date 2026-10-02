@@ -150,6 +150,8 @@ def prepare(name, spec):
 HEROES = {
     "perso_helio": ("perso_helio_complet", {"idle": [0, 4], "run": [6, 6], "attack": [12, 5], "jump": [18, 2], "special": [24, 2],
         "idle_free": [30, 4], "run_free": [36, 6], "jump_free": [42, 2], "special_free": [48, 2], "shoot": [54, 3], "throw": [60, 3], "heavy": [66, 4]}),
+    "perso_lune": ("perso_lune_complet", {"idle": [0, 4], "run": [6, 6], "attack": [12, 5], "jump": [18, 2], "special": [24, 2],
+        "idle_free": [30, 4], "run_free": [36, 6], "jump_free": [42, 2], "special_free": [48, 2], "shoot": [54, 3], "throw": [60, 3], "heavy": [66, 4]}),
 }
 
 def prepare_hero(name, base, anims):
