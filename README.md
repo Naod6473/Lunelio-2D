@@ -86,7 +86,7 @@ Sur l'écran du choix du héros, le joueur 2 rejoint la partie en appuyant sur *
 
 ## Boss rush et médailles
 
-Une fois les 6 mondes terminés, la carte **Boss rush** apparaît sur l'écran des mondes : les 6 boss d'affilée, dans leurs arènes. Les cœurs sont gardés d'un boss à l'autre (+1 cœur après chaque victoire) ; perdre fait recommencer le boss en cours avec les cœurs du début de ce combat, sans arrêter le chrono. Le record est gardé par difficulté, en solo et à deux.
+Une fois les 6 mondes terminés, la carte **Boss rush** apparaît sur l'écran des mondes : les 6 boss d'affilée, dans leurs arènes, puis les combats de l'église (Brie, Jules, Laurène, puis Laurène et Jules ensemble), sans les dialogues : 10 combats en tout. Les cœurs sont gardés d'un boss à l'autre (+1 cœur après chaque victoire) ; perdre fait recommencer le boss en cours avec les cœurs du début de ce combat, sans arrêter le chrono. Le record est gardé par difficulté, en solo et à deux.
 
 **Médailles** : un monde terminé d'une traite, ou le boss rush, rapporte une médaille de bronze, d'argent ou d'or selon le temps (seuils dans `MEDALS`, `registres.js`). La meilleure médaille s'affiche sur la carte du monde. Cinq badges vont avec : Main dans la main (un monde à deux), Sauveteur (sauver son copain d'une bulle), Boss rush, Première médaille d'or et Or partout.
 
@@ -236,4 +236,3 @@ Chaque salle fait 30 colonnes sur 17 lignes. Les salles de boss sont générées
 - Mécaniques propres à chaque monde pour les prochaines séries de salles (point d'extension prévu : `WORLD_MECHANICS`).
 - Nouveaux programmes de lavage et nouveaux clients (il suffit d'ajouter une entrée dans `registres.js`).
 - Rejeu de la salle en accéléré à la fin.
-- Boss de l'église dans le boss rush.

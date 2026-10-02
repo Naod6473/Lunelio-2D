@@ -2215,7 +2215,7 @@ function drawCampWorlds() {
     if (locked) { R(r.x + 4, r.y + 4, tw, th, "rgba(10,6,24,0.75)"); text("Verrouillé", r.x + r.w / 2, r.y + 30, 8, "#8a7aa8", "center"); }
     if (rushC) {
       text("⚔ Boss rush", r.x + 5, r.y + r.h - 22, 8, "#ff5a7a");
-      text("Les 6 boss d'affilée", r.x + 5, r.y + r.h - 10, 6, "#b9a6e0");
+      text("Les 6 boss, puis l'église", r.x + 5, r.y + r.h - 10, 6, "#b9a6e0");
       const b = rushBest(); if (b !== undefined) cardTime(r, th, fmtTime(b), medalOf("rush", b));
     } else if (eglise) {
       text("✝ L'église", r.x + 5, r.y + r.h - 22, 8, "#ff5a7a");

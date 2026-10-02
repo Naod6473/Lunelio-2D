@@ -1,10 +1,13 @@
 /* ---------------- Boss rush ---------------- */
-// Carte de l'écran des mondes (RUSH_CARD, après les 6 mondes) : les 6 boss de la campagne d'affilée, dans leurs arènes.
+// Carte de l'écran des mondes (RUSH_CARD, après les 6 mondes) : les 6 boss de la campagne d'affilée, dans leurs arènes, puis
+// les combats de l'église (Brie, Jules, Laurène, puis le duo ; RUSH_EG : étapes de EG_SCRIPT), sans dialogue.
 // rush : { i (boss en cours), t (chrono, temps réel en jeu), hp (cœurs gardés d'un boss à l'autre), startHp, next (pause
 // entre deux boss), res (résultat) }. Perdre recommence le boss en cours, avec les cœurs du début de ce combat ; le chrono
 // continue. Record par difficulté, en solo et à deux : SAVE.rush.best["diff|1"] ou ["diff|2"].
 // Ni pièce, ni arme, ni chaussette : le boss rush ne compte que pour le record (et ses badges).
 let rush = null;
+const RUSH_EG = [0, 2, 4, 5], RUSH_TOTAL = CWORLDS.length + RUSH_EG.length;
+const rushName = i => i < CWORLDS.length ? BIG[CWORLDS[i].boss].name : EG_SCRIPT[RUSH_EG[i - CWORLDS.length]].fight.map(id => EGB[id].name).join(" et ");
 const rushOpen = () => campProgress() >= CWORLDS.length;
 const rushKey = () => `${df().id}|${COOP.on ? 2 : 1}`;
 const rushBest = () => (SAVE.rush.best || {})[rushKey()];
@@ -14,10 +17,14 @@ function startRush() {
   rushLoad();
 }
 function rushLoad() {
-  const wi = rush.i, W = CWORLDS[wi], ri = W.rooms.length - 1;
-  camp.ckpt = ri; camp.fromStart = false;   // en Doom aussi, on recommence ce boss
-  loadCampRoom(wi, ri, { fadeIn: true });
-  msg = { text: `Boss ${wi + 1} sur ${CWORLDS.length} : ${BIG[W.boss].name}`, t: 2.4 };
+  const i = rush.i;
+  if (i >= CWORLDS.length) egRushFight(RUSH_EG[i - CWORLDS.length]);   // l'église (eglise.js)
+  else {
+    const W = CWORLDS[i], ri = W.rooms.length - 1;
+    camp.ckpt = ri; camp.fromStart = false;   // en Doom aussi, on recommence ce boss
+    loadCampRoom(i, ri, { fadeIn: true });
+  }
+  msg = { text: `Boss ${i + 1} sur ${RUSH_TOTAL} : ${rushName(i)}`, t: 2.4 };
 }
 // Appelé par loadCampRoom : cœurs gardés d'un boss à l'autre ; un combat recommencé repart avec les cœurs de son début
 function rushApply(restart) {
@@ -25,21 +32,23 @@ function rushApply(restart) {
   const hp = rush.startHp;
   if (hp) for (const p of players) p.hp = clamp(hp[p.idx] ?? df().hp, 1, df().hp);
 }
-// Le boss est vaincu (à la place de campVictory) : un cœur de plus, le copain dans sa bulle revient, puis le boss suivant
+// Le boss est vaincu (à la place de campVictory ; e : boss de la campagne, null à l'église) : un cœur de plus, le copain
+// dans sa bulle revient, puis le boss suivant ; après le dernier, les mariés explosent en confettis et le résultat s'affiche
 function rushWin(e) {
-  foeDefeatFx(e.B.defeat, e.x + e.w / 2, e.y + e.h / 2, true);
+  if (e) foeDefeatFx(e.B.defeat, e.x + e.w / 2, e.y + e.h / 2, true);
   for (const p of players) { if (p.dead) coopRevive(p, true); p.hp = Math.min(df().hp, p.hp + 1); p.gauge = 1; }
   rush.hp = players.map(p => p.hp);
   rush.i++;
-  if (rush.i >= CWORLDS.length) { rushEnd(); return; }
+  if (rush.i >= RUSH_TOTAL) { if (state === "eglise") { egConfetti(); audio.sfx("victory"); } rush.next = 2.5; return; }
   rush.next = 2.2; msg = { text: "Boss suivant !", t: 2 }; voice.say("Boss suivant !", true);
 }
-// Appelé par updateCamp : pause entre deux boss, puis fondu
+// Appelé par updateCamp et par l'église : pause entre deux boss, fondu, puis le boss suivant (ou le résultat)
 function updateRush(dt) {
   if (!rush || rush.next <= 0) return;
   rush.next -= dt;
-  if (rush.next < 0.4) campFade = Math.min(1, 1 - rush.next / 0.4);
-  if (rush.next <= 0) rushLoad();
+  const last = rush.i >= RUSH_TOTAL;
+  if (rush.next < 0.4 && !last) { const f = Math.min(1, 1 - rush.next / 0.4); if (state === "eglise") EG.fade = Math.max(EG.fade, f); else campFade = f; }
+  if (rush.next <= 0) { if (last) rushEnd(); else rushLoad(); }
 }
 function rushEnd() {
   const k = rushKey(), prev = rushBest(), rec = prev === undefined || rush.t < prev;
@@ -78,7 +87,8 @@ SCREENS.rushres = {
   },
   draw() {
     const r = rush.res;
-    drawCampWorld(); R(0, 0, VW, VH, "rgba(10,6,24,0.82)");
+    if (lvl.eglise) SCREENS.eglise.draw(); else drawCampWorld();
+    R(0, 0, VW, VH, "rgba(10,6,24,0.82)");
     text("Boss rush terminé !", VW / 2, 56, 22, "#ff5a7a", "center", "#ff5a7a");
     text(`${df().label}  ·  ${COOP.on ? "à deux" : "en solo"}`, VW / 2, 80, 9, "#e8dcff", "center");
     text(`Temps : ${fmtTime(r.time)}` + (r.rec ? "   Nouveau record !" : ""), VW / 2, 104, 12, r.rec ? "#fccc28" : "#ffffff", "center");

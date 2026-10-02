@@ -1322,7 +1322,7 @@ function drawCampHUD() {
   const d = df(), C = ch(), W = CWORLDS[camp.wi], R0 = campRoom(), P1 = player1();
   R(0, 0, VW, 16, "rgba(10,6,24,0.7)");
   const accent = MACHINE_FX[W.id][0];
-  const tag = rush ? `Boss rush  ${Math.min(rush.i + 1, CWORLDS.length)}/${CWORLDS.length}` : lvl.bossSpawn ? `${W.name}  BOSS` : `${W.name}  ${camp.ri + 1}/${W.rooms.length - 1}`;
+  const tag = rush ? `Boss rush  ${Math.min(rush.i + 1, RUSH_TOTAL)}/${RUSH_TOTAL}` : lvl.bossSpawn ? `${W.name}  BOSS` : `${W.name}  ${camp.ri + 1}/${W.rooms.length - 1}`;
   text(tag, 6, 8, 9, accent);
   ctx.font = `700 9px ${FONT}`; const nw = ctx.measureText(tag).width;
   text(R0.name, 14 + nw, 8, 9, "#e8dcff");

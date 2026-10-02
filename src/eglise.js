@@ -314,11 +314,31 @@ function egliseMusic() {
 // Fin du combat d'une étape : quand tous les boss sont à terre
 function egCheckWin() {
   if (EG.st !== "fight" || enemies.some(b => !b.down)) return;
-  EG.st = "talk"; lasers = lasers.filter(l => !l.eg); EG.poops = []; EG.nextT = 1.2;
+  EG.st = "talk"; lasers = lasers.filter(l => !l.eg); EG.poops = [];
+  if (rush) { rushWin(null); return; }   // boss rush : pas de dialogue, le combat suivant
+  EG.nextT = 1.2;
+}
+// Boss rush (rush.js) : un combat de l'église (étape i de EG_SCRIPT), sans dialogue ; l'arène est préparée en arrivant
+function egRushFight(i) {
+  const S = EG_SCRIPT[i];
+  if (state !== "eglise") {
+    egArena();
+    pickups = []; ghosts = []; fxs = []; mach = null; chal = null; roomTime = 0; hitstop = 0; hub.dlg = null;
+    Object.assign(EG, { st: "talk", t: 0, trans: null, paused: false, music: null, deathT: 0, endT: 0, nextT: 0, loudT: 0, saidEnd: false });
+    audio.resume.add(EG_MUSIC); state = "eglise";
+  }
+  enemies = []; lasers = []; parts = [];
+  Object.assign(EG, { step: i, plan: S.plan, fade: 1, bosses: [], extras: [], poops: [], bubbles: [], brieEdge: null });
+  players = makePlayers(); egPlace(); rushApply(false);
+  egFight(S);
 }
 // Fin : les mariés explosent en confettis, Brie remue la queue, et le niveau est fini
 function egEnd() {
-  EG.st = "end"; EG.endT = 0; shake = 10; audio.sfx("boom"); rumble(600, 1, 0.8);
+  EG.st = "end"; EG.endT = 0;
+  egConfetti();
+}
+function egConfetti() {
+  shake = 10; audio.sfx("boom"); rumble(600, 1, 0.8);
   for (const b of EG.bosses) { b.gone = true; for (let k = 0; k < 90; k++) parts.push({ x: egCx(b) + (Math.random() - 0.5) * 20, y: b.y + Math.random() * b.h, vx: (Math.random() - 0.5) * 340, vy: -120 - Math.random() * 300, life: 1.6 + Math.random(), max: 2.6, color: ["#ff4f8a", "#fccc28", "#5ef0ff", "#7dffb0", "#c86eff", "#ffffff"][k % 6], size: 2 + (k % 2), grav: 320 }); }
   if (EG.brieEdge) EG.brieEdge.happy = true;
   audio.sfx("victory");
@@ -334,6 +354,7 @@ function egRetry() {
   players = makePlayers(); egPlace();
   EG.bosses = EG.bosses.filter(b => b.down && !(S.fight || []).includes(b.id)); lasers = []; parts = []; EG.poops = []; EG.bubbles = [];
   if (S.fight) egFight(S);
+  if (rush) rushApply(true);
   msg = { text: "On recommence !", t: 2 };
 }
 
@@ -346,6 +367,7 @@ SCREENS.eglise = {
     if (hitstop > 0) { hitstop -= rdt; return; }
     const dt = rdt * (slowOn ? 0.35 : 1);
     EG.t += dt; roomTime += dt; EG.fade = Math.max(0, EG.fade - rdt * 1.5); if (msg && msg.t > 0) msg.t -= rdt;
+    if (rush && !rush.res) { rush.t += rdt; updateRush(rdt); if (state !== "eglise") return; }
     if (EG.st === "fight") EG.fightT += rdt;
     if (EG.nextT > 0 && (EG.nextT -= rdt) <= 0) { egStep(EG.step + 1); return; }
     if (EG.loudT > 0 && (EG.loudT -= rdt) <= 0) audio.setLevel(EG_LEVEL, 1);
@@ -385,7 +407,7 @@ SCREENS.eglise = {
     EG.bubbles = EG.bubbles.filter(b => b.t > 0 && (b.edge || (EG.bosses.includes(b.e) && !b.e.gone)));
     egCheckWin();
     // le héros est tombé : on recommence ce combat
-    if (roomLost()) { EG.deathT += rdt; if (EG.deathT > 1.6) { EG.deathT = 0; egRetry(); } }
+    if (roomLost() && !(rush && rush.next > 0)) { EG.deathT += rdt; if (EG.deathT > 1.6) { EG.deathT = 0; egRetry(); } }
     if (EG.st === "end") {
       EG.endT += rdt;
       if (EG.endT > 2.5 && !EG.saidEnd) { EG.saidEnd = true; startDialog(EG_DLG.apres, () => {}); }
@@ -443,8 +465,8 @@ SCREENS.eglise = {
     }
     // haut de l'écran : lieu, cœurs, pouvoir
     R(0, 0, VW, 16, "rgba(10,6,24,0.7)");
-    text("L'église", 6, 8, 9, "#ff5a7a");
-    text(["Le parvis", "Les marches", "La nef"][EG.plan], 58, 8, 8, "#e8dcff");
+    if (rush) { text(`Boss rush  ${Math.min(rush.i + 1, RUSH_TOTAL)}/${RUSH_TOTAL}`, 6, 8, 9, "#ff5a7a"); text(fmtTime(rush.t), VW / 2, 8, 9, ch().ui, "center"); }
+    else { text("L'église", 6, 8, 9, "#ff5a7a"); text(["Le parvis", "Les marches", "La nef"][EG.plan], 58, 8, 8, "#e8dcff"); }
     const d = df(); let hx = VW - (TOUCH && !PAD ? 52 : 8);
     if (d.id === "doom") text("☠ DOOM", hx, 8, 9, d.color, "right", d.color);
     else {

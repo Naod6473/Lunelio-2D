@@ -245,7 +245,7 @@ const BADGES = [
 const MEDALS = {
   "01_centrale": [240, 360, 600], "02_usine": [270, 400, 660], "03_temple": [300, 440, 720],
   "04_volcan": [300, 440, 720], "05_port": [330, 480, 780], "06_grotte": [330, 480, 780],
-  rush: [300, 480, 780],
+  rush: [480, 720, 1140],
 };
 const MEDAL_NAMES = ["", "bronze", "argent", "or"], MEDAL_COLS = ["", "#cd7f32", "#d8e0f0", "#ffd23c"];
 const MEDAL_LABELS = ["", "Médaille de bronze", "Médaille d'argent", "Médaille d'or"];

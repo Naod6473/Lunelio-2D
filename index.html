@@ -3413,7 +3413,7 @@ function drawCampHUD() {
   const d = df(), C = ch(), W = CWORLDS[camp.wi], R0 = campRoom(), P1 = player1();
   R(0, 0, VW, 16, "rgba(10,6,24,0.7)");
   const accent = MACHINE_FX[W.id][0];
-  const tag = rush ? `Boss rush  ${Math.min(rush.i + 1, CWORLDS.length)}/${CWORLDS.length}` : lvl.bossSpawn ? `${W.name}  BOSS` : `${W.name}  ${camp.ri + 1}/${W.rooms.length - 1}`;
+  const tag = rush ? `Boss rush  ${Math.min(rush.i + 1, RUSH_TOTAL)}/${RUSH_TOTAL}` : lvl.bossSpawn ? `${W.name}  BOSS` : `${W.name}  ${camp.ri + 1}/${W.rooms.length - 1}`;
   text(tag, 6, 8, 9, accent);
   ctx.font = `700 9px ${FONT}`; const nw = ctx.measureText(tag).width;
   text(R0.name, 14 + nw, 8, 9, "#e8dcff");
@@ -3793,7 +3793,7 @@ const BADGES = [
 const MEDALS = {
   "01_centrale": [240, 360, 600], "02_usine": [270, 400, 660], "03_temple": [300, 440, 720],
   "04_volcan": [300, 440, 720], "05_port": [330, 480, 780], "06_grotte": [330, 480, 780],
-  rush: [300, 480, 780],
+  rush: [480, 720, 1140],
 };
 const MEDAL_NAMES = ["", "bronze", "argent", "or"], MEDAL_COLS = ["", "#cd7f32", "#d8e0f0", "#ffd23c"];
 const MEDAL_LABELS = ["", "Médaille de bronze", "Médaille d'argent", "Médaille d'or"];
@@ -6093,12 +6093,15 @@ function coopCharsDraw() {
 }
 
 /* ---------------- Boss rush ---------------- */
-// Carte de l'écran des mondes (RUSH_CARD, après les 6 mondes) : les 6 boss de la campagne d'affilée, dans leurs arènes.
+// Carte de l'écran des mondes (RUSH_CARD, après les 6 mondes) : les 6 boss de la campagne d'affilée, dans leurs arènes, puis
+// les combats de l'église (Brie, Jules, Laurène, puis le duo ; RUSH_EG : étapes de EG_SCRIPT), sans dialogue.
 // rush : { i (boss en cours), t (chrono, temps réel en jeu), hp (cœurs gardés d'un boss à l'autre), startHp, next (pause
 // entre deux boss), res (résultat) }. Perdre recommence le boss en cours, avec les cœurs du début de ce combat ; le chrono
 // continue. Record par difficulté, en solo et à deux : SAVE.rush.best["diff|1"] ou ["diff|2"].
 // Ni pièce, ni arme, ni chaussette : le boss rush ne compte que pour le record (et ses badges).
 let rush = null;
+const RUSH_EG = [0, 2, 4, 5], RUSH_TOTAL = CWORLDS.length + RUSH_EG.length;
+const rushName = i => i < CWORLDS.length ? BIG[CWORLDS[i].boss].name : EG_SCRIPT[RUSH_EG[i - CWORLDS.length]].fight.map(id => EGB[id].name).join(" et ");
 const rushOpen = () => campProgress() >= CWORLDS.length;
 const rushKey = () => `${df().id}|${COOP.on ? 2 : 1}`;
 const rushBest = () => (SAVE.rush.best || {})[rushKey()];
@@ -6108,10 +6111,14 @@ function startRush() {
   rushLoad();
 }
 function rushLoad() {
-  const wi = rush.i, W = CWORLDS[wi], ri = W.rooms.length - 1;
-  camp.ckpt = ri; camp.fromStart = false;   // en Doom aussi, on recommence ce boss
-  loadCampRoom(wi, ri, { fadeIn: true });
-  msg = { text: `Boss ${wi + 1} sur ${CWORLDS.length} : ${BIG[W.boss].name}`, t: 2.4 };
+  const i = rush.i;
+  if (i >= CWORLDS.length) egRushFight(RUSH_EG[i - CWORLDS.length]);   // l'église (eglise.js)
+  else {
+    const W = CWORLDS[i], ri = W.rooms.length - 1;
+    camp.ckpt = ri; camp.fromStart = false;   // en Doom aussi, on recommence ce boss
+    loadCampRoom(i, ri, { fadeIn: true });
+  }
+  msg = { text: `Boss ${i + 1} sur ${RUSH_TOTAL} : ${rushName(i)}`, t: 2.4 };
 }
 // Appelé par loadCampRoom : cœurs gardés d'un boss à l'autre ; un combat recommencé repart avec les cœurs de son début
 function rushApply(restart) {
@@ -6119,21 +6126,23 @@ function rushApply(restart) {
   const hp = rush.startHp;
   if (hp) for (const p of players) p.hp = clamp(hp[p.idx] ?? df().hp, 1, df().hp);
 }
-// Le boss est vaincu (à la place de campVictory) : un cœur de plus, le copain dans sa bulle revient, puis le boss suivant
+// Le boss est vaincu (à la place de campVictory ; e : boss de la campagne, null à l'église) : un cœur de plus, le copain
+// dans sa bulle revient, puis le boss suivant ; après le dernier, les mariés explosent en confettis et le résultat s'affiche
 function rushWin(e) {
-  foeDefeatFx(e.B.defeat, e.x + e.w / 2, e.y + e.h / 2, true);
+  if (e) foeDefeatFx(e.B.defeat, e.x + e.w / 2, e.y + e.h / 2, true);
   for (const p of players) { if (p.dead) coopRevive(p, true); p.hp = Math.min(df().hp, p.hp + 1); p.gauge = 1; }
   rush.hp = players.map(p => p.hp);
   rush.i++;
-  if (rush.i >= CWORLDS.length) { rushEnd(); return; }
+  if (rush.i >= RUSH_TOTAL) { if (state === "eglise") { egConfetti(); audio.sfx("victory"); } rush.next = 2.5; return; }
   rush.next = 2.2; msg = { text: "Boss suivant !", t: 2 }; voice.say("Boss suivant !", true);
 }
-// Appelé par updateCamp : pause entre deux boss, puis fondu
+// Appelé par updateCamp et par l'église : pause entre deux boss, fondu, puis le boss suivant (ou le résultat)
 function updateRush(dt) {
   if (!rush || rush.next <= 0) return;
   rush.next -= dt;
-  if (rush.next < 0.4) campFade = Math.min(1, 1 - rush.next / 0.4);
-  if (rush.next <= 0) rushLoad();
+  const last = rush.i >= RUSH_TOTAL;
+  if (rush.next < 0.4 && !last) { const f = Math.min(1, 1 - rush.next / 0.4); if (state === "eglise") EG.fade = Math.max(EG.fade, f); else campFade = f; }
+  if (rush.next <= 0) { if (last) rushEnd(); else rushLoad(); }
 }
 function rushEnd() {
   const k = rushKey(), prev = rushBest(), rec = prev === undefined || rush.t < prev;
@@ -6172,7 +6181,8 @@ SCREENS.rushres = {
   },
   draw() {
     const r = rush.res;
-    drawCampWorld(); R(0, 0, VW, VH, "rgba(10,6,24,0.82)");
+    if (lvl.eglise) SCREENS.eglise.draw(); else drawCampWorld();
+    R(0, 0, VW, VH, "rgba(10,6,24,0.82)");
     text("Boss rush terminé !", VW / 2, 56, 22, "#ff5a7a", "center", "#ff5a7a");
     text(`${df().label}  ·  ${COOP.on ? "à deux" : "en solo"}`, VW / 2, 80, 9, "#e8dcff", "center");
     text(`Temps : ${fmtTime(r.time)}` + (r.rec ? "   Nouveau record !" : ""), VW / 2, 104, 12, r.rec ? "#fccc28" : "#ffffff", "center");
@@ -6863,11 +6873,31 @@ function egliseMusic() {
 // Fin du combat d'une étape : quand tous les boss sont à terre
 function egCheckWin() {
   if (EG.st !== "fight" || enemies.some(b => !b.down)) return;
-  EG.st = "talk"; lasers = lasers.filter(l => !l.eg); EG.poops = []; EG.nextT = 1.2;
+  EG.st = "talk"; lasers = lasers.filter(l => !l.eg); EG.poops = [];
+  if (rush) { rushWin(null); return; }   // boss rush : pas de dialogue, le combat suivant
+  EG.nextT = 1.2;
+}
+// Boss rush (rush.js) : un combat de l'église (étape i de EG_SCRIPT), sans dialogue ; l'arène est préparée en arrivant
+function egRushFight(i) {
+  const S = EG_SCRIPT[i];
+  if (state !== "eglise") {
+    egArena();
+    pickups = []; ghosts = []; fxs = []; mach = null; chal = null; roomTime = 0; hitstop = 0; hub.dlg = null;
+    Object.assign(EG, { st: "talk", t: 0, trans: null, paused: false, music: null, deathT: 0, endT: 0, nextT: 0, loudT: 0, saidEnd: false });
+    audio.resume.add(EG_MUSIC); state = "eglise";
+  }
+  enemies = []; lasers = []; parts = [];
+  Object.assign(EG, { step: i, plan: S.plan, fade: 1, bosses: [], extras: [], poops: [], bubbles: [], brieEdge: null });
+  players = makePlayers(); egPlace(); rushApply(false);
+  egFight(S);
 }
 // Fin : les mariés explosent en confettis, Brie remue la queue, et le niveau est fini
 function egEnd() {
-  EG.st = "end"; EG.endT = 0; shake = 10; audio.sfx("boom"); rumble(600, 1, 0.8);
+  EG.st = "end"; EG.endT = 0;
+  egConfetti();
+}
+function egConfetti() {
+  shake = 10; audio.sfx("boom"); rumble(600, 1, 0.8);
   for (const b of EG.bosses) { b.gone = true; for (let k = 0; k < 90; k++) parts.push({ x: egCx(b) + (Math.random() - 0.5) * 20, y: b.y + Math.random() * b.h, vx: (Math.random() - 0.5) * 340, vy: -120 - Math.random() * 300, life: 1.6 + Math.random(), max: 2.6, color: ["#ff4f8a", "#fccc28", "#5ef0ff", "#7dffb0", "#c86eff", "#ffffff"][k % 6], size: 2 + (k % 2), grav: 320 }); }
   if (EG.brieEdge) EG.brieEdge.happy = true;
   audio.sfx("victory");
@@ -6883,6 +6913,7 @@ function egRetry() {
   players = makePlayers(); egPlace();
   EG.bosses = EG.bosses.filter(b => b.down && !(S.fight || []).includes(b.id)); lasers = []; parts = []; EG.poops = []; EG.bubbles = [];
   if (S.fight) egFight(S);
+  if (rush) rushApply(true);
   msg = { text: "On recommence !", t: 2 };
 }
 
@@ -6895,6 +6926,7 @@ SCREENS.eglise = {
     if (hitstop > 0) { hitstop -= rdt; return; }
     const dt = rdt * (slowOn ? 0.35 : 1);
     EG.t += dt; roomTime += dt; EG.fade = Math.max(0, EG.fade - rdt * 1.5); if (msg && msg.t > 0) msg.t -= rdt;
+    if (rush && !rush.res) { rush.t += rdt; updateRush(rdt); if (state !== "eglise") return; }
     if (EG.st === "fight") EG.fightT += rdt;
     if (EG.nextT > 0 && (EG.nextT -= rdt) <= 0) { egStep(EG.step + 1); return; }
     if (EG.loudT > 0 && (EG.loudT -= rdt) <= 0) audio.setLevel(EG_LEVEL, 1);
@@ -6934,7 +6966,7 @@ SCREENS.eglise = {
     EG.bubbles = EG.bubbles.filter(b => b.t > 0 && (b.edge || (EG.bosses.includes(b.e) && !b.e.gone)));
     egCheckWin();
     // le héros est tombé : on recommence ce combat
-    if (roomLost()) { EG.deathT += rdt; if (EG.deathT > 1.6) { EG.deathT = 0; egRetry(); } }
+    if (roomLost() && !(rush && rush.next > 0)) { EG.deathT += rdt; if (EG.deathT > 1.6) { EG.deathT = 0; egRetry(); } }
     if (EG.st === "end") {
       EG.endT += rdt;
       if (EG.endT > 2.5 && !EG.saidEnd) { EG.saidEnd = true; startDialog(EG_DLG.apres, () => {}); }
@@ -6992,8 +7024,8 @@ SCREENS.eglise = {
     }
     // haut de l'écran : lieu, cœurs, pouvoir
     R(0, 0, VW, 16, "rgba(10,6,24,0.7)");
-    text("L'église", 6, 8, 9, "#ff5a7a");
-    text(["Le parvis", "Les marches", "La nef"][EG.plan], 58, 8, 8, "#e8dcff");
+    if (rush) { text(`Boss rush  ${Math.min(rush.i + 1, RUSH_TOTAL)}/${RUSH_TOTAL}`, 6, 8, 9, "#ff5a7a"); text(fmtTime(rush.t), VW / 2, 8, 9, ch().ui, "center"); }
+    else { text("L'église", 6, 8, 9, "#ff5a7a"); text(["Le parvis", "Les marches", "La nef"][EG.plan], 58, 8, 8, "#e8dcff"); }
     const d = df(); let hx = VW - (TOUCH && !PAD ? 52 : 8);
     if (d.id === "doom") text("☠ DOOM", hx, 8, 9, d.color, "right", d.color);
     else {
@@ -7152,7 +7184,7 @@ function drawCampWorlds() {
     if (locked) { R(r.x + 4, r.y + 4, tw, th, "rgba(10,6,24,0.75)"); text("Verrouillé", r.x + r.w / 2, r.y + 30, 8, "#8a7aa8", "center"); }
     if (rushC) {
       text("⚔ Boss rush", r.x + 5, r.y + r.h - 22, 8, "#ff5a7a");
-      text("Les 6 boss d'affilée", r.x + 5, r.y + r.h - 10, 6, "#b9a6e0");
+      text("Les 6 boss, puis l'église", r.x + 5, r.y + r.h - 10, 6, "#b9a6e0");
       const b = rushBest(); if (b !== undefined) cardTime(r, th, fmtTime(b), medalOf("rush", b));
     } else if (eglise) {
       text("✝ L'église", r.x + 5, r.y + r.h - 22, 8, "#ff5a7a");
