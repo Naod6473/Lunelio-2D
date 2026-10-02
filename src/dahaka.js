@@ -1,12 +1,12 @@
 /* ---------------- Niveau secret : la course du Dahaka ---------------- */
 // Débloqué en tapant DAHAKA sur l'écran des mondes (SAVE.flags.dahaka). Deux parcours au choix (DK_LEVELS) : le temple et la grotte.
 // Niveau sans fin vers la droite, fabriqué par morceaux de 480 px (sol, trous, plateformes et pièges annoncés). Le Dahaka,
-// invincible, court derrière le héros ; il l'attrape s'il le rejoint. Un trou ou un piège ne coûte pas de cœur : le héros est
+// invincible, court derrière le héros ; il l'attrape s'il le rejoint et le mange (game over). Un trou ou un piège ne coûte pas de cœur : le héros est
 // ralenti (ou remis au bord du trou), et le Dahaka se rapproche. Score : distance en mètres (16 px = 1 m), record par difficulté
 // et par parcours dans SAVE.dahaka.best (clé « diff » pour le temple, « grotte|diff » pour la grotte).
 // Grotte : chaque morceau est une des 6 scènes (corniches peintes = plateformes, GROTTE_LEDGES), avec des rochers et des pièges
 // au hasard ; plans de parallaxe : monstres du fond (0,5), scène (1), gardiens du premier plan (1,35) ; cadre de stalactites fixe.
-const DK = { lv: "temple", st: "run", t: 0, cam: 0, chunks: [], nextX: 0, startX: 40, best: 0, dist: 0, dx: 0, dvx: 0, an: "apparait", anT: 0, paused: false, sel: 0, bg: [], guards: [] };
+const DK = { lv: "temple", st: "run", t: 0, cam: 0, chunks: [], nextX: 0, startX: 40, best: 0, dist: 0, dx: 0, dvx: 0, an: "cri", anT: 0, jumpT: 0, paused: false, sel: 0, bg: [], guards: [] };
 const DK_W = 480, DK_SECRET = "DAHAKA", DK_FG = 1.35, DK_FAR = 0.5;
 const DK_LEVELS = {
   temple: { name: "Le temple", floor: 240, wi: 2, haz: "floor_blade", glow: "160,90,255" },
@@ -39,7 +39,7 @@ function drawDahakaCard(r, tw, th) {
   ctx.imageSmoothingEnabled = false;
   R(r.x + 4, r.y + 4, tw, th, "rgba(30,8,60,0.55)");
   glow(ctx, r.x + r.w / 2, r.y + 4 + th - 16, 22, "160,90,255", 0.4);
-  if (hasAtlas("dahaka")) drawFrame("dahaka", animFrame("dahaka", "repos", time, 8), r.x + r.w / 2 - 8, r.y + 4 + th, 1, 1, 0.8);
+  if (hasAtlas("dahaka")) drawFrame("dahaka", animFrame("dahaka", "course_lente", time, 7), r.x + r.w / 2, r.y + 4 + th, 1, 1, 0.8);
 }
 // Choix du parcours (temple ou grotte), par-dessus l'écran des mondes
 let dkPick = null;
@@ -168,15 +168,15 @@ function startDahaka(lv = DK.lv) {
     machine: null, ckpt: null, start: { x: 60, y: F - 40 }, foeSpawns: [], bossSpawn: null, lastSafe: null, leaving: false, arena: null, covers: [], gold: [], qitems: [], sock: null };
   enemies = []; lasers = []; parts = []; pickups = []; ghosts = []; fxs = []; mach = null; chal = null; roomTime = 0; hitstop = 0;
   players = [makePlayer(ch(), K, 0)]; const p = players[0]; p.x = 60; p.y = F - p.h; p.hp = 1; p.inv = 0;
-  Object.assign(DK, { st: "run", t: 0, cam: 0, chunks: [], nextX: 0, dist: 0, dx: -60, dvx: 0, an: "apparait", anT: 0, paused: false, sel: 0, slowT: 0, safe: { x: 60, y: F - 32 }, warn: 0, bg: [], guards: [] });
+  Object.assign(DK, { st: "run", t: 0, cam: 0, chunks: [], nextX: 0, dist: 0, dx: -60, dvx: 0, an: "cri", anT: 0, jumpT: 0, paused: false, sel: 0, slowT: 0, safe: { x: 60, y: F - 32 }, warn: 0, bg: [], guards: [] });
   for (let i = 0; i < 3; i++) { DK.chunks.push(dkChunk(DK.nextX, 0)); DK.nextX += DK_W; }
   dkRebuild(); dkSpawnLife();
   DK.best = dkBest(lv);
-  state = "dahaka"; audio.sfx("boss_intro"); voice.say("Cours ! Le Dahaka arrive !", true);
+  state = "dahaka"; audio.sfx(pickSfx("dk_cri", "boss_intro")); voice.say("Cours ! Le Dahaka arrive !", true);
   msg = { text: "Cours ! Le Dahaka arrive !", t: 2.5 };
 }
 function dkCaught() {
-  DK.st = "caught"; DK.t = 0; DK.an = "attrape"; DK.anT = 0;
+  DK.st = "caught"; DK.t = 0; DK.an = "saisie"; DK.anT = 0; DK.ate = false;
   const m = Math.floor(DK.dist), k = dkKey(DK.lv, df().id); DK.isNew = m > (SAVE.dahaka.best[k] || 0);
   if (DK.isNew) { SAVE.dahaka.best[k] = m; saveGame(); }
   audio.sfx("bosshit"); shake = 6; rumble(400, 0.8, 0.6);
@@ -201,9 +201,16 @@ SCREENS.dahaka = {
     else { p.powerOn = !!(d.power && pw && down(...p.input.power) && p.gauge > 0); p.gauge = p.powerOn ? Math.max(0, p.gauge - d.drain * rdt) : Math.min(1, p.gauge + d.regen * rdt); }
     setTimeFx(usingPower(p, "slow"), usingPower(p, "fast"));
     for (const m of DK.bg) m.x += m.vx * dt;
+    // attrapé : il saisit le héros (qui devient une boule de lumière dans ses mains), le porte à sa bouche et l'avale ; game over
     if (DK.st === "caught") {
-      DK.t > 0.5 && (p.fade = Math.max(0, 1 - (DK.t - 0.5) * 2));
-      if (DK.t > 1.6) { DK.st = "result"; DK.sel = 0; setTimeFx(false, false); audio.sfx(DK.isNew ? "victory" : "gameover"); }
+      p.vx = p.vy = 0;
+      // le héros glisse dans ses mains tendues (≈ 35 px devant ses pieds, 29 px au-dessus du sol)
+      const k = Math.min(1, dt * 10), F = DKL().floor;
+      p.x += (DK.dx + 30 - p.x) * k; p.y += (F - 13 - p.h - p.y) * k;
+      if (DK.t > 0.35) p.fade = Math.max(0, 1 - (DK.t - 0.35) * 4);
+      if (DK.t > 0.6 && DK.an === "saisie") { DK.an = "mise_en_bouche"; DK.anT = 0; }
+      if (DK.an === "mise_en_bouche" && !DK.ate && DK.anT > 3 / 7) { DK.ate = true; audio.sfx(pickSfx("dk_croque", "bosshit")); shake = 4; rumble(250, 0.6, 0.4); }
+      if (DK.t > 1.9) { DK.st = "result"; DK.sel = 0; setTimeFx(false, false); audio.sfx(DK.isNew ? "victory" : "gameover"); }
       updateParts(dt); return;
     }
     // héros : ralenti après un piège ou une chute
@@ -231,14 +238,18 @@ SCREENS.dahaka = {
     DK.dist = Math.max(DK.dist, (p.x - DK.startX) / 16);
     // le Dahaka : il court (un peu plus vite avec la distance), passe au-dessus des trous, et se rapproche s'il est trop loin
     const sp = Math.min(dkSpeed() + DK.dist * 0.06, dkSpeed() + 40) * (slowOn ? 0.35 : 1);
-    if (!(DK.an === "apparait" && DK.anT < 0.6)) {   // il sort d'abord de la fumée
-      DK.an = "course"; DK.dx += sp * rdt;
+    if (!(DK.an === "cri" && DK.anT < 0.75)) {   // il pousse d'abord son cri
+      DK.dx += sp * rdt;
       if (p.x - DK.dx > 260) DK.dx = p.x - 260;   // jamais trop loin : la poursuite reste tendue
+      // au bord d'un trou, il saute par-dessus ; sinon il court, plus vite quand il talonne le héros
+      DK.jumpT = Math.max(0, DK.jumpT - rdt);
+      if (DK.jumpT <= 0 && !lvl.solids.some(s => DK.dx + 24 >= s.x && DK.dx + 24 <= s.x + s.w)) { DK.jumpT = 0.67; DK.anT = 0; }
+      DK.an = DK.jumpT > 0 ? "saut" : p.x - DK.dx < 150 ? "course_rapide" : "course_lente";
     }
-    const gap = p.x - DK.dx;
-    DK.warn = Math.max(0, 1 - (gap - 30) / 150);
-    if (gap < 70 && Math.floor(DK.t * 6) % 2) shake = Math.max(shake, 1);
-    if (gap < 22) dkCaught();
+    const gap = p.x - DK.dx;   // le Dahaka mesure ≈ 64 px de large : son avant est à 30 px de son repère
+    DK.warn = Math.max(0, 1 - (gap - 40) / 150);
+    if (gap < 80 && Math.floor(DK.t * 6) % 2) shake = Math.max(shake, 1);
+    if (gap < 32) dkCaught();
     updateParts(dt); updateFx(dt);
   },
   draw() {
@@ -261,7 +272,8 @@ SCREENS.dahaka = {
     }
     for (const h of lvl.hazards) drawCampHazard(h);
     // le Dahaka : lueur (il est très sombre), puis la planche
-    const fr = DK.st === "caught" ? animFrame("dahaka", "attrape", DK.anT, 8, false) : DK.an === "apparait" ? animFrame("dahaka", "apparait", DK.anT, 10, false) : animFrame("dahaka", "course", DK.t, 10);
+    const FPS = { cri: 8, course_lente: 7, course_rapide: 12, saut: 9, saisie: 10, mise_en_bouche: 7 }, once = ["cri", "saut", "saisie", "mise_en_bouche"].includes(DK.an);
+    const fr = animFrame("dahaka", DK.an, once ? DK.anT : DK.t, FPS[DK.an] || 10, !once);
     glow(ctx, DK.dx, F - 28, 48, L.glow, 0.45 + 0.1 * Math.sin(time * 5));
     if (hasAtlas("dahaka")) drawFrame("dahaka", fr, Math.round(DK.dx), F, 1);
     else { R(DK.dx - 14, F - 50, 28, 50, "#1a1028"); R(DK.dx + 4, F - 44, 4, 3, "#9fb0ff"); }
@@ -289,10 +301,11 @@ SCREENS.dahaka = {
     }
     if (DK.st === "result") {
       R(0, 0, VW, VH, "rgba(10,6,24,0.75)");
-      text("Le Dahaka t'a attrapé !", VW / 2, 92, 16, "#c86eff", "center", "#c86eff");
+      text("Game over", VW / 2, 80, 18, "#c86eff", "center", "#c86eff");
+      text("Le Dahaka t'a mangé !", VW / 2, 102, 10, "#e8dcff", "center");
       text(`Tu as couru ${Math.floor(DK.dist)} m`, VW / 2, 124, 12, "#ffffff", "center");
       text(DK.isNew ? "Nouveau record !" : `Record : ${Math.max(DK.best, Math.floor(DK.dist))} m`, VW / 2, 146, 10, DK.isNew ? "#7dffb0" : "#fccc28", "center");
-      text("Il te relâche dans un tourbillon de sable… et tu peux retenter ta chance !", VW / 2, 170, 7, "#b9a6e0", "center");
+      text("Cours encore plus vite la prochaine fois !", VW / 2, 170, 7, "#b9a6e0", "center");
       drawButton({ x: 150, y: 196, w: 84, h: 20 }, "Rejouer", DK.sel === 0, "#c86eff", 9);
       drawButton({ x: 246, y: 196, w: 84, h: 20 }, "Laverie", DK.sel === 1, "#b9a6e0", 9);
     }

@@ -210,62 +210,26 @@ def prepare_hero(name, base, anims):
 # Dahaka (niveau secret) : planche en 5 lignes de hauteur connue, découpées en cases (la 3e ligne a une image très large).
 # Chaque case est réduite à la même échelle, posée sur la même ligne de pieds ; le corps reste au même endroit (ax), un bras
 # tendu déborde vers la droite.
-DAHAKA_ROWS = [(22, 178, 6), (190, 338, 6), (353, 493, [(0, 112), (100, 250), (210, 345), (330, 560), (550, 675)]), (506, 657, 6), (667, 819, 6)]
-DAHAKA_ANIMS = {"repos": [0, 6], "course": [6, 6], "attrape": [12, 5], "apparait": [17, 6], "disparait": [23, 6]}
-
-def components(im):
-    """Taches de pixels (alpha > 40, voisins en 8 directions) : listes de (x, y)."""
-    px = im.load(); w, h = im.size; seen = bytearray(w * h); out = []
-    for y0 in range(h):
-        for x0 in range(w):
-            if seen[y0 * w + x0] or px[x0, y0][3] <= 40: continue
-            comp, stack = [], [(x0, y0)]; seen[y0 * w + x0] = 1
-            while stack:
-                x, y = stack.pop(); comp.append((x, y))
-                for dx in (-1, 0, 1):
-                    for dy in (-1, 0, 1):
-                        nx, ny = x + dx, y + dy
-                        if 0 <= nx < w and 0 <= ny < h and not seen[ny * w + nx] and px[nx, ny][3] > 40:
-                            seen[ny * w + nx] = 1; stack.append((nx, ny))
-            out.append(comp)
-    return out
+# Dahaka (niveau secret) : planche « démon spectral » 6 × 6 cases de 192 px, repère commun (96, 160) aux pieds, tourné vers la droite.
+# Lignes : course lente, course rapide, saut, saisie, mise à la bouche, cri.
+DAHAKA_SRC, DAHAKA_CELL, DAHAKA_FOOT, DAHAKA_SCALE = "dahaka/demon_spectral.png", 192, (96, 160), 0.65
+DAHAKA_ANIMS = {"course_lente": [0, 6], "course_rapide": [6, 6], "saut": [12, 6], "saisie": [18, 6], "mise_en_bouche": [24, 6], "cri": [30, 6]}
 
 def prepare_dahaka():
-    png = os.path.join(SRC, "dahaka.png")
+    png = os.path.join(SRC, DAHAKA_SRC)
     if not os.path.exists(png): return None
-    im = unmagenta(Image.open(png)); W = im.width
-    cw, ch, ax, ay, cols, height = 96, 64, 32, 62, 6, 56
-    frames = []   # (image d'une case avec seulement son Dahaka, x du corps)
-    for y0, y1, cuts in DAHAKA_ROWS:
-        wins = [(round(i * W / cuts), round((i + 1) * W / cuts)) for i in range(cuts)] if isinstance(cuts, int) else cuts
-        for x0, x1 in wins:
-            cell = im.crop((x0, y0, x1, y1)); cp = cell.load()
-            comps = sorted(components(cell), key=len, reverse=True)
-            if not comps: frames.append((cell, cell.width / 2)); continue
-            # la plus grande tache (le Dahaka), plus les petits éclats qui ne touchent pas les bords gauche et droit
-            # (ce qui touche un bord appartient à l'image voisine : les images se chevauchent dans la planche)
-            keep = [comps[0]] + [c for c in comps[1:] if not any(x in (0, cell.width - 1) for x, _ in c)]
-            f = Image.new("RGBA", cell.size); fp = f.load()
-            for c in keep:
-                for x, y in c: fp[x, y] = cp[x, y]
-            low = [x for x, y in comps[0] if y > cell.height * 0.6] or [x for x, _ in comps[0]]
-            frames.append((f, sum(low) / len(low)))
-    ref = [bbox(f) for f, _ in frames[:6]]
-    s = height / max(b[3] - b[1] for b in ref if b)
-    sheet = Image.new("RGBA", (cw * cols, ch * ((len(frames) + cols - 1) // cols)))
-    for i, (f, bx) in enumerate(frames):
-        b = bbox(f)
-        if not b: continue
-        part = f.crop(b)
-        small = part.resize((max(1, round(part.width * s)), max(1, round(part.height * s))), Image.BOX)
-        small.putalpha(small.split()[3].point(lambda v: 255 if v > 110 else 0))
-        ox = round(ax - (bx - b[0]) * s)                  # corps sur ax
-        oy = ay - round((f.height - b[1]) * s)             # bas de la ligne sur ay
-        cell = Image.new("RGBA", (cw, ch)); cell.paste(small, (ox, oy), small)
-        sheet.paste(cell, ((i % cols) * cw, (i // cols) * ch), cell)
+    im = Image.open(png).convert("RGBA"); n, s = DAHAKA_CELL, DAHAKA_SCALE
+    cols, rows = im.width // n, im.height // n
+    cw = ch = round(n * s); ax, ay = round(DAHAKA_FOOT[0] * s), round(DAHAKA_FOOT[1] * s)
+    sheet = Image.new("RGBA", (cw * cols, ch * rows))
+    for r in range(rows):
+        for c in range(cols):
+            cell = im.crop((c * n, r * n, (c + 1) * n, (r + 1) * n)).resize((cw, ch), Image.BOX)   # même échelle partout : le repère reste en place
+            cell.putalpha(cell.split()[3].point(lambda v: 255 if v > 110 else 0))                 # alpha net
+            sheet.paste(cell, (c * cw, r * ch))
     os.makedirs(OUT, exist_ok=True)
     sheet.save(os.path.join(OUT, "dahaka.png"), optimize=True)
-    return {"src": "assets/laverie/dahaka.png", "cw": cw, "ch": ch, "ax": ax, "ay": ay, "cols": cols, "anims": DAHAKA_ANIMS, "note": "Dahaka (niveau secret)"}
+    return {"src": "assets/laverie/dahaka.png", "cw": cw, "ch": ch, "ax": ax, "ay": ay, "cols": cols, "anims": DAHAKA_ANIMS, "note": "Dahaka (niveau secret) : démon spectral"}
 
 def fade_foreground():
     """Cadres de premier plan de la grotte : en bas (sous y = 150), seuls les bords gauche et droit restent, fondus vers le milieu."""

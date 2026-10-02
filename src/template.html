@@ -466,7 +466,7 @@ const SFX_FILES = {
   quest_item: "sfx/collecte/objet_quete", crystal: "sfx/collecte/cristal",
   laser: "sfx/ennemis/laser", aim: "sfx/ennemis/visee", def_robot: "sfx/ennemis/defaite_robot", def_slime: "sfx/ennemis/defaite_slime",
   def_ombre: "sfx/ennemis/defaite_ombre", def_lave: "sfx/ennemis/defaite_lave", def_etoiles: "sfx/ennemis/defaite_etoiles",
-  boss_intro: "sfx/boss/intro", bosshit: "sfx/boss/coup_boss", transform: "sfx/boss/transformation", wave: "sfx/boss/onde_choc", boss_defeat: "sfx/boss/defaite",
+  boss_intro: "sfx/boss/intro", dk_cri: "sfx/boss/dahaka_cri", dk_croque: "sfx/boss/dahaka_croque", bosshit: "sfx/boss/coup_boss", transform: "sfx/boss/transformation", wave: "sfx/boss/onde_choc", boss_defeat: "sfx/boss/defaite",
   zap: "sfx/pieges/electricite", alert: "sfx/pieges/alerte", jet: "sfx/pieges/jet_eau", flames: "sfx/pieges/flammes", break: "sfx/pieges/mur_casse", flag: "sfx/pieges/drapeau",
   door: "sfx/machine/porte", unlock: "sfx/machine/deverrouillage", machine: "sfx/machine/demarrage", drum: "sfx/machine/tambour", spin: "sfx/machine/depart", arrive: "sfx/machine/arrivee", dial: "sfx/machine/programmateur",
   page: "sfx/laverie/album_page", locker: "sfx/laverie/armoire", equip: "sfx/laverie/equiper", coin: "sfx/laverie/jukebox_piece", deco_book: "sfx/laverie/livre_deco",
@@ -609,7 +609,7 @@ const audio = {
       case "def_slime": this.tone("sine", 500, t, 0.18, 0.3, d, 120); this.noiseHit(t, 0.12, 0.3, "lowpass", 1400, d); break;
       case "def_ombre": this.noiseHit(t, 0.3, 0.4, "highpass", 2000, d); this.tone("triangle", 700, t, 0.25, 0.1, d, 200); break;
       case "def_etoiles": this.arp([0, 7, 12, 19], 880, t, 0.04, "triangle", 0.09, 0.12); this.noiseHit(t, 0.1, 0.2, "highpass", 4000, d); break;
-      case "bosshit": this.tone("square", 220, t, 0.12, 0.2, d, 90); this.noiseHit(t, 0.1, 0.4, "bandpass", 1500, d); break;
+      case "bosshit": case "dk_croque": this.tone("square", 220, t, 0.12, 0.2, d, 90); this.noiseHit(t, 0.1, 0.4, "bandpass", 1500, d); break;
       case "victory": this.arp([0, 4, 7, 12, 16], 392, t + 0.3, 0.09, "square", 0.09, 0.25); this.duck(2); break;
       case "heal": case "heart": case "energy": case "pw_heal": this.arp([0, 7, 12], 660, t, 0.06, "triangle", 0.12); break;
       case "deflect": this.tone("square", 600, t, 0.12, 0.15, d, 2400); this.tone("triangle", 1800, t, 0.2, 0.15, d); break;
@@ -634,7 +634,7 @@ const audio = {
       case "nope": this.tone("square", 200, t, 0.1, 0.08, d, 150); break;
       case "unlock": this.tone("square", 900, t, 0.05, 0.08, d, 900); this.arp([0, 4, 7, 12], 523, t + 0.06, 0.06, "triangle", 0.08, 0.2); break;
       case "transform": this.tone("sawtooth", 120, t, 0.6, 0.18, d, 520); this.noiseHit(t, 0.5, 0.4, "bandpass", 900, d); break;
-      case "boss_intro": this.tone("sawtooth", 90, t, 0.8, 0.16, d, 60); this.tone("square", 180, t + 0.2, 0.5, 0.06, d, 170); break;
+      case "boss_intro": case "dk_cri": this.tone("sawtooth", 90, t, 0.8, 0.16, d, 60); this.tone("square", 180, t + 0.2, 0.5, 0.06, d, 170); break;
       // chaussette : un « pouic » puis un petit carillon
       case "sock": this.tone("square", 900, t, 0.08, 0.1, d, 1500); this.arp([0, 4, 7, 12], 1047, t + 0.08, 0.05, "triangle", 0.1, 0.16); break;
       case "sock_bonus": this.tone("square", 900, t, 0.08, 0.1, d, 1500); this.arp([0, 4, 7, 12, 16, 19, 24], 1047, t + 0.08, 0.04, "triangle", 0.1, 0.16); break;
