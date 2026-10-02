@@ -217,12 +217,13 @@ def prepare_hero(name, base, anims):
 DAHAKA_SRC, DAHAKA_CELL, DAHAKA_FOOT, DAHAKA_SCALE = "dahaka/demon_spectral.png", 192, (96, 160), 0.65
 DAHAKA_ANIMS = {"course_lente": [0, 6], "course_rapide": [6, 6], "saut": [12, 6], "saisie": [18, 6], "mise_en_bouche": [24, 6], "cri": [30, 6]}
 
-def prepare_dahaka():
-    png = os.path.join(SRC, DAHAKA_SRC)
+def prepare_grid(name, rel, n, foot, s, anims, note):
+    """Planche en cases régulières de n px, repère commun foot (pieds), réduite à l'échelle s (même échelle partout)."""
+    png = os.path.join(SRC, rel)
     if not os.path.exists(png): return None
-    im = Image.open(png).convert("RGBA"); n, s = DAHAKA_CELL, DAHAKA_SCALE
+    im = Image.open(png).convert("RGBA")
     cols, rows = im.width // n, im.height // n
-    cw = ch = round(n * s); ax, ay = round(DAHAKA_FOOT[0] * s), round(DAHAKA_FOOT[1] * s)
+    cw = ch = round(n * s); ax, ay = round(foot[0] * s), round(foot[1] * s)
     sheet = Image.new("RGBA", (cw * cols, ch * rows))
     for r in range(rows):
         for c in range(cols):
@@ -230,8 +231,104 @@ def prepare_dahaka():
             cell.putalpha(cell.split()[3].point(lambda v: 255 if v > 110 else 0))                 # alpha net
             sheet.paste(cell, (c * cw, r * ch))
     os.makedirs(OUT, exist_ok=True)
-    sheet.save(os.path.join(OUT, "dahaka.png"), optimize=True)
-    return {"src": "assets/laverie/dahaka.png", "cw": cw, "ch": ch, "ax": ax, "ay": ay, "cols": cols, "anims": DAHAKA_ANIMS, "note": "Dahaka (niveau secret) : démon spectral"}
+    sheet.save(os.path.join(OUT, name + ".png"), optimize=True)
+    return {"src": f"assets/laverie/{name}.png", "cw": cw, "ch": ch, "ax": ax, "ay": ay, "cols": cols, "anims": anims, "note": note}
+
+def prepare_dahaka():
+    return prepare_grid("dahaka", DAHAKA_SRC, DAHAKA_CELL, DAHAKA_FOOT, DAHAKA_SCALE, DAHAKA_ANIMS, "Dahaka (niveau secret) : démon spectral")
+
+# L'église : Jules et Laurène (cases de 192 px, pieds en (96, 160), comme le démon spectral), Brie (planche aux cases
+# irrégulières, découpée à la main : BRIE_ROWS), projectiles, crotte et portraits des dialogues
+EG_SCALE = 0.55
+JULES_ANIMS = {"marche": [0, 6], "course": [6, 6], "saut": [12, 6], "glissade": [18, 6], "cri": [24, 6], "lancer": [30, 6], "combat_pieds": [36, 6]}
+LAURENE_ANIMS = {"marche": [0, 6], "course": [6, 6], "saut": [12, 6], "glissade": [18, 6], "cri": [24, 6], "lancer_bouquet": [30, 6],
+                 "lancer_chevre": [36, 6], "lancer_bouteille": [42, 6], "furie": [48, 6]}
+# Brie : (y début, y fin) de chaque ligne, puis les fenêtres (x début, x fin) de ses images, dans la planche brie_sprite.png
+BRIE_ROWS = [((21, 198), [(26, 300), (310, 560), (565, 810), (815, 1045), (1050, 1255), (1260, 1500)]),        # repos
+             ((215, 375), [(16, 282), (283, 528), (530, 786), (788, 1056), (1057, 1292), (1293, 1530)]),       # course
+             ((383, 562), [(21, 290), (300, 610), (615, 900), (900, 1170), (1180, 1440)]),                     # aboiement
+             ((569, 786), [(62, 350), (370, 660), (670, 910), (920, 1190), (1205, 1485)]),                     # saut
+             ((784, 985), [(20, 282), (284, 500), (503, 725), (740, 965), (1030, 1500)])]                      # crotte (4), morte
+BRIE_ANIMS = {"repos": [0, 6], "course": [6, 6], "aboie": [12, 5], "saut": [17, 5], "crotte": [22, 4], "morte": [26, 1]}
+BRIE_SCALE, BRIE_CELL = 0.17, (84, 40)
+
+def prepare_brie():
+    png = os.path.join(SRC, "eglise/brie_sprite.png")
+    if not os.path.exists(png): return None, None
+    im = Image.open(png).convert("RGBA"); s = BRIE_SCALE; cw, ch = BRIE_CELL
+    frames = []
+    for (y0, y1), wins in BRIE_ROWS:
+        for x0, x1 in wins: frames.append(im.crop((x0, y0, x1, y1)))
+    cols = 6; sheet = Image.new("RGBA", (cw * cols, ch * ((len(frames) + cols - 1) // cols)))
+    for i, f in enumerate(frames):
+        b = bbox(f)
+        if not b: continue
+        part = f.crop(b); small = part.resize((max(1, round(part.width * s)), max(1, round(part.height * s))), Image.BOX)
+        small.putalpha(small.split()[3].point(lambda v: 255 if v > 110 else 0))
+        cell = Image.new("RGBA", (cw, ch)); cell.paste(small, ((cw - small.width) // 2, ch - small.height), small)   # pieds en bas, centrée
+        sheet.paste(cell, ((i % cols) * cw, (i // cols) * ch))
+    os.makedirs(OUT, exist_ok=True); sheet.save(os.path.join(OUT, "eg_brie.png"), optimize=True)
+    # la crotte, seule : recadrée à la main sous la dernière image accroupie (elle touche la patte dans la planche)
+    crotte = im.crop((754, 937, 796, 976))
+    c2 = crotte.resize((max(1, round(crotte.width * s * 1.7)), max(1, round(crotte.height * s * 1.7))), Image.BOX)
+    c2.putalpha(c2.split()[3].point(lambda v: 255 if v > 110 else 0)); cell = Image.new("RGBA", (16, 14)); cell.paste(c2, ((16 - c2.width) // 2, 14 - c2.height), c2)
+    cell.save(os.path.join(OUT, "eg_crotte.png"), optimize=True)
+    return ({"src": "assets/laverie/eg_brie.png", "cw": cw, "ch": ch, "ax": cw // 2, "ay": ch, "cols": cols, "anims": BRIE_ANIMS, "note": "Brie (église)"},
+            {"src": "assets/laverie/eg_crotte.png", "cw": 16, "ch": 14, "ax": 8, "ay": 14, "cols": 1, "anims": {"play": [0, 1]}, "note": "crotte de Brie"})
+
+def drop_frame_lines(cell, n=18):
+    """Efface les longues lignes sombres droites (cadre dessiné autour d'une image), horizontales et verticales."""
+    px = cell.load(); w, h = cell.size
+    dark = lambda x, y: px[x, y][3] > 40 and max(px[x, y][:3]) < 60
+    for horiz in (True, False):
+        for a in range(h if horiz else w):
+            run = []
+            for b in range((w if horiz else h) + 1):
+                x, y = (b, a) if horiz else (a, b)
+                if b < (w if horiz else h) and dark(x, y): run.append((x, y)); continue
+                if len(run) >= n:
+                    for x2, y2 in run:   # la ligne et son voisinage immédiat (trait de 2 px)
+                        for dx, dy in ((0, 0), (0, 1), (0, -1)) if horiz else ((0, 0), (1, 0), (-1, 0)):
+                            if 0 <= x2 + dx < w and 0 <= y2 + dy < h and max(px[x2 + dx, y2 + dy][:3]) < 60: px[x2 + dx, y2 + dy] = (0, 0, 0, 0)
+                run = []
+    return cell
+
+def prepare_eg_proj():
+    """Orbe de Jules ; bouquet, bouteille et chèvre de Laurène (3 × 3 cases de 96 px ; on retire le cadre noir des chèvres)."""
+    out = {}
+    o = os.path.join(SRC, "eglise/orbe_violet.png")
+    if os.path.exists(o):
+        im = Image.open(o).convert("RGBA").resize((24, 24), Image.BOX); im.putalpha(im.split()[3].point(lambda v: 255 if v > 90 else 0))
+        im.save(os.path.join(OUT, "eg_orbe.png"), optimize=True)
+        out["eg_orbe"] = {"src": "assets/laverie/eg_orbe.png", "cw": 24, "ch": 24, "ax": 12, "ay": 12, "cols": 1, "anims": {"play": [0, 1]}, "note": "orbe de Jules"}
+    p = os.path.join(SRC, "eglise/projectiles.png")
+    if os.path.exists(p):
+        im = Image.open(p).convert("RGBA"); c = 40; sheet = Image.new("RGBA", (c * 3, c * 3))
+        for r in range(3):
+            for k in range(3):
+                cell = im.crop((k * 96, r * 96, (k + 1) * 96, (r + 1) * 96))
+                if r == 2: cell = drop_frame_lines(cell)   # le cadre noir autour des chèvres
+                cell = cell.resize((c, c), Image.BOX)
+                cell.putalpha(cell.split()[3].point(lambda v: 255 if v > 110 else 0))
+                sheet.paste(cell, (k * c + (c - cell.width) // 2, r * c + (c - cell.height) // 2))
+        sheet.save(os.path.join(OUT, "eg_proj.png"), optimize=True)
+        out["eg_proj"] = {"src": "assets/laverie/eg_proj.png", "cw": c, "ch": c, "ax": c // 2, "ay": c // 2, "cols": 3,
+                          "anims": {"bouquet": [0, 3], "bouteille": [3, 3], "chevre": [6, 3]}, "note": "projectiles de Laurène"}
+    return out
+
+# portraits des dialogues : (fichier, carré à recadrer dans la source)
+EG_PORTRAITS = {"laurene": ("eglise/laurene_portrait.png", (330, 0, 790, 460)), "jules": ("eglise/jules_portrait.png", (260, 0, 680, 420)),
+                "brie": ("eglise/brie_portrait.png", (680, 150, 1200, 670))}
+
+def prepare_eg_portraits():
+    out = {}
+    for n, (rel, box) in EG_PORTRAITS.items():
+        f = os.path.join(SRC, rel)
+        if not os.path.exists(f): continue
+        im = Image.open(f).convert("RGBA").crop(box).resize((40, 40), Image.BOX)
+        im.save(os.path.join(OUT, f"portrait_{n}.png"), optimize=True)
+        out[f"portrait_{n}"] = {"src": f"assets/laverie/portrait_{n}.png", "cw": 40, "ch": 40, "ax": 20, "ay": 40, "cols": 1, "anims": {"play": [0, 1]}, "note": f"portrait de {n} (église)"}
+    return out
 
 def fade_foreground():
     """Cadres de premier plan de la grotte : en bas (sous y = 150), seuls les bords gauche et droit restent, fondus vers le milieu."""
@@ -261,6 +358,12 @@ def main():
     atlas, missing = {}, []
     d = prepare_dahaka()
     if d: atlas["dahaka"] = d
+    for name, rel, anims in (("eg_jules", "eglise/jules.png", JULES_ANIMS), ("eg_laurene", "eglise/laurene.png", LAURENE_ANIMS)):
+        a = prepare_grid(name, rel, 192, (96, 160), EG_SCALE, anims, name[3:].capitalize() + " (église)")
+        if a: atlas[name] = a
+    b, c = prepare_brie()
+    if b: atlas["eg_brie"], atlas["eg_crotte"] = b, c
+    atlas.update(prepare_eg_proj()); atlas.update(prepare_eg_portraits())
     for name, (base, anims) in HEROES.items():
         a = prepare_hero(name, base, anims)
         if a: atlas[name] = a

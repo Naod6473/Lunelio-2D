@@ -35,6 +35,10 @@ const NPCS = {
   capitaine: { name: "Capitaine Barbe-Mouillée", color: "#ff5a3c", skin: "#e8b088", hair: "#3a6aff", cloth: "#c8302a", accent: "#fccc28", talk: "talk_capitaine" },
   bobine: { name: "Bobine", color: "#9fe8ff", skin: "#c8d0dc", hair: "#5ef0ff", cloth: "#ff8a3c", accent: "#5ef0ff", talk: "talk_bobine", robot: true },
   kage: { name: "Kage", color: "#c86eff", skin: "#e8c0a0", hair: "#2a1a3a", cloth: "#4a2a7a", accent: "#c86eff", talk: "talk_kage" },
+  // l'église (eglise.js) : les mariés et leur chienne, dans les dialogues seulement (portraits portrait_<id>)
+  laurene: { name: "Laurène", color: "#ff5a7a", talk: "talk_laurene", eglise: true },
+  jules: { name: "Jules", color: "#6a8aff", talk: "talk_jules", eglise: true },
+  brie: { name: "Brie", color: "#ff9a4a", talk: "talk_brie", eglise: true },
   firmin: { name: "Grand-père Firmin", color: "#fccc28", skin: "#f0c8a0", hair: "#ffffff", cloth: "#4a6aa8", accent: "#fccc28", talk: "talk_bulle" },
 };
 

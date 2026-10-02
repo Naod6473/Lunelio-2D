@@ -81,7 +81,10 @@ function enterHub(opts = {}) {
   }
   if (SAVE.camp.done >= CWORLDS.length && !SAVE.flags.ending) hub.queue.push(() => startDialog(STORY.ending, () => { startEnding(); }));
   // après les 6 mondes, une cloche sonne au loin à chaque retour, tant que l'église n'est pas vaincue (eglise.js)
-  if (egliseOpen() && !SAVE.flags.egliseWon) hub.queue.push(() => { audio.sfx("eg_cloche"); hub.msg = { text: "Une cloche sonne au loin… La machine peut t'emmener à l'église.", t: 6 }; });
+  if (egliseOpen() && !SAVE.flags.egliseWon) hub.queue.push(() => {
+    audio.sfx("eg_cloche"); hub.msg = { text: "Une cloche sonne au loin… La machine peut t'emmener à l'église.", t: 6 };
+    if (!SAVE.flags.egliseBell) startDialog(EG_DLG.cloche, () => { SAVE.flags.egliseBell = 1; saveGame(); });   // la première fois, Mme Bulle en parle
+  });
 }
 function hubToMachine() {
   audio.sfx("machine"); hub.machShake = 0.5;
@@ -555,7 +558,7 @@ function screenMusic() {
   if (state === "worlds" && mode === "camp") return hubMusic();
   return undefined;
 }
-function hubAmbience() { audio.setAmbience(HUB_STATES.includes(state) && hasSound("sfx/laverie/ambiance") ? "sfx/laverie/ambiance" : null); }
+function hubAmbience() { if (state === "eglise") return; audio.setAmbience(HUB_STATES.includes(state) && hasSound("sfx/laverie/ambiance") ? "sfx/laverie/ambiance" : null); }
 
 /* ---------------- Cosmétiques : rendu ---------------- */
 // Les cosmétiques changent l'apparence seulement. Couleurs : la planche est recolorée une fois (teinte, saturation,

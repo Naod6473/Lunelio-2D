@@ -51,6 +51,8 @@ Les boss changent de comportement à chaque phase : en P1 ils attaquent posémen
 
 Chaque monde de l'ancienne aventure compte trois salles puis un combat de boss. Des cœurs à ramasser sont cachés dans certaines salles.
 
+**L'église — le mariage maudit** : après les six mondes, une cloche sonne au loin dans la laverie et la machine propose un dernier voyage. Dans une réalité alternative, Laurène et Jules se marient… et ils sont méchants ! Sur le parvis, les marches puis dans la nef, il faut affronter leur chienne Brie (charges, aboiements, petites crottes à sauter), puis Jules (orbes violets à renvoyer au sabre, glissades, coups de pied), puis Laurène (bouquets, chèvres et bouteilles lancés), et enfin les deux mariés ensemble, Laurène transformée en furie. Entre chaque combat, ils se moquent du héros dans des dialogues. À la fin, ils explosent en confettis.
+
 **Niveau secret — La course du Dahaka** : sur l'écran des mondes, taper le mot de passe `DAHAKA` au clavier fait apparaître une carte de plus. Le Dahaka, démon de pierre invincible qui pousse un cri, court, saute les trous et attrape, poursuit le héros dans un parcours sans fin, au choix : le **temple** (lames qui sortent du sol) ou la **grotte** (six scènes qui s'enchaînent au hasard, corniches et rochers où sauter, cristaux, cascades, monstres qui passent au loin et gardiens qui regardent la course au premier plan). Il faut courir, sauter de plateforme en plateforme et éviter les pièges le plus longtemps possible. Tomber dans un trou ou toucher un piège ne fait pas perdre de cœur, mais ralentit… et le Dahaka se rapproche. S'il rattrape le héros, il le saisit et l'avale : game over ! Le score est la distance parcourue en mètres, avec un record par difficulté et par parcours.
 
 ## La laverie

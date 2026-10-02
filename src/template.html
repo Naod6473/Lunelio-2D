@@ -376,7 +376,7 @@ function syncTouchUI() {
   bs.style.display = moving && sp && sp.button ? "" : "none";
   if (sp && sp.button) bs.innerHTML = `${sp.icon}<small>${sp.label}</small>`;
   const pow = document.getElementById("bPow");
-  pow.style.display = (state === "play" || state === "dahaka") && df().power && pw ? "" : "none";
+  pow.style.display = (state === "play" || state === "dahaka" || state === "eglise") && df().power && pw ? "" : "none";
   if (pw) { document.getElementById("powIcon").textContent = pw.icon; document.getElementById("powLbl").textContent = pw.label; }
   if (!moving) for (const k of ["TLeft", "TRight", "TDown", "TJump", "TAtk", "TSpec", "TPow"]) keys[k] = false;
 }
@@ -495,7 +495,7 @@ const SFX_FILES = {
   quest_item: "sfx/collecte/objet_quete", crystal: "sfx/collecte/cristal",
   laser: "sfx/ennemis/laser", aim: "sfx/ennemis/visee", def_robot: "sfx/ennemis/defaite_robot", def_slime: "sfx/ennemis/defaite_slime",
   def_ombre: "sfx/ennemis/defaite_ombre", def_lave: "sfx/ennemis/defaite_lave", def_etoiles: "sfx/ennemis/defaite_etoiles",
-  boss_intro: "sfx/boss/intro", eg_cloche: "sfx/eglise/cloche", eg_mariage: "sfx/eglise/cloche_mariage", eg_glas: "sfx/eglise/cloche_sinistre", dk_cri: "sfx/boss/dahaka_cri", dk_croque: "sfx/boss/dahaka_croque", bosshit: "sfx/boss/coup_boss", transform: "sfx/boss/transformation", wave: "sfx/boss/onde_choc", boss_defeat: "sfx/boss/defaite",
+  boss_intro: "sfx/boss/intro", eg_cloche: "sfx/eglise/cloche", eg_mariage: "sfx/eglise/cloche_mariage", eg_glas: "sfx/eglise/cloche_sinistre", eg_aboie: "sfx/eglise/brie_aboie", dk_cri: "sfx/boss/dahaka_cri", dk_croque: "sfx/boss/dahaka_croque", bosshit: "sfx/boss/coup_boss", transform: "sfx/boss/transformation", wave: "sfx/boss/onde_choc", boss_defeat: "sfx/boss/defaite",
   zap: "sfx/pieges/electricite", alert: "sfx/pieges/alerte", jet: "sfx/pieges/jet_eau", flames: "sfx/pieges/flammes", break: "sfx/pieges/mur_casse", flag: "sfx/pieges/drapeau",
   door: "sfx/machine/porte", unlock: "sfx/machine/deverrouillage", machine: "sfx/machine/demarrage", drum: "sfx/machine/tambour", spin: "sfx/machine/depart", arrive: "sfx/machine/arrivee", dial: "sfx/machine/programmateur",
   page: "sfx/laverie/album_page", locker: "sfx/laverie/armoire", equip: "sfx/laverie/equiper", coin: "sfx/laverie/jukebox_piece", deco_book: "sfx/laverie/livre_deco",
@@ -695,7 +695,7 @@ const audio = {
       case "quest_start": this.arp([0, 4, 7], 587, t, 0.08, "triangle", 0.1, 0.2); break;
       case "chal_fail": this.arp([7, 4, 0, 2], 392, t, 0.12, "triangle", 0.1, 0.25); break;
       default:
-        if (name.startsWith("talk_")) { const f = { talk_bulle: 900, talk_capitaine: 300, talk_bobine: 1400, talk_kage: 600 }[name] || 700; this.tone(name === "talk_bobine" ? "square" : "triangle", f * (0.9 + Math.random() * 0.2), t, 0.05, 0.05, d); }
+        if (name.startsWith("talk_")) { const f = { talk_bulle: 900, talk_capitaine: 300, talk_bobine: 1400, talk_kage: 600, talk_jules: 380, talk_laurene: 1050, talk_brie: 220 }[name] || 700; this.tone(name === "talk_bobine" ? "square" : "triangle", f * (0.9 + Math.random() * 0.2), t, 0.05, 0.05, d); }
         else if (name.startsWith("def_") || name.startsWith("sig_")) this.noiseHit(t, 0.25, 0.4, "lowpass", 1100, d);
     }
   },
@@ -1308,6 +1308,11 @@ function damageBoss(e, dmg) {
 }
 // src : "atk" (sabre), "dash", "laser" (tir renvoyé) ou "proj" (arme du râtelier, dégâts dmg)
 function hitEnemy(e, src, p, dmg) {
+  if (e.type === "egboss") {   // boss de l'église (eglise.js) : un coup de sabre ou un dash ne touche qu'une fois
+    if (src === "atk") { if (p.hitList.has(e)) return; p.hitList.add(e); audio.sfx("sword_hit"); }
+    else if (src === "dash") { if (p.dashHits.has(e)) return; p.dashHits.add(e); }
+    egDamage(e, src === "proj" ? dmg || 1 : src === "laser" ? 2 : 1); return;
+  }
   if (src === "proj") {
     if (e.type === "foe") damageFoe(e, dmg || 1); else if (e.type === "bigboss") damageBig(e, dmg || 1);
     else if (e.type === "boss") damageBoss(e, dmg || 1); else killEnemy(e);
@@ -1643,6 +1648,7 @@ function updateLasers(dt) {
   for (const l of lasers) {
     if (!l.alive) continue;
     if (l.wpn) { updateWProj(l, dt); continue; }   // tirs des armes du râtelier (armes.js)
+    if (l.eg) { egProj(l, dt); continue; }         // projectiles des boss de l'église (eglise.js)
     l.x += l.vx * dt;
     if (l.g) l.vy += l.g * dt;
     if (l.vy) l.y += l.vy * dt;

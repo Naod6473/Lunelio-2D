@@ -35,6 +35,225 @@
    },
    "note": "Dahaka (niveau secret) : démon spectral"
   },
+  "eg_jules": {
+   "src": "assets/laverie/eg_jules.png",
+   "cw": 106,
+   "ch": 106,
+   "ax": 53,
+   "ay": 88,
+   "cols": 6,
+   "anims": {
+    "marche": [
+     0,
+     6
+    ],
+    "course": [
+     6,
+     6
+    ],
+    "saut": [
+     12,
+     6
+    ],
+    "glissade": [
+     18,
+     6
+    ],
+    "cri": [
+     24,
+     6
+    ],
+    "lancer": [
+     30,
+     6
+    ],
+    "combat_pieds": [
+     36,
+     6
+    ]
+   },
+   "note": "Jules (église)"
+  },
+  "eg_laurene": {
+   "src": "assets/laverie/eg_laurene.png",
+   "cw": 106,
+   "ch": 106,
+   "ax": 53,
+   "ay": 88,
+   "cols": 6,
+   "anims": {
+    "marche": [
+     0,
+     6
+    ],
+    "course": [
+     6,
+     6
+    ],
+    "saut": [
+     12,
+     6
+    ],
+    "glissade": [
+     18,
+     6
+    ],
+    "cri": [
+     24,
+     6
+    ],
+    "lancer_bouquet": [
+     30,
+     6
+    ],
+    "lancer_chevre": [
+     36,
+     6
+    ],
+    "lancer_bouteille": [
+     42,
+     6
+    ],
+    "furie": [
+     48,
+     6
+    ]
+   },
+   "note": "Laurene (église)"
+  },
+  "eg_brie": {
+   "src": "assets/laverie/eg_brie.png",
+   "cw": 84,
+   "ch": 40,
+   "ax": 42,
+   "ay": 40,
+   "cols": 6,
+   "anims": {
+    "repos": [
+     0,
+     6
+    ],
+    "course": [
+     6,
+     6
+    ],
+    "aboie": [
+     12,
+     5
+    ],
+    "saut": [
+     17,
+     5
+    ],
+    "crotte": [
+     22,
+     4
+    ],
+    "morte": [
+     26,
+     1
+    ]
+   },
+   "note": "Brie (église)"
+  },
+  "eg_crotte": {
+   "src": "assets/laverie/eg_crotte.png",
+   "cw": 16,
+   "ch": 14,
+   "ax": 8,
+   "ay": 14,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "crotte de Brie"
+  },
+  "eg_orbe": {
+   "src": "assets/laverie/eg_orbe.png",
+   "cw": 24,
+   "ch": 24,
+   "ax": 12,
+   "ay": 12,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "orbe de Jules"
+  },
+  "eg_proj": {
+   "src": "assets/laverie/eg_proj.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 20,
+   "cols": 3,
+   "anims": {
+    "bouquet": [
+     0,
+     3
+    ],
+    "bouteille": [
+     3,
+     3
+    ],
+    "chevre": [
+     6,
+     3
+    ]
+   },
+   "note": "projectiles de Laurène"
+  },
+  "portrait_laurene": {
+   "src": "assets/laverie/portrait_laurene.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 40,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "portrait de laurene (église)"
+  },
+  "portrait_jules": {
+   "src": "assets/laverie/portrait_jules.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 40,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "portrait de jules (église)"
+  },
+  "portrait_brie": {
+   "src": "assets/laverie/portrait_brie.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 40,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "portrait de brie (église)"
+  },
   "perso_helio": {
    "src": "assets/laverie/perso_helio.png",
    "cw": 64,
