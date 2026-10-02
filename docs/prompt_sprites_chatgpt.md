@@ -160,10 +160,11 @@ Planche par personnage : **cases de 48 × 48**, personnage ≈ 38 px de haut, re
 
 | # | Fichiers | Personnage |
 | --- | --- | --- |
-| B1 | `pnj_bulle.png`, `portrait_bulle.png` | Mme Bulle, la gérante |
+| B1 | `pnj_bulle.png`, `portrait_bulle.png` | Mme Bulle, la gérante (**fournie**) |
 | B2 | `pnj_capitaine.png`, `portrait_capitaine.png` | Capitaine Barbe-Mouillée |
 | B3 | `pnj_bobine.png`, `portrait_bobine.png` | Bobine, le robot |
 | B4 | `pnj_kage.png`, `portrait_kage.png` | Kage, le ninja |
+| B5 | `pnj_firmin.png`, `portrait_firmin.png` | Grand-père Firmin, l'inventeur (souvenirs, fin, carte) |
 
 Modèle de demande, avec la description du personnage à remplacer :
 ```
@@ -180,6 +181,7 @@ Descriptions :
 - **B2 Capitaine Barbe-Mouillée** : « un vieux capitaine pirate rigolo et un peu ronchon, grosse barbe bleue toute mouillée qui goutte, chapeau de pirate avec une tête de mort remplacée par une chaussette, manteau rouge trop grand, un seul pied porte une chaussette rayée rouge et blanche, l'autre pied nu. »
 - **B3 Bobine** : « un petit robot rond et maladroit, corps en forme de bidon gris clair avec un hublot sur le ventre, antenne avec une ampoule, porte un tee-shirt orange beaucoup trop petit qui a rétréci au lavage, yeux en écran bleu, air perplexe. »
 - **B4 Kage** : « un jeune ninja mince et gentil, tenue violet foncé, foulard sur le bas du visage, yeux souriants, son kimono flotte car il a perdu sa ceinture, il le tient d'une main, gêné. »
+- **B5 Grand-père Firmin** : « un vieil inventeur souriant et un peu distrait, petit et voûté, grande moustache blanche en guidon, cheveux blancs en épi, lunettes de soudeur jaunes relevées sur le front, salopette bleue avec une clé à molette dans la poche, chemise jaune, une burette d'huile à la main. » (C'est le grand-père de Mme Bulle : même famille de couleurs, même style.)
 
 ---
 

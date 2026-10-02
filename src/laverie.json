@@ -112,6 +112,44 @@
     ]
    },
    "note": "laverie : sock_sprite.png"
+  },
+  "pnj_bulle": {
+   "src": "assets/laverie/pnj_bulle.png",
+   "cw": 48,
+   "ch": 48,
+   "ax": 24,
+   "ay": 48,
+   "cols": 4,
+   "anims": {
+    "repos": [
+     0,
+     4
+    ],
+    "parle": [
+     4,
+     2
+    ],
+    "content": [
+     8,
+     2
+    ]
+   },
+   "note": "laverie : pnj/pnj_bulle.png"
+  },
+  "portrait_bulle": {
+   "src": "assets/laverie/portrait_bulle.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 40,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : pnj/portrait_bulle.png"
   }
  }
 }

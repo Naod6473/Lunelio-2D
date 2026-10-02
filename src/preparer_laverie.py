@@ -21,7 +21,7 @@ OUT = os.path.join(HERE, "..", "assets", "laverie")
 # ancrage : "feet" (milieu du bas), "center", "bottom" (bas, pour les décors)
 # Le fichier source peut être une liste : le premier qui existe est pris (noms du prompt ou noms des images déjà fournies).
 # FIT : pour une planche à même échelle, hauteur visée et images qui servent à la mesurer (sinon toutes, ajustées à la case).
-NPCS = ["bulle", "capitaine", "bobine", "kage"]
+NPCS = ["bulle", "capitaine", "bobine", "kage", "firmin"]
 SPEC = {
     # images fournies : trois pièces de la laverie, portes, chaussette, tas de chaussettes, trophées
     "laverie_salle": ("laundry_room.png", 1, 1, 816, 272, "bottom", {"play": [0, 1]}, True),
@@ -111,6 +111,8 @@ def prepare(name, spec):
             scales = [s] * len(cells)
         else:
             scales = [min(cw / (b[2] - b[0]), ch / (b[3] - b[1])) if b else 1 for b in boxes]
+        b0 = next((b for b in boxes if b), None)   # centre du corps mesuré sur la première image
+        refx = (b0[0] + b0[2]) / 2 if b0 else None
         crops = []
         for c, b, s in zip(cells, boxes, scales):
             if not b: crops.append(Image.new("RGBA", (cw, ch))); continue
@@ -124,6 +126,8 @@ def prepare(name, spec):
                 # centre de la case d'origine conservé (une étincelle décalée reste décalée)
                 cx0, cy0 = (b[0] + b[2]) / 2 - c.width / 2, (b[1] + b[3]) / 2 - c.height / 2
                 ox, oy = round((cw - nw) / 2 + cx0 * s * 0.5), round((ch - nh) / 2 + cy0 * s * 0.5)
+            elif anchor == "feet" and uniform and refx is not None:   # animation : même décalage que dans la planche (un bras levé ne fait pas glisser le corps)
+                ox, oy = min(max(0, round(cw / 2 + (b[0] - refx) * s)), cw - nw), ch - nh
             else: ox, oy = (cw - nw) // 2, ch - nh   # pieds ou bas : posé sur le bord bas, centré
             cell.paste(small, (ox, oy), small)
             crops.append(cell)
