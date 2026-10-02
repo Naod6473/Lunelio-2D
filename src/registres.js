@@ -231,7 +231,29 @@ const BADGES = [
   { id: "ancienne_aventure", name: "Vieux souvenirs", how: "Termine l'ancienne aventure", cond: { bonusWorld: 8 }, icon: "trophy", col: "#b6ff5a" },
   { id: "doom_boss", name: "Courage de parent", how: "Bats un boss en mode Doom", cond: { flag: "doomBoss" }, icon: "skull", col: "#ff3b5c" },
   { id: "secret", name: "Chemin secret", how: "Trouve une chaussette dorée cachée", cond: { flag: "secret" }, icon: "key", col: "#fccc28" },
+  // frame : image de la planche badges.png reprise d'un autre badge ; tint : teinte de l'icône (médailles)
+  { id: "main_dans_la_main", name: "Main dans la main", how: "Termine un monde à deux", cond: { flag: "duoWorld" }, icon: "heart", col: "#c86eff", frame: 8 },
+  { id: "sauveteur", name: "Sauveteur", how: "À deux, sauve ton copain de sa bulle", cond: { flag: "rescue" }, icon: "bubble", col: "#bff4ff", frame: 7 },
+  { id: "boss_rush", name: "Boss rush", how: "Termine le boss rush", cond: { flag: "rushDone" }, icon: "skull", col: "#ff5a7a", frame: 17 },
+  { id: "premier_or", name: "Première médaille d'or", how: "Gagne une médaille d'or (temps d'un monde ou du boss rush)", cond: { flag: "goldMedal" }, icon: "star", col: "#ffd23c", frame: 4, tint: "#ffd23c" },
+  { id: "or_partout", name: "Or partout", how: "Une médaille d'or dans chacun des 6 mondes", cond: { medalsGold: 6 }, icon: "trophy", col: "#ffd23c", frame: 16, tint: "#ffd23c" },
 ];
+
+/* ---- Médailles du chrono ---- */
+// Temps (secondes) pour l'or, l'argent et le bronze : un monde fait d'une traite (meilleur temps de la difficulté), et le boss rush.
+// Les mêmes seuils pour toutes les difficultés. Réglés à l'estimation : à ajuster après les premières parties.
+const MEDALS = {
+  "01_centrale": [240, 360, 600], "02_usine": [270, 400, 660], "03_temple": [300, 440, 720],
+  "04_volcan": [300, 440, 720], "05_port": [330, 480, 780], "06_grotte": [330, 480, 780],
+  rush: [300, 480, 780],
+};
+const MEDAL_NAMES = ["", "bronze", "argent", "or"], MEDAL_COLS = ["", "#cd7f32", "#d8e0f0", "#ffd23c"];
+const MEDAL_LABELS = ["", "Médaille de bronze", "Médaille d'argent", "Médaille d'or"];
+// 3 : or, 2 : argent, 1 : bronze, 0 : pas de médaille
+function medalOf(kind, time) {
+  const m = MEDALS[kind]; if (!m || typeof time !== "number") return 0;
+  return time <= m[0] ? 3 : time <= m[1] ? 2 : time <= m[2] ? 1 : 0;
+}
 
 /* ---- Cosmétiques ---- */
 // slot : acc (accessoire de tête), pal (couleurs du héros), fx (couleur du sabre et des effets), machine (machine temporelle).

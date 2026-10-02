@@ -750,13 +750,16 @@ function campVictory(e) {
   const prev = campBest(camp.wi);
   best = camp.fromStart ? { time: runTime, deaths, isNew: !prev || runTime < prev.time } : null;
   if (best && best.isNew) setBest(campBestKey(camp.wi), { time: runTime, deaths });
+  // médaille du chrono (monde fait d'une traite) : annoncée si elle est meilleure que la précédente
+  const md = best ? medalOf(W.id, runTime) : 0, mPrev = prev ? medalOf(W.id, prev.time) : 0;
+  if (md > mPrev) { toast(MEDAL_LABELS[md], `${W.name} en ${fmtTime(runTime)}`, "badge", MEDAL_COLS[md]); emit("medal", { m: md }); }
   setCampResume(camp.wi, 0);
   const P = PIECES[W.id];
   msg = { text: P ? `Tu as récupéré ${P.name} !` : "Fragment d'énergie temporelle !", t: 3 };
   audio.sfx("piece");
   if (lvl.sock && lvl.sock.type === "apres_boss" && lvl.sock.hidden) { lvl.sock.hidden = false; lvl.sock.pop = 0.4; burst(lvl.sock.x + 6, lvl.sock.y + 6, 20, ["#7dffb0", "#ffffff"], 120, 0.6, 0, 1); }
   emit("roomDone", { room: campRoom().id, char: ch().id, doom: df().id === "doom" });
-  emit("worldDone", { wi: camp.wi });
+  emit("worldDone", { wi: camp.wi, duo: players.length > 1 });
   for (const x of lvl.exits) x.locked = false;
   const mx = lvl.exits.find(x => x.kind === "machine");
   if (mx) startMachine(mx.x + mx.w / 2, mx.y + mx.h);

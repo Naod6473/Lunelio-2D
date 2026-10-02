@@ -2171,6 +2171,13 @@ const RUSH_CARD = () => rushOpen() ? CWORLDS.length + 1 + (SAVE.flags.dahaka ? 1
 const campCardCount = () => CWORLDS.length + 1 + (SAVE.flags.dahaka ? 1 : 0) + (egliseOpen() ? 1 : 0) + (rushOpen() ? 1 : 0);
 // cartes par pages de 8 (WPAGE) : la carte i est dessinée dans la case WUI[i % WPAGE] de la page de la carte choisie
 const campRect = i => WUI[i % WPAGE], campOnPage = i => Math.floor(i / WPAGE) === Math.floor(worldSel / WPAGE);
+// Meilleur temps (et médaille) d'une carte, dans le coin bas droit de sa vignette
+function cardTime(r, th, label, md) {
+  ctx.font = `700 7px ${FONT}`; const w = Math.ceil(ctx.measureText(label).width) + (md ? 14 : 0) + 6, x = r.x + r.w - 4 - w, y = r.y + 4 + th - 11;
+  R(x, y, w, 11, "rgba(10,6,24,0.8)");
+  text(label, x + w - 3, y + 6, 7, "#7dffb0", "right");
+  if (md) drawMedal(md, x + 7, y + 5, 0.6);
+}
 function updateCampWorlds() {
   if (dkPickUpdate() || dahakaType()) return;
   egliseCheat();
@@ -2209,7 +2216,7 @@ function drawCampWorlds() {
     if (rushC) {
       text("⚔ Boss rush", r.x + 5, r.y + r.h - 22, 8, "#ff5a7a");
       text("Les 6 boss d'affilée", r.x + 5, r.y + r.h - 10, 6, "#b9a6e0");
-      const b = rushBest(); if (b !== undefined) text(fmtTime(b), r.x + r.w - 5, r.y + r.h - 22, 7, "#7dffb0", "right");
+      const b = rushBest(); if (b !== undefined) cardTime(r, th, fmtTime(b), medalOf("rush", b));
     } else if (eglise) {
       text("✝ L'église", r.x + 5, r.y + r.h - 22, 8, "#ff5a7a");
       text("Un mariage pas comme les autres…", r.x + 5, r.y + r.h - 10, 6, "#b9a6e0");
@@ -2224,7 +2231,7 @@ function drawCampWorlds() {
       text(`${i + 1}. ${W.name}`, r.x + 5, r.y + r.h - 22, 8, locked ? "#6a5a88" : accent);
       text(`Boss : ${BIG[W.boss].name}`, r.x + 5, r.y + r.h - 10, 6, locked ? "#4a3a68" : "#b9a6e0");
       const b = campBest(i), res = campResume(i);
-      if (i < prog) text(b ? fmtTime(b.time) : "✓", r.x + r.w - 5, r.y + r.h - 22, 7, "#7dffb0", "right");
+      if (i < prog) cardTime(r, th, b ? fmtTime(b.time) : "✓", b ? medalOf(W.id, b.time) : 0);
       else if (!locked && res > 0) text(`salle ${res + 1}`, r.x + r.w - 5, r.y + r.h - 22, 7, "#fccc28", "right");
       if (!locked) { const pi = Object.keys(BIG).indexOf(W.boss); ctx.save(); ctx.beginPath(); ctx.rect(r.x + r.w - 26, r.y + 6, 20, 20); ctx.clip(); drawFrame("portraits_boss", pi, r.x + r.w - 16, r.y + 30, 1, 1, 0.5); ctx.restore(); }
     }

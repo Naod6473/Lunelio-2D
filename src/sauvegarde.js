@@ -131,6 +131,7 @@ function testCond(c) {
   if (c.oldBoss) return !!SAVE.seen.oldBoss[c.oldBoss];
   if (c.bonusWorld !== undefined) return SAVE.bonus.done >= c.bonusWorld;
   if (c.flag) return !!SAVE.flags[c.flag];
+  if (c.medalsGold !== undefined) return CWORLDS.filter(W => DIFFS.some(D => { const b = SAVE.best[`camp|${D.id}|${W.id}`]; return b && medalOf(W.id, b.time) === 3; })).length >= c.medalsGold;
   if (c.visited) return !!SAVE.camp.visited[c.visited];
   if (c.met) return !!SAVE.seen.met[c.met];
   return false;
@@ -202,7 +203,10 @@ function emit(type, d = {}) {
     case "boss": S.seen.boss[d.id] = 1; if (d.noDamage) S.flags.noDamageBoss = 1; if (d.doom) S.flags.doomBoss = 1; weaponReward(); break;
     case "oldBoss": S.seen.oldBoss[d.wid] = 1; if (d.doom) S.flags.doomBoss = 1; weaponReward(); break;
     case "roomDone": S.camp.rooms[d.room] = 1; S.seen.char[d.char] = 1; if (d.doom) S.flags.doomRoom = 1; break;
-    case "worldDone": S.camp.done = Math.max(S.camp.done, d.wi + 1); break;
+    case "worldDone": S.camp.done = Math.max(S.camp.done, d.wi + 1); if (d.duo) S.flags.duoWorld = 1; break;
+    case "rescue": if (S.flags.rescue) return; S.flags.rescue = 1; break;
+    case "rush": S.flags.rushDone = 1; if (medalOf("rush", d.time) === 3) S.flags.goldMedal = 1; break;
+    case "medal": if (d.m === 3) S.flags.goldMedal = 1; break;
     case "bonusDone": S.bonus.done = Math.max(S.bonus.done, d.wi + 1); break;
     case "visit": if (S.camp.visited[d.wid]) return; S.camp.visited[d.wid] = 1; break;
     case "met": if (S.seen.met[d.npc]) return; S.seen.met[d.npc] = 1; break;

@@ -145,8 +145,47 @@ function drawCardArt(c, cx, cy, s = 1) {
 }
 // Badges : médaille ronde avec un symbole (provisoire en attendant icones/badges.png)
 const BADGE_GLYPH = { socks: "2", basket: "▤", star: "★", home: "⌂", bubble: "…", heart: "♥", shield: "◈", bolt: "ϟ", swirl: "@", card: "▯", book: "▥", crown: "♛", crystal: "◆", trophy: "♜", skull: "☠", key: "⚷" };
+// Image d'une planche teintée (médailles : l'icône étoile en bronze, argent ou or), gardée en cache ; contours sombres gardés
+const tintCache = {};
+function drawTinted(aid, i, col, x, y, scale = 1) {
+  const A = ATL[aid], img = A && atlasImg(aid); if (!img) return;
+  const key = `${aid}|${i}|${col}`;
+  let c = tintCache[key];
+  if (!c) {
+    const [cv2, x2] = mkCanvas(A.cw, A.ch);
+    x2.drawImage(img, (i % A.cols) * A.cw, Math.floor(i / A.cols) * A.ch, A.cw, A.ch, 0, 0, A.cw, A.ch);
+    try {
+      const d = x2.getImageData(0, 0, A.cw, A.ch), a = d.data, tr = parseInt(col.slice(1, 3), 16), tg = parseInt(col.slice(3, 5), 16), tb = parseInt(col.slice(5, 7), 16);
+      for (let k = 0; k < a.length; k += 4) {
+        if (a[k + 3] < 8) continue;
+        const l = (a[k] * 0.3 + a[k + 1] * 0.59 + a[k + 2] * 0.11) / 255; if (l < 0.14) continue;
+        const f = 0.3 + 0.95 * l; a[k] = Math.min(255, tr * f); a[k + 1] = Math.min(255, tg * f); a[k + 2] = Math.min(255, tb * f);
+      }
+      x2.putImageData(d, 0, 0);
+    } catch (e) {}
+    c = tintCache[key] = cv2;
+  }
+  ctx.drawImage(c, Math.round(x - A.ax * scale), Math.round(y - A.ay * scale), A.cw * scale, A.ch * scale);
+}
+// Médaille m (1 bronze, 2 argent, 3 or) : l'icône étoile des badges, teintée
+function drawMedal(m, x, y, s = 1) {
+  if (!m) return;
+  if (hasAtlas("badges")) { drawTinted("badges", 4, MEDAL_COLS[m], x, y, s); return; }
+  ctx.fillStyle = MEDAL_COLS[m]; ctx.beginPath(); ctx.arc(x, y, 6 * s, 0, Math.PI * 2); ctx.fill();
+}
+// Ligne de résultat : la médaille gagnée, et le temps à battre pour la suivante
+function drawMedalLine(kind, time, x, y) {
+  const m = medalOf(kind, time), M = MEDALS[kind]; if (!M) return;
+  if (m) { drawMedal(m, x - 70, y, 1.2); text(MEDAL_LABELS[m] + " !", x - 56, y, 10, MEDAL_COLS[m]); }
+  else text("Pas encore de médaille", x, y, 9, "#b9a6e0", "center");
+  if (m < 3) text(`${MEDAL_LABELS[m + 1]} : moins de ${fmtTime(M[2 - m])}`, x, y + 16, 7, "#e8dcff", "center");
+}
 function drawBadgeIcon(b, cx, cy, s = 1, own = true) {
-  if (hasAtlas("badges")) { drawFrame("badges", BADGES.indexOf(b), cx, cy, 1, own ? 1 : 0.25, s * 1.1); return; }
+  if (hasAtlas("badges")) {
+    const fr = b.frame ?? BADGES.indexOf(b);
+    if (b.tint && own) drawTinted("badges", fr, b.tint, cx, cy, s * 1.1); else drawFrame("badges", fr, cx, cy, 1, own ? 1 : 0.25, s * 1.1);
+    return;
+  }
   const col = own ? b.col : "#3a3450";
   ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
   R(-5, 5, 4, 6, own ? "#c8302a" : "#2a2440"); R(1, 5, 4, 6, own ? "#3a6aff" : "#2a2440");
@@ -158,15 +197,15 @@ function drawBadgeIcon(b, cx, cy, s = 1, own = true) {
   else text(BADGE_GLYPH[b.icon] || "★", 0, 1, 9, own ? "#120828" : "#5a4a80", "center");
   ctx.restore();
 }
-const badgeRect = i => ({ x: 12 + (i % 5) * 46, y: 34 + Math.floor(i / 5) * 54, w: 42, h: 50 });
+const badgeRect = i => ({ x: 12 + (i % 5) * 46, y: 32 + Math.floor(i / 5) * 44, w: 42, h: 42 });
 function drawAlbumBadges() {
   text(`Badges : ${BADGES.filter(b => has("badge:" + b.id)).length}/${BADGES.length}`, 12, 28, 8, "#fccc28");
   BADGES.forEach((b, i) => {
     const r = badgeRect(i), own = has("badge:" + b.id), sel = i === ALB.sel && ALB.focus === "list";
     R(r.x, r.y + 4, r.w, r.h - 4, sel ? "rgba(255,255,255,0.14)" : "rgba(20,12,40,0.8)");
     if (sel) { ctx.strokeStyle = "#ffffff"; ctx.strokeRect(r.x + 0.5, r.y + 4.5, r.w - 1, r.h - 5); }
-    drawBadgeIcon(b, r.x + r.w / 2, r.y + 22, 1.3, own);
-    const nm = own ? b.name : "???"; text(nm.length > 11 ? nm.slice(0, 10) + "…" : nm, r.x + r.w / 2, r.y + r.h - 7, 6, own ? b.col : "#5a4a80", "center");
+    drawBadgeIcon(b, r.x + r.w / 2, r.y + 20, 1.15, own);
+    const nm = own ? b.name : "???"; text(nm.length > 11 ? nm.slice(0, 10) + "…" : nm, r.x + r.w / 2, r.y + r.h - 5, 6, own ? b.col : "#5a4a80", "center");
   });
   const b = BADGES[ALB.sel]; if (!b) return;
   const own = has("badge:" + b.id), px = 250, py = 34;
