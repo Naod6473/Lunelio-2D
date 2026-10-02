@@ -36,6 +36,7 @@ const STATIONS = [
   { id: "souvenirs", room: "trophees", x: 45, w: 50, h: 100, art: true, label: "Portail des souvenirs", need: { memories: 1 }, lockText: "Ramène une pièce de la machine pour réveiller ses souvenirs", open: () => openMemories() },
   ...PEDESTALS.map((x, i) => ({ id: "vitrine" + i, room: "trophees", x, w: 40, h: 90, art: true, world: i, label: CWORLDS[i].name,
     open: () => { ALB.tab = 0; ALB.cat = 3; ALB.world = WORLD_FILTERS.findIndex(f => f[0] === CWORLDS[i].id); ALB.page = 0; ALB.sel = 0; openAlbum(); } })),
+  { id: "etagere", room: "trophees", x: 107, w: 64, h: 100, label: "Étagère à trésors", open: () => { ALB.tab = 3; ALB.sel = 0; openAlbum(); } },
   { id: "presentoir", room: "trophees", x: 592, w: 34, h: 100, label: "Présentoir à badges", open: () => { ALB.tab = 1; openAlbum(); } },
 ];
 const stationOn = s => !s.need || testCond(s.need);
@@ -344,6 +345,12 @@ function drawShowcase() {
       if (ok) { glow(ctx, x, y - 14, 22, "255,220,120", 0.25); if (hasAtlas("trophees")) drawFrame("trophees", i, x, y); else { R(x - 4, y - 3, 9, 3, "#c8a020"); R(x - 3, y - 14, 7, 11, "#ffd23c"); R(x - 6, y - 16, 13, 3, "#ffd23c"); } }
       else text("?", x, y - 10, 10, "rgba(200,200,255,0.25)", "center");
     });
+    // étagère à trésors (provisoire) : les trésors gagnés y brillent, entre le portail et la première vitrine
+    if (showOn("etagere")) {
+      // planches murales en bois (5 étages de 6 trésors), sans fond plein : le mur reste visible
+      for (let k = 0; k < 5; k++) { const y = 113 + k * 14; R(76, y, 62, 3, "#0e0a1a"); R(77, y, 60, 2, "#c89a5a"); R(79, y + 3, 2, 3, "#6a4a2a"); R(133, y + 3, 2, 3, "#6a4a2a"); }
+      TREASURES.filter(t => has("tres:" + t.id)).forEach((t, i) => drawTreasure(t, 82 + (i % 6) * 10, 106 + Math.floor(i / 6) * 14, 0.34, true));
+    }
     // présentoir à badges (provisoire), entre la dernière vitrine et la porte
     if (showOn("presentoir")) {
       R(572, 108, 42, 50, "#0e0a1a"); R(573, 109, 40, 48, "#8a5a3a"); R(575, 111, 36, 44, "#c89a6a");

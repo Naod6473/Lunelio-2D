@@ -13,7 +13,7 @@
 //   { oldFoe: type } / { oldBoss: monde } / { bonusWorld: n }  ancienne aventure
 //   { flag: nom }                   exploit noté (noDamageBoss, doomBoss, secret, doomRoom…)
 //   { visited: wid }                monde visité               { met: pnj }        client rencontré
-//   { all: [c1, c2…] }              toutes les conditions
+//   { weapons: n }                  n armes possédées (râtelier) { all: [c1, c2…] }  toutes les conditions
 // Une récompense s'écrit "type:id" (card, badge, cos, decor, track, mem) et n'est donnée qu'une fois (SAVE.got).
 
 // Données placées à la main dans les salles (chaussettes, objets de quête, secrets, défis) : src/campagne_ajouts.json
@@ -101,6 +101,48 @@ const WEAPONS = [
   { id: "maillet", name: "Maillet rigolo", icon: 9, a0: -45, grip: 0.6, len: 20, carry: -70, aim: 0, stats: [1, 1, 3], desc: "Tape le sol : l'onde étourdit les ennemis proches et casse les caisses." },
 ];
 const WEAPON_BY_ID = Object.fromEntries(WEAPONS.map(w => [w.id, w]));
+
+// Trésors de la collection (onglet « Trésors » de l'album, étagère de la salle des trophées) : planche tresors_<n>.png,
+// ligne row, 4 images en boucle. Récompense « tres:<id> », donnée une seule fois quand la condition devient vraie.
+const TREASURES = [
+  ["bulle_savon", "Bulle de savon", 3, 4, { met: "bulle" }, "Rencontre Mme Bulle"],
+  ["chaussette_rose", "Chaussette rose", 3, 3, { socks: 1 }, "Trouve ta première chaussette"],
+  ["coffre", "Coffre étoilé", 1, 0, { world: 1 }, "Termine la centrale électrique"],
+  ["eclair", "Éclair", 3, 2, { boss: "roi_slime" }, "Bats le Roi Slime"],
+  ["machine", "Mini machine à laver", 2, 1, { world: 2 }, "Termine l'usine"],
+  ["pile", "Pile qui pétille", 5, 4, { boss: "drone_titan" }, "Bats le Drone Titan"],
+  ["cadenas", "Cadenas cœur", 3, 0, { world: 3 }, "Termine le temple"],
+  ["savon", "Savon de Marseille", 5, 2, { world: 4 }, "Termine le volcan"],
+  ["chaine", "Chaîne dorée", 5, 1, { world: 5 }, "Termine le port"],
+  ["cristal", "Cristal bleu", 1, 2, { boss: "reine_chauve_souris" }, "Bats la Reine chauve-souris"],
+  ["etoile_filante", "Étoile filante", 4, 0, { world: 6 }, "Termine toute la campagne"],
+  ["panier", "Panier de linge", 2, 2, { socks: 18 }, "Trouve 18 chaussettes"],
+  ["piece", "Pièce étoile", 2, 4, { socks: 36 }, "Trouve 36 chaussettes"],
+  ["chaussette_fantome", "Chaussette fantôme", 4, 2, { socksWorldAny: true }, "Trouve toutes les chaussettes d'un monde"],
+  ["cle", "Clé étoile", 1, 1, { flag: "secret" }, "Trouve un chemin secret"],
+  ["canard", "Canard de bain", 4, 3, { quest: "bobine" }, "Aide Bobine"],
+  ["cintre", "Cintre doré", 2, 0, { quest: "kage" }, "Aide Kage"],
+  ["etoile", "Étoile", 3, 1, { questsDone: 1 }, "Termine une quête"],
+  ["cotillon", "Cotillon", 3, 5, { cardCatComplete: 1 }, "Complète une catégorie de cartes"],
+  ["basket", "Basket ailée", 1, 5, { challenge: "express_centrale" }, "Réussis le programme Express"],
+  ["bouclier", "Bouclier étoile", 1, 4, { challenge: "delicat_temple" }, "Réussis le programme Délicat"],
+  ["elastique", "Élastique", 5, 3, { challenge: "essorage_port" }, "Réussis le programme Essorage"],
+  ["lessive", "Bidon de lessive", 2, 3, { challenge: "froid_usine" }, "Réussis le programme Lavage à froid"],
+  ["pinces", "Pinces à linge", 4, 4, { challengesDone: 3 }, "Réussis 3 programmes de lavage"],
+  ["ticket", "Ticket magique", 2, 5, { memories: 3 }, "Débloque 3 souvenirs"],
+  ["portail", "Portail du temps", 4, 1, { memories: 6 }, "Débloque les 6 souvenirs"],
+  ["coeur", "Cœur brillant", 1, 3, { flag: "noDamageBoss" }, "Bats un boss sans être touché"],
+  ["carquois", "Carquois", 5, 0, { weapons: 4 }, "Possède 4 armes"],
+  ["boomerang", "Boomerang d'or", 5, 5, { weapons: 10 }, "Possède les 10 armes"],
+].map(([id, name, sheet, row, cond, how]) => ({ id, name, atlas: "tresors_" + sheet, row, cond, how }));
+const TREASURE_BY_ID = Object.fromEntries(TREASURES.map(t => [t.id, t]));
+// Dessine un trésor (animé en boucle s'il est gagné, silhouette sinon)
+function drawTreasure(t, x, y, s = 1, own = true) {
+  if (!hasAtlas(t.atlas)) { text(own ? "★" : "?", x, y, 10 * s, own ? "#fccc28" : "#4a3a68", "center"); return; }
+  const fr = t.row * 4 + (own ? Math.floor(time * 6 + t.row) % 4 : 0);
+  if (own) drawFrame(t.atlas, fr, x, y, 1, 1, s);
+  else { ctx.save(); ctx.filter = "brightness(0)"; drawFrame(t.atlas, fr, x, y, 1, 0.35, s); ctx.restore(); }   // silhouette (simplement pâle si le navigateur ignore filter)
+}
 
 /* ---- Cartes ---- */
 // cat : pnj, heros, monstres, boss. world : filtre (id de monde, "laverie" ou "bonus").
@@ -251,7 +293,7 @@ const DECOR = [
 const DECOR_BY_ID = Object.fromEntries(DECOR.map(d => [d.id, d]));
 const DECOR_SLOTS = [["tile", "Carrelage"], ["light", "Éclairage"], ["sign", "Enseigne"], ["machine", "Machine"], ["item", "Coin détente"], ["show", "Trophées"]];
 // éléments qui reflètent les progrès (toujours débloqués, on peut seulement les masquer)
-const SHOWCASE = [["trophees", "Trophées des boss vaincus"], ["tas", "Tas de chaussettes"], ["presentoir", "Présentoir à badges"]];
+const SHOWCASE = [["trophees", "Trophées des boss vaincus"], ["tas", "Tas de chaussettes"], ["presentoir", "Présentoir à badges"], ["etagere", "Étagère à trésors"]];
 
 /* ---- Paliers de chaussettes ---- */
 // Annoncés dans le menu de collection ; les récompenses sont celles dont la condition est { socks: n }.

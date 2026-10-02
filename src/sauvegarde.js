@@ -106,6 +106,7 @@ function testCond(c) {
   if (c.all) return c.all.every(testCond);
   if (c.start) return true;
   if (c.world !== undefined) return SAVE.camp.done >= c.world;
+  if (c.weapons !== undefined) return Object.keys(SAVE.weapons.owned).length >= c.weapons;
   if (c.boss) return !!SAVE.seen.boss[c.boss];
   if (c.foe) return !!SAVE.seen.foe[c.foe];
   if (c.char) return !!SAVE.seen.char[c.char];
@@ -143,6 +144,7 @@ const REWARD_INFO = {
   decor: [k => (DECOR_BY_ID[k] || {}).name, "Nouvelle décoration", "equip"],
   track: [k => (TRACK_BY_ID[k] || {}).name, "Nouvelle musique", "coin"],
   mem: [k => (MEM_BY_ID[k] || {}).title, "Nouveau souvenir", "memory"],
+  tres: [k => (TREASURE_BY_ID[k] || {}).name, "Nouveau trésor !", "card"],
 };
 function heroCardName(k) { const C = CHARS.find(c => "heros_" + c.id === k); return C ? C.name : k; }
 function toast(title, sub, snd, col = "#7dffb0") { toasts.push({ title, sub, t: 0, col, snd }); }
@@ -152,7 +154,7 @@ function grant(key, silent) {
   SAVE.got[key] = 1;
   const [type, id] = key.split(/:(.*)/);
   const R = REWARD_INFO[type];
-  if (R && !silent) toast(R[1], R[0](id) || id, R[2], type === "badge" ? "#fccc28" : type === "mem" ? "#ff8ab0" : "#7dffb0");
+  if (R && !silent) toast(R[1], R[0](id) || id, R[2], type === "badge" || type === "tres" ? "#fccc28" : type === "mem" ? "#ff8ab0" : "#7dffb0");
   return true;
 }
 // Passe en revue tous les registres et donne ce qui vient d'être mérité (plusieurs tours : un badge peut en débloquer un autre)
@@ -166,6 +168,7 @@ function checkUnlocks(silent) {
       ...DECOR.map(d => ["decor:" + d.id, d.cond]),
       ...TRACKS.map(t => ["track:" + t.id, t.cond]),
       ...MEMORIES.map(m => ["mem:" + m.id, m.cond]),
+      ...TREASURES.map(t => ["tres:" + t.id, t.cond]),
     ];
     // une musique dont le fichier manque est débloquée sans annonce (le jukebox l'affiche « à venir »)
     const quiet = key => key.startsWith("track:") && !trackAvailable(TRACK_BY_ID[key.slice(6)]);

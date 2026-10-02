@@ -637,6 +637,81 @@
    },
    "note": "laverie : ratelier.png"
   },
+  "tresors_1": {
+   "src": "assets/laverie/tresors_1.png",
+   "cw": 32,
+   "ch": 32,
+   "ax": 16,
+   "ay": 16,
+   "cols": 4,
+   "anims": {
+    "play": [
+     0,
+     4
+    ]
+   },
+   "note": "laverie : tresors_1.png"
+  },
+  "tresors_2": {
+   "src": "assets/laverie/tresors_2.png",
+   "cw": 32,
+   "ch": 32,
+   "ax": 16,
+   "ay": 16,
+   "cols": 4,
+   "anims": {
+    "play": [
+     0,
+     4
+    ]
+   },
+   "note": "laverie : tresors_2.png"
+  },
+  "tresors_3": {
+   "src": "assets/laverie/tresors_3.png",
+   "cw": 32,
+   "ch": 32,
+   "ax": 16,
+   "ay": 16,
+   "cols": 4,
+   "anims": {
+    "play": [
+     0,
+     4
+    ]
+   },
+   "note": "laverie : tresors_3.png"
+  },
+  "tresors_4": {
+   "src": "assets/laverie/tresors_4.png",
+   "cw": 32,
+   "ch": 32,
+   "ax": 16,
+   "ay": 16,
+   "cols": 4,
+   "anims": {
+    "play": [
+     0,
+     4
+    ]
+   },
+   "note": "laverie : tresors_4.png"
+  },
+  "tresors_5": {
+   "src": "assets/laverie/tresors_5.png",
+   "cw": 32,
+   "ch": 32,
+   "ax": 16,
+   "ay": 16,
+   "cols": 4,
+   "anims": {
+    "play": [
+     0,
+     4
+    ]
+   },
+   "note": "laverie : tresors_5.png"
+  },
   "armes_icones": {
    "src": "assets/laverie/armes_icones.png",
    "cw": 32,

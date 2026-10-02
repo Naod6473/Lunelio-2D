@@ -33,7 +33,7 @@ const hoverable = () => !TOUCH && !PAD;
 
 /* ---------------- Collections : cartes, badges, chaussettes ---------------- */
 const ALB = { tab: 0, cat: 0, world: 0, sel: 0, focus: "list", page: 0 };
-const ALB_TABS = ["Cartes", "Badges", "Chaussettes"];
+const ALB_TABS = ["Cartes", "Badges", "Chaussettes", "Trésors"];
 const WORLD_FILTERS = [["all", "Tous les lieux"], ["laverie", "Laverie"], ...CWORLDS.map(W => [W.id, W.name]), ["bonus", "Ancienne aventure"]];
 function openAlbum() { state = "album"; ALB.sel = 0; ALB.focus = "list"; audio.sfx("page"); }
 function albumCards() {
@@ -47,8 +47,8 @@ const ALB_PAGE = 15;
 SCREENS.album = {
   update() {
     if (uiBack()) { backToHub(); return; }
-    const t = clickTab(3, 72, VW - 80); if (t >= 0) { ALB.tab = t; ALB.sel = 0; audio.sfx("page"); }
-    const n = ALB.tab === 0 ? Math.min(ALB_PAGE, albumCards().length - ALB.page * ALB_PAGE) : ALB.tab === 1 ? BADGES.length : 0;
+    const t = clickTab(4, 72, VW - 80); if (t >= 0) { ALB.tab = t; ALB.sel = 0; audio.sfx("page"); }
+    const n = ALB.tab === 0 ? Math.min(ALB_PAGE, albumCards().length - ALB.page * ALB_PAGE) : ALB.tab === 1 ? BADGES.length : ALB.tab === 3 ? TREASURES.length : 0;
     if (ALB.tab === 0) {
       // filtres : catégorie (4 boutons) et lieu (bouton qui change à chaque clic)
       if (hit("Mouse0")) {
@@ -61,13 +61,14 @@ SCREENS.album = {
       if (hit("KeyC", "GX")) { ALB.cat = (ALB.cat + 1) % CARD_CATS.length; ALB.sel = 0; ALB.page = 0; audio.sfx("page"); }
       if (hit("KeyV", "GY")) { ALB.world = (ALB.world + 1) % WORLD_FILTERS.length; ALB.sel = 0; ALB.page = 0; audio.sfx("page"); }
     } else if (ALB.tab === 1 && hit("Mouse0")) for (let i = 0; i < BADGES.length; i++) if (inside(badgeRect(i))) { ALB.sel = i; audio.sfx("select"); }
-    if (gridNav(ALB, n, ALB.tab === 0 ? 5 : ALB.tab === 1 ? 5 : 1, 3) === "tab") ALB.page = 0;
+    else if (ALB.tab === 3 && hit("Mouse0")) for (let i = 0; i < TREASURES.length; i++) if (inside(tresRect(i))) { ALB.sel = i; ALB.focus = "list"; audio.sfx("select"); }
+    if (gridNav(ALB, n, ALB.tab === 0 ? 5 : ALB.tab === 1 ? 5 : ALB.tab === 3 ? 6 : 1, 4) === "tab") ALB.page = 0;
     ALB.sel = clamp(ALB.sel, 0, Math.max(0, n - 1));
   },
   draw() {
     drawHub(); R(0, 0, VW, VH, "rgba(10,6,24,0.86)");
     drawTabs(ALB_TABS, ALB.tab, ALB.focus === "tabs", 72, VW - 80); drawBack();
-    if (ALB.tab === 0) drawAlbumCards(); else if (ALB.tab === 1) drawAlbumBadges(); else drawAlbumSocks();
+    if (ALB.tab === 0) drawAlbumCards(); else if (ALB.tab === 1) drawAlbumBadges(); else if (ALB.tab === 2) drawAlbumSocks(); else drawAlbumTreasures();
   },
 };
 function drawAlbumCards() {
@@ -177,6 +178,25 @@ function drawAlbumBadges() {
   // récompenses liées à ce badge
   const rew = [...COSMETICS, ...DECOR].filter(x => x.cond && x.cond.badge === b.id);
   if (rew.length) text("Débloque : " + rew.map(x => x.name).join(", "), px + 8, y + 4, 7, "#7dffb0");
+}
+// Trésors : grille de 6 colonnes, animés quand on les a ; détail à droite
+const tresRect = i => ({ x: 10 + (i % 6) * 38, y: 40 + Math.floor(i / 6) * 42, w: 34, h: 38 });
+function drawAlbumTreasures() {
+  text(`Trésors : ${TREASURES.filter(t => has("tres:" + t.id)).length}/${TREASURES.length}`, 12, 30, 8, "#fccc28");
+  TREASURES.forEach((t, i) => {
+    const r = tresRect(i), own = has("tres:" + t.id), sel = i === ALB.sel && ALB.focus === "list";
+    R(r.x, r.y, r.w, r.h, sel ? "rgba(255,255,255,0.14)" : "rgba(20,12,40,0.8)");
+    if (sel) { ctx.strokeStyle = "#ffffff"; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1); }
+    drawTreasure(t, r.x + r.w / 2, r.y + r.h / 2, 0.95, own);
+  });
+  const t = TREASURES[ALB.sel]; if (!t) return;
+  const own = has("tres:" + t.id), px = 250, py = 40;
+  drawPanel(px, py, 222, 170, own ? "#fccc28" : "#3a2a5c");
+  R(px + 61, py + 10, 100, 100, "rgba(30,20,56,0.9)");
+  drawTreasure(t, px + 111, py + 60, 2.8, own);
+  text(own ? t.name : "Trésor à trouver", px + 111, py + 124, 10, own ? "#fccc28" : "#b9a6e0", "center");
+  text(own ? "Dans ta collection !" : "Pas encore trouvé", px + 111, py + 138, 7, own ? "#7dffb0" : "#ff8ab0", "center");
+  let y = py + 154; for (const l of wrapText("Comment : " + t.how, 206, 7)) { text(l, px + 8, y, 7, "#e8dcff"); y += 10; }
 }
 function drawAlbumSocks() {
   const n = socksCount(), T = socksTotal(), gold = AJOUTS.gold.filter(g => SAVE.gold[g.id]).length;

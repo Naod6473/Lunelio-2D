@@ -61,6 +61,8 @@ SPEC = {
     "objets_quete": ("objets/objets_quete.png", 8, 1, 16, 16, "center", {"play": [0, 8]}, False),
     "fx_vent": ("objets/fx_vent.png", 4, 1, 32, 16, "center", {"play": [0, 4]}, True),
     "ratelier": (["ratelier.png", "laverie/ratelier.png"], 4, 1, 48, 56, "bottom", {"fermee": [0, 1], "ouverture": [1, 3]}, True),
+    # trésors de la collection : une ligne par objet, 4 images animées (de simple à très brillant)
+    **{f"tresors_{i}": (f"tresors_{i}.png", 4, 5 if i == 4 else 6, 32, 32, "center", {"play": [0, 4]}, True) for i in range(1, 6)},
     "armes_icones": ("armes_icones.png", 5, 2, 32, 32, "center", {"play": [0, 10]}, False),
     "accessoires": ("cosmetiques/accessoires.png", 6, 2, 24, 24, "bottom", {"play": [0, 12]}, False),
     "autocollants_machine": ("cosmetiques/autocollants_machine.png", 6, 1, 16, 16, "center", {"play": [0, 6]}, False),
@@ -85,6 +87,24 @@ def unmagenta(im):
             if mag(*px[x, y][:3]): px[x, y] = (0, 0, 0, 0)
     return im
 
+def drop_edge_bits(cell):
+    """Efface les petits morceaux coupés qui touchent le bord de la case (étincelles d'un objet voisin) ; garde le reste."""
+    px = cell.load(); w, h = cell.size; seen = bytearray(w * h)
+    for y0 in range(h):
+        for x0 in range(w):
+            if seen[y0 * w + x0] or px[x0, y0][3] <= 40: continue
+            comp, stack, edge = [], [(x0, y0)], False
+            seen[y0 * w + x0] = 1
+            while stack:
+                x, y = stack.pop(); comp.append((x, y))
+                if x in (0, w - 1) or y in (0, h - 1): edge = True
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= nx < w and 0 <= ny < h and not seen[ny * w + nx] and px[nx, ny][3] > 40:
+                        seen[ny * w + nx] = 1; stack.append((nx, ny))
+            if edge and len(comp) < w * h * 0.03:
+                for x, y in comp: px[x, y] = (0, 0, 0, 0)
+    return cell
+
 def bbox(cell):
     a = cell.split()[3].point(lambda v: 255 if v > 40 else 0)
     return a.getbbox()
@@ -100,6 +120,7 @@ def prepare(name, spec):
     W, H = im.size
     sw, sh = W / cols, H / rows
     cells = [im.crop((round(c * sw), round(r * sh), round((c + 1) * sw), round((r + 1) * sh))) for r in range(rows) for c in range(cols)]
+    if name.startswith("tresors_"): cells = [drop_edge_bits(c) for c in cells]
     boxes = [bbox(c) for c in cells]
     if cw >= 200:   # fond ou illustration : on garde toute l'image, réduite à la bonne taille
         crops = [c.resize((cw, ch), Image.BOX) for c in cells]
