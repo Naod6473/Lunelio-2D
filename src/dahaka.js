@@ -210,7 +210,7 @@ SCREENS.dahaka = {
       if (DK.t > 0.35) p.fade = Math.max(0, 1 - (DK.t - 0.35) * 4);
       if (DK.t > 0.6 && DK.an === "saisie") { DK.an = "mise_en_bouche"; DK.anT = 0; }
       if (DK.an === "mise_en_bouche" && !DK.ate && DK.anT > 3 / 7) { DK.ate = true; audio.sfx(pickSfx("dk_croque", "bosshit")); shake = 4; rumble(250, 0.6, 0.4); }
-      if (DK.t > 1.9) { DK.st = "result"; DK.sel = 0; setTimeFx(false, false); audio.sfx(DK.isNew ? "victory" : "gameover"); }
+      if (DK.t > 1.9) { DK.st = "result"; DK.sel = 0; setTimeFx(false, false); if (DK.isNew) audio.sfx("victory"); else if (!hasSound(SFX_FILES.dk_croque)) audio.sfx("gameover"); }   // la croque (4,6 s) tient lieu de son de game over
       updateParts(dt); return;
     }
     // héros : ralenti après un piège ou une chute

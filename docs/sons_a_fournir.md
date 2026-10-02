@@ -139,8 +139,8 @@ audio/
     │   └── defaite_etoiles.mp3    pluie d'étoiles (singe, chauve-souris)
     ├── boss/
     │   ├── intro.mp3          ★ apparition d'un boss
-    │   ├── dahaka_cri.mp3         facultatif : cri du Dahaka au départ de la course (sinon intro.mp3)
-    │   ├── dahaka_croque.mp3      facultatif : le Dahaka avale le héros (game over)
+    │   ├── dahaka_cri.mp3         cri du Dahaka au départ de la course (fourni)
+    │   ├── dahaka_croque.mp3      le Dahaka avale le héros, game over (fourni)
     │   ├── coup_boss.mp3      ★ le boss est touché, « bosshit »
     │   ├── transformation.mp3 ★ changement de phase
     │   ├── onde_choc.mp3          « boom »
