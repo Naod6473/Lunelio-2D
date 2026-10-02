@@ -37,6 +37,7 @@ Tes fichiers ont été renommés et rangés ainsi (les noms d'origine sont entre
 | `sfx/machine/hublot.mp3` | `machineporte` | Le héros entre dans la machine (hublot qui s'ouvre) |
 | `sfx/machine/depart.mp3` | `machinedepart` | Aspiration dans le hublot |
 | `sfx/machine/arrivee.mp3` | `machinearrive` | Sortie du hublot dans la laverie |
+| `musique/mondes/usine.mp3`, `temple`, `volcan`, `port`, `grotte` | mêmes noms | Salles de ce monde (hors boss ; en Doom, la musique Doom reste) — `centrale.mp3` manque encore : la Centrale garde la musique du héros |
 
 Si une musique de boss ne va pas avec son boss, il suffit d'échanger les deux fichiers dans `audio/musique/boss/`.
 
@@ -73,11 +74,11 @@ audio/
 │   │   └── laverie_nuit.mp3           version plus douce, après la fin de la campagne
 │   ├── mondes/           (une ou plusieurs variantes par monde : centrale2.mp3…)
 │   │   ├── centrale.mp3               ★ électrique, bourdonnements, synthés qui grésillent
-│   │   ├── usine.mp3                  ★ rythme mécanique, percussions métalliques
-│   │   ├── temple.mp3                 ★ mystérieux, flûte, gong léger
-│   │   ├── volcan.mp3                 ★ tambours graves, chaleur, énergique
-│   │   ├── port.mp3                   ★ chanson de pirate joyeuse, accordéon
-│   │   └── grotte.mp3                 ★ cristallin, échos, carillons néon
+│   │   ├── usine.mp3                  ✓ (fourni) rythme mécanique, percussions métalliques
+│   │   ├── temple.mp3                 ✓ (fourni) mystérieux, flûte, gong léger
+│   │   ├── volcan.mp3                 ✓ (fourni) tambours graves, chaleur, énergique
+│   │   ├── port.mp3                   ✓ (fourni) chanson de pirate joyeuse, accordéon
+│   │   └── grotte.mp3                 ✓ (fourni) cristallin, échos, carillons néon
 │   ├── boss/
 │   │   ├── roi_slime.mp3              ★
 │   │   ├── drone_titan.mp3            ★
