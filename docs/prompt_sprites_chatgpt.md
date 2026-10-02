@@ -314,3 +314,46 @@ src/assets/pack_laverie/
 - Ensuite : le reste.
 
 Tant qu'une image manque, le jeu affiche une version provisoire dessinée par le code.
+
+---
+
+## H. Mme Bulle et robots de l'ancienne aventure (demande d'octobre 2026)
+
+À faire dans le même fil que le bloc STYLE. Dépose les fichiers à la racine de `src/assets/pack_laverie/` avec ces noms, puis `python3 preparer_laverie.py` et `python3 build.py`. Les couleurs de variante sont ajoutées par le jeu : génère seulement la version d'origine de chaque robot.
+
+**H1 — Mme Bulle (`pnj_bulle.png`, puis `portrait_bulle.png`)**
+```
+Planche d'animation d'un personnage de jeu de plateforme, vu de profil, regard vers la droite, dans une grille régulière de 4 colonnes et 3 lignes de cases carrées identiques (12 cases), fond magenta uni #FF00FF :
+ligne 1 « repos » : 4 images (elle respire, ses bigoudis bougent un peu) ;
+ligne 2 « parle » : 2 images (bouche ouverte, une main levée) puis 2 cases vides ;
+ligne 3 « contente » : 2 images (petit saut de joie, bras en l'air) puis 2 cases vides.
+Mme Bulle : gérante de laverie joyeuse d'environ soixante ans, petite et ronde, cheveux gris en chignon avec trois bigoudis de couleur (rose, cyan, jaune), grandes lunettes rondes, tablier bleu ciel avec une poche pleine de pinces à linge, chaussons roses, un petit panier à linge sous le bras. Même taille dans toutes les cases, pieds sur la même ligne, environ 38 px de haut en jeu (dessine-la en grand, elle sera réduite).
+```
+Puis, dans le même fil :
+```
+Même personnage, portrait carré tête et épaules, de trois quarts vers la droite, grand sourire, fond magenta uni #FF00FF.
+```
+
+**H2 — Robots de l'ancienne aventure**
+
+Ils doivent rester des petits robots mignons et un peu ridicules (ils explosent en étincelles et en boulons quand on les touche). Couleurs de base à respecter : le jeu crée ensuite des variantes proches.
+```
+Planche d'animation pour un jeu de plateforme, vue de profil, regard vers la droite, grille de 4 colonnes et 2 lignes de cases carrées identiques, fond magenta uni #FF00FF.
+Sujet : un petit robot marcheur trapu (environ 24 px de haut en jeu), corps carré bleu-gris (#6f7ea8, reflets #9fb0d8), une antenne avec une ampoule jaune, un œil-visière rose, une bande jaune sur le ventre, deux petites jambes.
+Ligne 1 « marche » : 4 images de marche tranquille.
+Ligne 2 « fonce » : 4 images où il fonce penché en avant, l'œil devenu rouge vif, petites étincelles derrière lui.
+```
+Fichier : `robot_marcheur.png`.
+```
+Planche d'animation, vue de profil, regard vers la droite, 4 cases carrées identiques sur une seule ligne, fond magenta uni #FF00FF.
+Sujet : un robot-canon (environ 24 px de haut en jeu), corps carré violet (#7a5cc4, reflets #a98cf0), un petit canon sur le côté droit, un œil cyan, pieds courts.
+Images 1 et 2 « repos » : il attend en se balançant un peu.
+Images 3 et 4 « vise » : il pointe son canon, l'œil clignote rouge et blanc.
+```
+Fichier : `robot_canon.png`.
+```
+Planche d'animation, vue de profil, regard vers la droite, 4 cases carrées identiques sur une seule ligne, fond magenta uni #FF00FF.
+Sujet : un petit drone volant rond et aplati (environ 14 px de haut en jeu), coque bleu-gris (#5a6488, reflets #8a96c0), deux hélices sur le dessus, un œil cyan.
+4 images : les hélices tournent et le drone flotte légèrement de haut en bas.
+```
+Fichier : `drone_ancien.png`.

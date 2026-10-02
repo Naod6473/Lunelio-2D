@@ -68,6 +68,51 @@ const FOE_DEFEATS = {
   lave: { fx: "fx_poussiere", sparks: ["#ffb43c", "#ff6a1a", "#ffffff"], debris: ["#3a2a2a", "#5a3a2a", "#ff6a1a"] },
   etoiles: { fx: "fx_collecte", sparks: ["#fccc28", "#ffffff", "#ff8ab0"], debris: ["#fccc28", "#ffffff"] },
 };
+// Variantes des ennemis : chaque ennemi reçoit au hasard une nuance proche de sa couleur d'origine et, parfois, un effet visuel
+// (dans les couleurs de sa disparition, FOE_DEFEATS). Apparence seulement : vitesse, attaques et résistance ne changent pas.
+// Le tirage dépend de la salle et de la place de l'ennemi (foeVariant(clé)) : une salle recommencée garde les mêmes ennemis.
+// w : poids du tirage. hue : décalage de teinte (degrés, assez petit pour rester dans la même famille), sat, light : comme les cosmétiques.
+const FOE_VARIANTS = [
+  { id: "fv_base", w: 4 },
+  { id: "fv_chaud", hue: -16, w: 2 }, { id: "fv_froid", hue: 16, w: 2 },
+  { id: "fv_vif", sat: 1.25, light: 0.03, w: 2 }, { id: "fv_sombre", sat: 0.9, light: -0.08, w: 2 },
+  { id: "fv_pastel", sat: 0.75, light: 0.07, w: 1 },
+];
+const FOE_EFFECTS = [[null, 6], ["aura", 2], ["scintille", 2], ["ombre", 1], ["eclat", 1]];
+// Petit générateur pseudo-aléatoire à graine (mulberry32) : même clé → même tirage
+function seededRand(key) {
+  let h = 2166136261; for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return () => { h = (h + 0x6D2B79F5) | 0; let t = Math.imul(h ^ (h >>> 15), 1 | h); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+function weighted(list, r, w = x => x.w) { const tot = list.reduce((a, x) => a + w(x), 0); let k = r * tot; for (const x of list) { k -= w(x); if (k < 0) return x; } return list[0]; }
+function foeVariant(key) {
+  const rnd = key ? seededRand(key) : Math.random, v = weighted(FOE_VARIANTS, rnd()), fx = weighted(FOE_EFFECTS, rnd(), x => x[1])[0];
+  return { pal: v.id === "fv_base" ? null : v, fx, ph: rnd() * 6 };
+}
+// Effet d'une variante autour d'un ennemi (cx, cy : centre ; cols : couleurs de sa disparition) ; under : sous le sprite
+function drawFoeFx(v, cx, cy, w, h, cols, under) {
+  if (!v || !v.fx) return;
+  const t = time + v.ph, rgb = c => { const n = parseInt(c.slice(1), 16); return `${n >> 16 & 255},${n >> 8 & 255},${n & 255}`; };
+  if (under && v.fx === "aura") glow(ctx, cx, cy, Math.max(w, h) * 0.8, rgb(cols[0]), 0.22 + 0.1 * Math.sin(t * 4));
+  if (under && v.fx === "ombre") { ctx.globalAlpha = 0.18 + 0.08 * Math.sin(t * 3); R(Math.round(cx - w / 2), Math.round(cy + h / 2 - 2), w, 3, "#0e0a1a"); ctx.globalAlpha = 1; }
+  if (!under && v.fx === "scintille") for (let i = 0; i < 3; i++) { const a = t * 2 + i * 2.1, k = (t * 1.3 + i / 3) % 1; ctx.globalAlpha = 1 - k; R(Math.round(cx + Math.cos(a) * w * 0.7), Math.round(cy - h * 0.2 - k * 10 + Math.sin(a) * 4), 1, 1, cols[i % cols.length]); }
+  if (!under && v.fx === "eclat" && (t % 2.4) < 0.25) { ctx.globalAlpha = 0.9; R(Math.round(cx + w * 0.25), Math.round(cy - h * 0.3), 1, 3, "#ffffff"); R(Math.round(cx + w * 0.25 - 1), Math.round(cy - h * 0.3 + 1), 3, 1, "#ffffff"); }
+  ctx.globalAlpha = 1;
+}
+// Couleur décalée (dessins faits par le code : robots de l'ancienne aventure)
+const hexShiftCache = {};
+function shiftHex(hex, pal) {
+  if (!pal) return hex;
+  const k = hex + pal.id; if (hexShiftCache[k]) return hexShiftCache[k];
+  const n = parseInt(hex.slice(1, 7), 16); let r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; let h = 0, s = 0, l = (mx + mn) / 2;
+  if (d > 1e-6) { s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn); h = (mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60; }
+  h = (h + (pal.hue || 0) + 360) % 360; s = Math.min(1, s * (pal.sat || 1)); l = clamp(l + (pal.light || 0), 0, 1);
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q, f = t => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < 0.5 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };
+  const hx = v => Math.round(v * 255).toString(16).padStart(2, "0");
+  return hexShiftCache[k] = "#" + hx(f(h / 360 + 1 / 3)) + hx(f(h / 360)) + hx(f(h / 360 - 1 / 3)) + hex.slice(7);
+}
+
 // Boss des nouveaux mondes : une suite d'actions par phase (moves[phase - 1]), jouées en boucle.
 // P1 : attaques posées, rythme pour apprendre. P2 : plus rapide, nouvelles combinaisons, il se dégrade (fumée, étincelles).
 // P3 (P2 pour le singe, qui n'a que deux phases) : rage, attaques spectaculaires… puis « tired » : il s'essouffle, c'est le moment de frapper.
@@ -235,7 +280,7 @@ function loadCampRoom(wi, ri, opts = {}) {
   terrainCanvas = null; terrainFor = null;
   const W = CWORLDS[wi], d = df();
   players = [makePlayer(ch(), K, 0)];
-  enemies = lvl.foeSpawns.map(o => makeFoe(o, W));
+  enemies = lvl.foeSpawns.map((o, i) => { const e = makeFoe(o, W); e.var = foeVariant(`${lvl.R.id}:${i}`); return e; });
   if (lvl.bossSpawn) { enemies.push(makeBig(lvl.bossSpawn, W)); audio.sfx("boss_intro"); audio.sfx("sig_" + W.boss); }
   pickups = []; lasers = []; parts = []; ghosts = []; fxs = [];
   roomTime = 0; hintT = 0; deathT = 0; doorOpen = false; campTrans = null; mach = null; campFade = opts.fadeIn ? 1 : 0;
@@ -583,7 +628,7 @@ function updateBig(e, dt) {
             const mx = clamp(cx + (i ? 40 : -40), 20, VW - 40), my = clamp(e.y - 10, 30, 120);
             const m = makeFoe({ asset: e.B.minion, r: [mx, my, e.B.minion === "drone" ? 24 : 20, e.B.minion === "drone" ? 24 : 20], behavior: e.B.minion === "drone" ? "sentry" : "plongeon_annonce",
               activation: { delaySeconds: 0.6, attackTelegraphSeconds: 0.6 }, attack: e.B.minion === "drone" ? {} : { type: "plongeon", rangePixels: 72, windupSeconds: 0.6, activeSeconds: 0.35, recoverySeconds: 1.0 } }, W, true);
-            if (enemies.filter(q => q.alive && q.minion).length < 2) { enemies.push(m); addFx("fx_teleport", mx + 10, my + 20); }
+            if (enemies.filter(q => q.alive && q.minion).length < 2) { m.var = foeVariant(null); enemies.push(m); addFx("fx_teleport", mx + 10, my + 20); }
           }
         }
         else if (e.move === "dive") { e.st = "dive"; audio.sfx("dash"); }
@@ -1118,9 +1163,12 @@ function drawFoe(e) {
   const fr = foeFrame(e), grounded = e.F.ground;
   const ax = e.x + e.w / 2, ay = grounded ? e.y + e.h : e.y + e.h / 2;
   const wake = e.st === "wait" ? 0.55 + 0.25 * Math.sin(time * 6) : 1;
-  // les planches regardent vers la droite : retournées quand l'ennemi regarde à gauche
-  drawFrame(e.F.atlas, fr, ax, ay, e.face, wake);
-  if (e.hurtT > 0) { ctx.save(); ctx.globalCompositeOperation = "lighter"; drawFrame(e.F.atlas, fr, ax, ay, e.face, 0.6); ctx.restore(); }
+  // les planches regardent vers la droite : retournées quand l'ennemi regarde à gauche ; variante : couleur et effet
+  const cols = (FOE_DEFEATS[e.F.defeat] || FOE_DEFEATS.etoiles).sparks, pal = e.var && e.var.pal;
+  drawFoeFx(e.var, e.x + e.w / 2, e.y + e.h / 2, e.w, e.h, cols, true);
+  drawFrame(e.F.atlas, fr, ax, ay, e.face, wake, 1, pal);
+  if (e.hurtT > 0) { ctx.save(); ctx.globalCompositeOperation = "lighter"; drawFrame(e.F.atlas, fr, ax, ay, e.face, 0.6, 1, pal); ctx.restore(); }
+  drawFoeFx(e.var, e.x + e.w / 2, e.y + e.h / 2, e.w, e.h, cols, false);
   if (e.st === "windup") {
     if (e.sp === "drone" && e.aim) {
       ctx.globalAlpha = 0.3 + 0.3 * Math.sin(time * 40);

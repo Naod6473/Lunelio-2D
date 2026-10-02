@@ -31,6 +31,10 @@ SPEC = {
     "tas_chaussettes": ("laundrysocks.png", 3, 2, 170, 104, "bottom", {"play": [0, 6]}, True),
     "trophees": (["trophy_sprite.png", "laverie/trophees.png"], 3, 2, 30, 34, "bottom", {"play": [0, 6]}, True),
     "chaussette": (["sock_sprite.png", "objets/chaussette.png"], 4, 2, 28, 28, "center", {"flotte": [0, 4], "collecte": [4, 4]}, True),
+    # robots de l'ancienne aventure (prompt H2) : remplacent les robots dessinés par le code
+    "robot_marcheur": (["robot_marcheur.png", "ennemis/robot_marcheur.png"], 4, 2, 30, 30, "feet", {"marche": [0, 4], "charge": [4, 4]}, True),
+    "robot_canon": (["robot_canon.png", "ennemis/robot_canon.png"], 4, 1, 34, 30, "feet", {"repos": [0, 2], "vise": [2, 2]}, True),
+    "drone_ancien": (["drone_ancien.png", "ennemis/drone_ancien.png"], 4, 1, 24, 20, "center", {"vol": [0, 4]}, True),
     # images du prompt (docs/prompt_sprites_chatgpt.md), pas encore fournies
     "laverie_fond": ("laverie/laverie_fond.png", 1, 1, 480, 272, "bottom", {"play": [0, 1]}, True),
     "laverie_carrelage": ("laverie/laverie_carrelage.png", 4, 1, 16, 16, "center", {"damier": [0, 1], "losanges": [1, 1], "uni": [2, 1], "neon": [3, 1]}, False),
@@ -46,8 +50,8 @@ SPEC = {
     "coin_detente": ("laverie/coin_detente.png", 5, 1, 48, 48, "bottom", {"canape": [0, 1], "plante": [1, 1], "distributeur": [2, 1], "panier": [3, 1], "table": [4, 1]}, False),
     "bulles_pnj": ("laverie/bulles_pnj.png", 2, 3, 12, 12, "center", {"quete": [0, 2], "parler": [2, 2], "fini": [4, 2]}, True),
     "machine_reparations": ("laverie/machine_reparations.png", 7, 1, 72, 65, "bottom", {"play": [0, 7]}, True),
-    **{f"pnj_{n}": (f"pnj/pnj_{n}.png", 4, 3, 48, 48, "feet", {"repos": [0, 4], "parle": [4, 2], "content": [8, 2]}, True) for n in NPCS},
-    **{f"portrait_{n}": (f"pnj/portrait_{n}.png", 1, 1, 40, 40, "bottom", {"play": [0, 1]}, True) for n in NPCS},
+    **{f"pnj_{n}": ([f"pnj/pnj_{n}.png", f"pnj_{n}.png"], 4, 3, 48, 48, "feet", {"repos": [0, 4], "parle": [4, 2], "content": [8, 2]}, True) for n in NPCS},
+    **{f"portrait_{n}": ([f"pnj/portrait_{n}.png", f"portrait_{n}.png"], 1, 1, 40, 40, "bottom", {"play": [0, 1]}, True) for n in NPCS},
     "cadres_cartes": ("cartes/cadres_cartes.png", 5, 1, 80, 112, "center", {"play": [0, 5]}, True),
     "illus_monstres": ("cartes/illus_monstres.png", 6, 1, 40, 40, "bottom", {"play": [0, 6]}, False),
     "badges": ("icones/badges.png", 6, 3, 16, 16, "center", {"play": [0, 18]}, False),
@@ -62,7 +66,9 @@ SPEC = {
 }
 
 # hauteur visée et images de référence pour l'échelle commune (la chaussette se mesure sans les étincelles de la collecte)
-FIT = {"chaussette": (22, [0, 1, 2, 3]), "tas_chaussettes": (100, None), "trophees": (32, None), "portes_laverie": (56, None)}
+FIT = {"robot_marcheur": (24, None), "robot_canon": (24, None), "drone_ancien": (14, None), "chaussette": (22, [0, 1, 2, 3]), "tas_chaussettes": (100, None), "trophees": (32, None), "portes_laverie": (56, None)}
+
+for _n in NPCS: FIT["pnj_" + _n] = (38, None)   # clients : environ 38 px de haut, comme les héros
 
 def unmagenta(im):
     """Fond magenta (#FF00FF, à peu près) → transparent ; image déjà transparente : inchangée."""

@@ -68,6 +68,8 @@ La laverie est une zone sûre en trois pièces reliées par des portes : la gran
 
 Chaque récompense n'est donnée qu'une fois, même après un rechargement. Les images de la laverie, des clients et des cartes sont pour l'instant dessinées par le jeu (provisoires), en attendant les images définitives.
 
+Les ennemis ont des variantes tirées au hasard : une nuance proche de leur couleur d'origine et parfois un petit effet (aura, scintillement, ombre, éclat). Seule l'apparence change ; une salle recommencée garde les mêmes ennemis.
+
 ## Difficultés
 
 - **Facile** : 5 cœurs, robots lents, boss moins résistants.

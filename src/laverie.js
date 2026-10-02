@@ -560,7 +560,8 @@ function recolor(img, C) {
   } catch (e) { out = img; }   // image d'une autre origine (fichier ouvert sans serveur) : couleurs d'origine
   return cosCache[key] = out;
 }
-function atlasImgCos(aid, cosId) { const img = atlasImg(aid), C = COS_BY_ID[cosId]; return img && C ? recolor(img, C) : img; }
+// cosId : identifiant d'un cosmétique, ou directement une variante { id, hue, sat, light } (ennemis)
+function atlasImgCos(aid, cosId) { const img = atlasImg(aid), C = typeof cosId === "object" ? cosId : COS_BY_ID[cosId]; return img && C ? recolor(img, C) : img; }
 const charCos = C => SAVE.cos.char[C.id] || {};
 const cosOn = (C, slot) => { const id = charCos(C)[slot]; return id && has("cos:" + id) ? id : null; };
 // Haut de la tête dans une image de planche (premier rang opaque), mesuré une fois
