@@ -712,6 +712,21 @@
    },
    "note": "laverie : tresors_5.png"
   },
+  "etagere": {
+   "src": "assets/laverie/etagere.png",
+   "cw": 64,
+   "ch": 72,
+   "ax": 32,
+   "ay": 72,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : etagere.png"
+  },
   "armes_icones": {
    "src": "assets/laverie/armes_icones.png",
    "cw": 32,

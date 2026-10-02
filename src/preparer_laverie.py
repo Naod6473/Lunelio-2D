@@ -63,6 +63,7 @@ SPEC = {
     "ratelier": (["ratelier.png", "laverie/ratelier.png"], 4, 1, 48, 56, "bottom", {"fermee": [0, 1], "ouverture": [1, 3]}, True),
     # trésors de la collection : une ligne par objet, 4 images animées (de simple à très brillant)
     **{f"tresors_{i}": (f"tresors_{i}.png", 4, 5 if i == 4 else 6, 32, 32, "center", {"play": [0, 4]}, True) for i in range(1, 6)},
+    "etagere": ("etagere.png", 1, 1, 64, 72, "bottom", {"play": [0, 1]}, True),
     "armes_icones": ("armes_icones.png", 5, 2, 32, 32, "center", {"play": [0, 10]}, False),
     "accessoires": ("cosmetiques/accessoires.png", 6, 2, 24, 24, "bottom", {"play": [0, 12]}, False),
     "autocollants_machine": ("cosmetiques/autocollants_machine.png", 6, 1, 16, 16, "center", {"play": [0, 6]}, False),

@@ -346,7 +346,11 @@ function drawShowcase() {
       else text("?", x, y - 10, 10, "rgba(200,200,255,0.25)", "center");
     });
     // étagère à trésors (provisoire) : les trésors gagnés y brillent, entre le portail et la première vitrine
-    if (showOn("etagere")) {
+    if (showOn("etagere") && hasAtlas("etagere")) {
+      // étagère fournie (64 × 72, base en 107, 170) : 5 planches de 6 trésors (hauteur du dessus de chaque planche mesurée sur l'image)
+      drawFrame("etagere", 0, 107, 170);
+      TREASURES.filter(t => has("tres:" + t.id)).forEach((t, i) => drawTreasure(t, 87 + (i % 6) * 8.1, 98 + [21, 31, 40, 49, 58][Math.floor(i / 6)] - 4, 0.26, true));
+    } else if (showOn("etagere")) {
       // planches murales en bois (5 étages de 6 trésors), sans fond plein : le mur reste visible
       for (let k = 0; k < 5; k++) { const y = 113 + k * 14; R(76, y, 62, 3, "#0e0a1a"); R(77, y, 60, 2, "#c89a5a"); R(79, y + 3, 2, 3, "#6a4a2a"); R(133, y + 3, 2, 3, "#6a4a2a"); }
       TREASURES.filter(t => has("tres:" + t.id)).forEach((t, i) => drawTreasure(t, 82 + (i % 6) * 10, 106 + Math.floor(i / 6) * 14, 0.34, true));
