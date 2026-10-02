@@ -1395,9 +1395,9 @@ function updatePlayer(p, dt) {
   const RUN = 132 * boost, G = 1500;
   p.inv = Math.max(0, p.inv - dt); p.atkCd -= dt * boost; p.dashCd -= dt * boost; p.djT = Math.max(0, p.djT - dt); p.dropT -= dt;
   p.coyote = p.onGround ? 0.09 : p.coyote - dt;
-  p.jumpBuf = hit(...I.jump) ? 0.12 : p.jumpBuf - dt;
+  p.jumpBuf = hit(...I.jump) && !(p.sneeze > 0) ? 0.12 : p.jumpBuf - dt;
   if (p.onGround) { p.airJumps = 1; p.dashAir = true; }
-  const dir = (down(...I.right) ? 1 : 0) - (down(...I.left) ? 1 : 0);
+  const dir = p.sneeze > 0 ? 0 : (down(...I.right) ? 1 : 0) - (down(...I.left) ? 1 : 0);   // sneeze : le héros éternue (pluie.js)
 
   if (p.dashT > 0) {
     p.dashT -= dt; p.vx = p.face * 430; p.vy = 0;
@@ -1721,9 +1721,11 @@ function updatePlay(rdt) {
   if (lvl.json) updateCamp(dt); else updateEnemies(dt);
   updateLasers(dt); updateParts(dt);
   if (chal) { chalUpdate(dt, rdt); if (state !== "play") return; }
+  if (pluie) { for (const p of players) if (p.sneeze > 0) p.sneeze -= dt; pluieUpdate(dt); updatePluieFx(dt); if (state !== "play") return; }
   if (roomLost()) {
     deathT -= rdt;
     if (deathT <= 0) {
+      if (pluie) { pluieLost(); return; }
       if (lvl.json) {
         if (doomReset) { loadCampRoom(camp.wi, camp.ckpt, { restart: camp.ckpt === camp.ri }); msg = { text: camp.ckpt ? "Mode Doom : retour au drapeau !" : "Mode Doom : retour au début du monde !", t: 2.5 }; }
         else loadCampRoom(camp.wi, camp.ri, { restart: true });
@@ -1768,6 +1770,7 @@ function pauseGame() { state = "pause"; pauseSel = 0; setTimeFx(false, false); a
 function resumeInfo() {
   if (chal) return "Le programme de lavage sera abandonné";
   if (rush) return "Le boss rush sera abandonné";
+  if (pluie) return "La pluie de chaussettes s'arrêtera";
   if (!lvl.json) return `Ancienne aventure : tu reprendras au début de « ${WORLDS[ROOMS[lvlIdx].w].name} »`;
   const W = CWORLDS[camp.wi], r = df().id === "doom" ? camp.ckpt : camp.ri;
   return `Tu reprendras : ${W.name}, salle ${r + 1}` + (df().id === "doom" ? (camp.ckpt ? " (au drapeau)" : " (début du monde, mode Doom)") : "");
@@ -1775,6 +1778,7 @@ function resumeInfo() {
 function leaveToHub() {
   if (chal) { chalAbandon(); return; }
   if (rush) { rushQuit(); return; }
+  if (pluie) { pluieQuit(); return; }
   let m = "";
   if (lvl.json) { const r = df().id === "doom" ? camp.ckpt : camp.ri; setCampResume(camp.wi, r); m = `Tu reprendras ${CWORLDS[camp.wi].name}, salle ${r + 1}`; }
   enterHub({ x: 380, msg: m });
@@ -2168,7 +2172,8 @@ let bonusThumb = null, bonusThumbFor = null;
 const SECRET_CARD = () => SAVE.flags.dahaka ? CWORLDS.length + 1 : -1;   // carte du niveau secret, une fois le mot de passe trouvé
 const EGLISE_CARD = () => egliseOpen() ? CWORLDS.length + (SAVE.flags.dahaka ? 2 : 1) : -1;   // l'église, après les 6 mondes (eglise.js)
 const RUSH_CARD = () => rushOpen() ? CWORLDS.length + 1 + (SAVE.flags.dahaka ? 1 : 0) + (egliseOpen() ? 1 : 0) : -1;   // boss rush (rush.js)
-const campCardCount = () => CWORLDS.length + 1 + (SAVE.flags.dahaka ? 1 : 0) + (egliseOpen() ? 1 : 0) + (rushOpen() ? 1 : 0);
+const PLUIE_CARD = () => pluieOpen() ? CWORLDS.length + 1 + (SAVE.flags.dahaka ? 1 : 0) + (egliseOpen() ? 1 : 0) + (rushOpen() ? 1 : 0) : -1;   // pluie de chaussettes (pluie.js)
+const campCardCount = () => CWORLDS.length + 1 + (SAVE.flags.dahaka ? 1 : 0) + (egliseOpen() ? 1 : 0) + (rushOpen() ? 1 : 0) + (pluieOpen() ? 1 : 0);
 // cartes par pages de 8 (WPAGE) : la carte i est dessinée dans la case WUI[i % WPAGE] de la page de la carte choisie
 const campRect = i => WUI[i % WPAGE], campOnPage = i => Math.floor(i / WPAGE) === Math.floor(worldSel / WPAGE);
 // Meilleur temps (et médaille) d'une carte, dans le coin bas droit de sa vignette
@@ -2183,7 +2188,7 @@ function updateCampWorlds() {
   egliseCheat();
   const prog = campProgress(), n = campCardCount();
   const open = i => i >= CWORLDS.length || i <= prog;
-  const go = i => { if (i === RUSH_CARD()) startRush(); else if (i === EGLISE_CARD()) startEglise(); else if (i === SECRET_CARD()) openDkPick(); else if (i === CWORLDS.length) { mode = "bonus"; audio.sfx("select"); openWorlds(); } else startCampWorld(i); };
+  const go = i => { if (i === PLUIE_CARD()) startPluie(); else if (i === RUSH_CARD()) startRush(); else if (i === EGLISE_CARD()) startEglise(); else if (i === SECRET_CARD()) openDkPick(); else if (i === CWORLDS.length) { mode = "bonus"; audio.sfx("select"); openWorlds(); } else startCampWorld(i); };
   if (hit("Escape", "GB") || (hit("Mouse0") && inside({ x: 8, y: 6, w: 50, h: 20 }))) { audio.sfx("back"); enterHub({ x: 380 }); return; }
   if ((keys.ShiftLeft || keys.ShiftRight) && hit("KeyD")) { setCampProgress(CWORLDS.length); msg = { text: "Tous les mondes sont débloqués", t: 2 }; audio.sfx("door"); }
   if (hit(...K.left)) { worldSel = (worldSel + n - 1) % n; audio.sfx("select"); }
@@ -2202,18 +2207,23 @@ function drawCampWorlds() {
   if (pages > 1) text(`Page ${Math.floor(worldSel / WPAGE) + 1}/${pages}`, VW - 10, 30, 7, "#b9a6e0", "right");
   for (let i = 0; i < n; i++) {
     if (!campOnPage(i)) continue;
-    const r = campRect(i), sel = i === worldSel, secret = i === SECRET_CARD(), eglise = i === EGLISE_CARD(), rushC = i === RUSH_CARD(), bonus = i === CWORLDS.length, locked = !bonus && !secret && !eglise && !rushC && i > prog;
+    const r = campRect(i), sel = i === worldSel, secret = i === SECRET_CARD(), eglise = i === EGLISE_CARD(), rushC = i === RUSH_CARD(), pluieC = i === PLUIE_CARD(), bonus = i === CWORLDS.length, locked = !bonus && !secret && !eglise && !rushC && !pluieC && i > prog;
     const tw = r.w - 8, th = Math.round(tw * VH / VW);
     R(r.x, r.y, r.w, r.h, "rgba(14,8,30,0.9)");
     ctx.imageSmoothingEnabled = true;
-    if (rushC) drawRushCard(r, tw, th);
+    if (pluieC) drawPluieCard(r, tw, th);
+    else if (rushC) drawRushCard(r, tw, th);
     else if (eglise) drawEgliseCard(r, tw, th);
     else if (secret) drawDahakaCard(r, tw, th);
     else if (bonus) { if (bonusThumbFor !== C.id) { bonusThumb = oldThumb(0); bonusThumbFor = C.id; } ctx.drawImage(bonusThumb, r.x + 4, r.y + 4, tw, th); }
     else { const im = getImg(CWORLDS[i].rooms[0].bg); if (im.ok) ctx.drawImage(im.img, r.x + 4, r.y + 4, tw, th); else R(r.x + 4, r.y + 4, tw, th, "#1a1030"); }
     ctx.imageSmoothingEnabled = false;
     if (locked) { R(r.x + 4, r.y + 4, tw, th, "rgba(10,6,24,0.75)"); text("Verrouillé", r.x + r.w / 2, r.y + 30, 8, "#8a7aa8", "center"); }
-    if (rushC) {
+    if (pluieC) {
+      text("✦ Pluie de chaussettes", r.x + 5, r.y + r.h - 22, 8, "#5ef0ff");
+      text("Attrape-en 50 !", r.x + 5, r.y + r.h - 10, 6, "#b9a6e0");
+      const b = pluieBest(`${df().id}|1`); if (b !== undefined) cardTime(r, th, fmtTime(b), 0);
+    } else if (rushC) {
       text("⚔ Boss rush", r.x + 5, r.y + r.h - 22, 8, "#ff5a7a");
       text("Les 6 boss, puis l'église", r.x + 5, r.y + r.h - 10, 6, "#b9a6e0");
       const b = rushBest(); if (b !== undefined) cardTime(r, th, fmtTime(b), medalOf("rush", b));

@@ -63,7 +63,7 @@ function hubSetRoom(id, x) {
   hub.cam = clamp(coopCamX() - VW / 2, 0, H.w - VW);
 }
 function enterHub(opts = {}) {
-  mode = "camp"; chal = null; rush = null; players = [];
+  mode = "camp"; chal = null; rush = null; pluie = null; players = [];
   hubSetRoom(opts.room || "salle", opts.x ?? 380);
   mach = null; arrival = null; campTrans = null; campFade = 0; hub.trans = null;
   enemies = []; lasers = []; parts = []; pickups = []; ghosts = []; fxs = [];
@@ -223,6 +223,7 @@ function updateHub(rdt) {
     for (const it of things) { const fy = thingFloor(it); if (mx >= it.x - it.w / 2 && mx <= it.x + it.w / 2 && mouse.y >= fy - it.h && mouse.y <= fy + 4) { delete pressed.Mouse0; hubInteract(it); return; } }
   }
   if (!hub.arrive) for (const q of players) { updatePlayer(q, rdt); if (q.idx) coopKeepNear(q, H); }
+  if (!hub.arrive) pluieTasUpdate(rdt, p);   // le secret du tas de chaussettes (pluie.js)
   updateParts(rdt); updateFx(rdt);
 }
 function openHubMenu() { state = "hubmenu"; hubMenuSel = 0; audio.sfx("pause"); }
@@ -343,7 +344,8 @@ function drawShowcase() {
     // tas de chaussettes qui grandit avec la collection (6 tailles)
     if (showOn("tas") && n > 0) {
       const stage = [1, 6, 18, 36, 54, 72].filter(t => n >= t).length - 1;
-      if (hasAtlas("tas_chaussettes")) drawFrame("tas_chaussettes", stage, 340, fl + 1);
+      const sx = TAS.shake > 0 ? Math.round(Math.sin(time * 70) * 3 * TAS.shake / 0.3) : 0;   // il tremble quand on le tape
+      if (hasAtlas("tas_chaussettes")) drawFrame("tas_chaussettes", stage, 340 + sx, fl + 1);
       else for (let i = 0; i < Math.min(n, 30); i++) drawSock(340 + ((i * 37) % 80) - 40, fl - 6 - Math.floor(i / 8) * 7, { t: i, s: 0.7 });
     }
     R(300, 96, 80, 22, "rgba(10,6,24,0.55)");

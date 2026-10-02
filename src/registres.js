@@ -236,6 +236,7 @@ const BADGES = [
   { id: "sauveteur", name: "Sauveteur", how: "À deux, sauve ton copain de sa bulle", cond: { flag: "rescue" }, icon: "bubble", col: "#bff4ff", frame: 7 },
   { id: "boss_rush", name: "Boss rush", how: "Termine le boss rush", cond: { flag: "rushDone" }, icon: "skull", col: "#ff5a7a", frame: 17 },
   { id: "premier_or", name: "Première médaille d'or", how: "Gagne une médaille d'or (temps d'un monde ou du boss rush)", cond: { flag: "goldMedal" }, icon: "star", col: "#ffd23c", frame: 4, tint: "#ffd23c" },
+  { id: "pluie", name: "Pluie de chaussettes", how: "Un secret de la laverie… puis attrape 50 chaussettes", cond: { flag: "pluieDone" }, icon: "socks", col: "#5ef0ff", frame: 1, tint: "#5ef0ff" },
   { id: "or_partout", name: "Or partout", how: "Une médaille d'or dans chacun des 6 mondes", cond: { medalsGold: 6 }, icon: "trophy", col: "#ffd23c", frame: 16, tint: "#ffd23c" },
 ];
 
@@ -277,6 +278,7 @@ const COSMETICS = [
   { id: "pal_rose", slot: "pal", name: "Rose néon", hue: 300, sat: 1.2, light: 0.03, cond: { questsDone: 2 }, how: "Deux quêtes" },
   { id: "pal_brillant", slot: "pal", name: "Variante brillante", hue: 0, sat: 1.1, light: 0.06, shiny: true, cond: { world: 6 }, how: "Termine la campagne" },
   { id: "pal_dore", slot: "pal", name: "Doré", gold: true, cond: { cardsAll: true }, how: "Album complet" },
+  { id: "pal_pluie", slot: "pal", name: "Pluie", hue: 190, sat: 1.15, light: 0.02, cond: { flag: "pluieDone" }, how: "Un secret de la laverie" },
   { id: "fx_bulles", slot: "fx", name: "Bulles de savon", color: "#9fe8ff", color2: "#ffffff", cond: { questsDone: 1 }, how: "Première quête" },
   { id: "fx_or", slot: "fx", name: "Éclat d'or", color: "#ffd23c", color2: "#fff4c0", cond: { challengesDone: 2 }, how: "Deux défis réussis" },
   { id: "fx_glace", slot: "fx", name: "Givre", color: "#bff4ff", color2: "#5ec8ff", cond: { challenge: "essorage_port" }, how: "Programme Essorage" },

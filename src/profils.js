@@ -236,7 +236,7 @@ function saveSummary(sv) {
   const best = {}; for (const [k, v] of Object.entries(sv.best || {})) if (k.startsWith("camp|") && v && typeof v.time === "number") best[k] = v.time;
   const chal = {}; for (const [k, c] of Object.entries(sv.chal || {})) if (c && c.best) chal[k] = c.best;
   return { mondes: (sv.camp || {}).done || 0, chaussettes: Object.keys(sv.socks || {}).length, badges: Object.keys(sv.got || {}).filter(k => k.startsWith("badge:")).length,
-    best, rush: (sv.rush || {}).best || {}, rushAvec: (sv.rush || {}).avec || {}, dahaka: (sv.dahaka || {}).best || {}, chal };
+    best, rush: (sv.rush || {}).best || {}, rushAvec: (sv.rush || {}).avec || {}, dahaka: (sv.dahaka || {}).best || {}, pluie: (sv.pluie || {}).best || {}, chal };
 }
 // Les profils du tableau : ceux du serveur (si on y a accès), complétés par ceux de cet appareil (le profil en cours est à jour)
 function familyRows() {
@@ -262,6 +262,10 @@ function familyRecords(rows, d) {
   bestOf(r => r.rush[`${d}|1`], lt, fmtTime, "Boss rush (seul)", v => medalOf("rush", v));
   bestOf(r => r.rush[`${d}|2`], lt, fmtTime, "Boss rush (à deux)", v => medalOf("rush", v));
   const last = recs[recs.length - 1]; if (last.top) last.top.who += " + " + (last.top.r.rushAvec[`${d}|2`] || "Invité");
+  if (rows.some(r => r.pluie && (r.pluie[`${d}|1`] || r.pluie[`${d}|2`]))) {   // le mode secret n'apparaît qu'une fois découvert
+    bestOf(r => (r.pluie || {})[`${d}|1`], lt, fmtTime, "Pluie de chaussettes", null);
+    bestOf(r => (r.pluie || {})[`${d}|2`], lt, fmtTime, "Pluie de chaussettes (à deux)", null);
+  }
   bestOf(r => r.dahaka[d], gt, v => `${Math.floor(v)} m`, "Dahaka : temple", null);
   bestOf(r => r.dahaka[`grotte|${d}`], gt, v => `${Math.floor(v)} m`, "Dahaka : grotte", null);
   return recs;
@@ -272,9 +276,10 @@ function drawAlbumFamily() {
   text("Records de la famille", 12, 32, 9, "#fccc28");
   drawButton({ x: 150, y: 25, w: 96, h: 14 }, `${D.label} ▸`, !TOUCH && inside({ x: 150, y: 25, w: 96, h: 14 }), D.color || "#e8dcff", 7);
   if (!rows.length) { text("Pas encore de profil.", 12, 60, 8, "#b9a6e0"); return; }
-  familyRecords(rows, d).forEach((rc, i) => {
-    const y = 50 + i * 19;
-    R(10, y - 7, 290, 16, i % 2 ? "rgba(20,12,40,0.55)" : "rgba(30,18,56,0.7)");
+  const recs = familyRecords(rows, d), rh = Math.min(19, Math.floor(200 / recs.length));
+  recs.forEach((rc, i) => {
+    const y = 50 + i * rh;
+    R(10, y - 7, 290, rh - 3, i % 2 ? "rgba(20,12,40,0.55)" : "rgba(30,18,56,0.7)");
     text(rc.label, 14, y + 1, 7, "#e8dcff");
     if (!rc.top) { text("—", 296, y + 1, 7, "#5a4a80", "right"); return; }
     const md = rc.medal ? rc.medal(rc.top.v) : 0;

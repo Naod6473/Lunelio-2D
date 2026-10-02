@@ -297,7 +297,8 @@ function loadCampRoom(wi, ri, opts = {}) {
   setTimeFx(false, false);
   state = "play";
   lvl.hurt = false;   // touché dans cette salle (défi Délicat, boss sans dégâts)
-  if (!opts.restart && !chal && !rush) { setCampResume(wi, ri); emit("visit", { wid: W.id }); }
+  if (!opts.restart && !chal && !rush && !pluie) { setCampResume(wi, ri); emit("visit", { wid: W.id }); }
+  if (pluie) pluieSetup();
   if (rush) rushApply(opts.restart);
   if (!opts.restart) speakCampRoom();
   if (ri === 0 && !opts.restart) hintT = 0;
@@ -856,7 +857,7 @@ function updateArena(dt) {
   }
 }
 function campFall(p) {
-  hurtPlayer(p, p.x);
+  if (!pluie) hurtPlayer(p, p.x);   // pluie de chaussettes : un trou ne coûte pas de cœur
   if (p.dead) return;
   const s = lvl.lastSafe || lvl.start;
   p.x = s.x; p.y = s.y; p.vx = p.vy = 0; p.inv = Math.max(p.inv, 1.1);
@@ -1303,6 +1304,7 @@ function drawCampWorld() {
     } else if (l.wpn) drawWProj(l); else drawCampProjectile(l);
   }
   drawBubbled();
+  if (pluie) drawPluie();
   drawGhosts(); for (const p of players) drawCampPlayer(p);
   drawBubbles(); drawCoopTags();
   drawCovers();
@@ -1322,7 +1324,7 @@ function drawCampHUD() {
   const d = df(), C = ch(), W = CWORLDS[camp.wi], R0 = campRoom(), P1 = player1();
   R(0, 0, VW, 16, "rgba(10,6,24,0.7)");
   const accent = MACHINE_FX[W.id][0];
-  const tag = rush ? `Boss rush  ${Math.min(rush.i + 1, RUSH_TOTAL)}/${RUSH_TOTAL}` : lvl.bossSpawn ? `${W.name}  BOSS` : `${W.name}  ${camp.ri + 1}/${W.rooms.length - 1}`;
+  const tag = pluie ? pluieTag() : rush ? `Boss rush  ${Math.min(rush.i + 1, RUSH_TOTAL)}/${RUSH_TOTAL}` : lvl.bossSpawn ? `${W.name}  BOSS` : `${W.name}  ${camp.ri + 1}/${W.rooms.length - 1}`;
   text(tag, 6, 8, 9, accent);
   ctx.font = `700 9px ${FONT}`; const nw = ctx.measureText(tag).width;
   text(R0.name, 14 + nw, 8, 9, "#e8dcff");
@@ -1342,10 +1344,10 @@ function drawCampHUD() {
     }
   }
   const foes = enemies.filter(e => e.alive && e.type === "foe").length;
-  if (foes && !lvl.bossSpawn) text(`Ennemis : ${foes}`, 6, VH - 8, 8, "#b9a6e0");
+  if (foes && !lvl.bossSpawn && !pluie) text(`Ennemis : ${foes}`, 6, VH - 8, 8, "#b9a6e0");
   else if (lvl.exits.some(x => x.foeLock)) text("Sortie ouverte !", 6, VH - 8, 8, "#7dffb0");
   // chaussettes du monde (icône pleine si celle de la salle est trouvée)
-  if (!chal && AJOUTS.socks[R0.id]) {
+  if (!chal && !pluie && AJOUTS.socks[R0.id]) {
     const got = !!SAVE.socks[R0.id], sx = 92;
     drawSock(sx, VH - 9, got ? { s: 0.55 } : { ghost: true, alpha: 0.6, s: 0.55 });
     text(`${socksInWorld(W.id)}/${socksWorldTotal(W.id)}`, sx + 9, VH - 8, 8, got ? "#7dffb0" : "#b9a6e0");

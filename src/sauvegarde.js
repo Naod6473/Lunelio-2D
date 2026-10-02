@@ -31,6 +31,7 @@ function newSave() {
     jukebox: null, lastChar: null,
     weapons: { owned: randomWeapons(2), eq: {} },            // armes du râtelier : possédées, et arme choisie par héros
     dahaka: { best: {} },                                    // niveau secret : record (mètres) par difficulté
+    pluie: { best: {} },                                     // pluie de chaussettes (mode secret) : record (secondes) par difficulté, seul ou à deux
     rush: { best: {}, avec: {} },                            // boss rush : record (secondes) par difficulté, en solo ou à deux ; avec : nom du joueur 2
   };
 }
@@ -108,7 +109,7 @@ function migrateOld() {
 // (maj) : en entier pour le jukebox, le dernier héros et les salles de reprise ; héros par héros pour les tenues et les armes
 // (un choix fait sur un seul appareil reste).
 const MERGE_NEWER = ["jukebox", "lastChar", "camp.resume"], MERGE_NEWER_LEAF = ["cos", "weapons.eq"];
-const MERGE_MIN = ["chal.*.best", "rush.best"];   // valeurs : temps (le plus petit gagne)
+const MERGE_MIN = ["chal.*.best", "rush.best", "pluie.best"];   // valeurs : temps (le plus petit gagne)
 const QUEST_ORDER = { active: 1, ready: 2, done: 3 };
 function mergeSave(a, b) {
   if (!a) return b; if (!b) return a;
@@ -267,6 +268,7 @@ function emit(type, d = {}) {
     case "oldBoss": S.seen.oldBoss[d.wid] = 1; if (d.doom) S.flags.doomBoss = 1; weaponReward(); break;
     case "roomDone": S.camp.rooms[d.room] = 1; S.seen.char[d.char] = 1; if (d.doom) S.flags.doomRoom = 1; break;
     case "worldDone": S.camp.done = Math.max(S.camp.done, d.wi + 1); if (d.duo) S.flags.duoWorld = 1; break;
+    case "pluie": S.flags.pluieDone = 1; break;
     case "rescue": if (S.flags.rescue) return; S.flags.rescue = 1; break;
     case "rush": S.flags.rushDone = 1; if (medalOf("rush", d.time) === 3) S.flags.goldMedal = 1; break;
     case "medal": if (d.m === 3) S.flags.goldMedal = 1; break;
