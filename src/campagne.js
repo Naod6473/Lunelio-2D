@@ -297,7 +297,8 @@ function loadCampRoom(wi, ri, opts = {}) {
   setTimeFx(false, false);
   state = "play";
   lvl.hurt = false;   // touché dans cette salle (défi Délicat, boss sans dégâts)
-  if (!opts.restart && !chal) { setCampResume(wi, ri); emit("visit", { wid: W.id }); }
+  if (!opts.restart && !chal && !rush) { setCampResume(wi, ri); emit("visit", { wid: W.id }); }
+  if (rush) rushApply(opts.restart);
   if (!opts.restart) speakCampRoom();
   if (ri === 0 && !opts.restart) hintT = 0;
 }
@@ -601,7 +602,7 @@ function updateBig(e, dt) {
   e.at += dt; e.inv = Math.max(0, e.inv - dt); e.flashT = Math.max(0, e.flashT - dt);
   const B = e.B, sp = bigSpeed(e), p = targetOf(e), [cx] = bigCenter(e);
   const grav = () => { if (!B.fly) { e.vy = Math.min(e.vy + 1500 * dt, 700); moveBody(e, dt); } };
-  if (e.dying) { e.t -= dt; e.vx = 0; grav(); if (e.t <= 0) { e.alive = false; campVictory(e); } return; }
+  if (e.dying) { e.t -= dt; e.vx = 0; grav(); if (e.t <= 0) { e.alive = false; if (rush) rushWin(e); else campVictory(e); } return; }
   if (roomLost()) { e.st = "taunt"; e.vx = 0; grav(); return; }
   if (e.st === "intro") { e.t -= dt; e.vx = 0; if (B.fly) e.y += (90 - e.y) * Math.min(1, dt * 1.5); else grav(); if (e.t <= 0) { e.st = "idle"; e.t = 0.6; } return; }
   if (e.st === "transform") { e.t -= dt; e.vx = 0; grav(); if (e.t <= 0) { e.st = "idle"; e.t = 0.4; } return; }
@@ -729,7 +730,7 @@ function damageBig(e, dmg) {
     e.rocks = null;
     shake = 12; flash = 0.25; hitstop = 0.25; bossDefeatSfx(BOSS_IDS.indexOf(e.id)); audio.sfx("victory"); rumble(700, 1, 1);
     msg = { text: `${e.name} est vaincu !`, t: 3 }; voice.say(msg.text, true);
-    if (!chal) emit("boss", { id: e.id, noDamage: !lvl.hurt, doom: df().id === "doom" });
+    if (!chal && !rush) emit("boss", { id: e.id, noDamage: !lvl.hurt, doom: df().id === "doom" });
     return;
   }
   const frac = e.hp / e.maxHp, ph = 1 + e.th.filter(t => frac <= t).length;
@@ -1084,7 +1085,7 @@ function updateCamp(dt) {
   const p = players[0];
   if (p.onGround && !p.dead && !p.hidden && supportAt(p.x - 4, p.y + p.h + 1) && supportAt(p.x + p.w + 4, p.y + p.h + 1)
     && !lvl.hazards.some(h => h.kind === "pit" && Math.abs(h.x + h.w / 2 - (p.x + 5)) < h.w)) lvl.lastSafe = { x: p.x, y: p.y };
-  updateMachine(dt); updateArrival(dt); updateCampTransition(dt); updateFx(dt);
+  updateMachine(dt); updateArrival(dt); updateCampTransition(dt); updateRush(dt); updateFx(dt);
   if (mach && mach.fadeIn > 0) { mach.fadeIn -= dt; campFade = Math.max(0, mach.fadeIn / 0.4); }
   if (!campTrans && !mach && !arrival && campFade > 0) campFade = Math.max(0, campFade - dt * 3);
   if (arrival && arrival.done && !campTrans && campFade > 0) campFade = Math.max(0, campFade - dt * 3);
@@ -1318,12 +1319,12 @@ function drawCampHUD() {
   const d = df(), C = ch(), W = CWORLDS[camp.wi], R0 = campRoom(), P1 = player1();
   R(0, 0, VW, 16, "rgba(10,6,24,0.7)");
   const accent = MACHINE_FX[W.id][0];
-  const tag = lvl.bossSpawn ? `${W.name}  BOSS` : `${W.name}  ${camp.ri + 1}/${W.rooms.length - 1}`;
+  const tag = rush ? `Boss rush  ${Math.min(rush.i + 1, CWORLDS.length)}/${CWORLDS.length}` : lvl.bossSpawn ? `${W.name}  BOSS` : `${W.name}  ${camp.ri + 1}/${W.rooms.length - 1}`;
   text(tag, 6, 8, 9, accent);
   ctx.font = `700 9px ${FONT}`; const nw = ctx.measureText(tag).width;
   text(R0.name, 14 + nw, 8, 9, "#e8dcff");
   const nw2 = ctx.measureText(R0.name).width;
-  text(fmtTime(runTime), Math.max(VW / 2 + 40, 14 + nw + nw2 + 30), 8, 9, C.ui, "center");
+  text(fmtTime(rush ? rush.t : runTime), Math.max(VW / 2 + 40, 14 + nw + nw2 + 30), 8, 9, C.ui, "center");
   let hx = VW - (TOUCH && !PAD ? 52 : 8);
   if (d.id === "doom") { ctx.globalAlpha = 0.6 + 0.4 * Math.sin(time * 8); text("☠ DOOM", hx, 8, 9, d.color, "right", d.color); ctx.globalAlpha = 1; }
   else {

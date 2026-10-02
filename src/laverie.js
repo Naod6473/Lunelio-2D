@@ -63,7 +63,7 @@ function hubSetRoom(id, x) {
   hub.cam = clamp(coopCamX() - VW / 2, 0, H.w - VW);
 }
 function enterHub(opts = {}) {
-  mode = "camp"; chal = null; players = [];
+  mode = "camp"; chal = null; rush = null; players = [];
   hubSetRoom(opts.room || "salle", opts.x ?? 380);
   mach = null; arrival = null; campTrans = null; campFade = 0; hub.trans = null;
   enemies = []; lasers = []; parts = []; pickups = []; ghosts = []; fxs = [];

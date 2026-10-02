@@ -1715,7 +1715,7 @@ function updatePlay(rdt) {
     }
   }
   setTimeFx(players.some(p => usingPower(p, "slow")), players.some(p => usingPower(p, "fast")));
-  runTime += rdt; roomTime += rdt; hintT += rdt;
+  runTime += rdt; roomTime += rdt; hintT += rdt; if (rush && !rush.res) rush.t += rdt;
   if (hitstop > 0) { hitstop -= rdt; return; }
   const dt = rdt * (slowOn ? 0.35 : 1);
   for (const p of players) if (!(lvl.json && campLocked(p))) updatePlayer(p, dt);
@@ -1769,12 +1769,14 @@ function pauseGame() { state = "pause"; pauseSel = 0; setTimeFx(false, false); a
 // Où reprendra-t-on en revenant dans ce monde ? Salle en cours ; en mode Doom, le drapeau s'il a été touché, sinon le début du monde.
 function resumeInfo() {
   if (chal) return "Le programme de lavage sera abandonné";
+  if (rush) return "Le boss rush sera abandonné";
   if (!lvl.json) return `Ancienne aventure : tu reprendras au début de « ${WORLDS[ROOMS[lvlIdx].w].name} »`;
   const W = CWORLDS[camp.wi], r = df().id === "doom" ? camp.ckpt : camp.ri;
   return `Tu reprendras : ${W.name}, salle ${r + 1}` + (df().id === "doom" ? (camp.ckpt ? " (au drapeau)" : " (début du monde, mode Doom)") : "");
 }
 function leaveToHub() {
   if (chal) { chalAbandon(); return; }
+  if (rush) { rushQuit(); return; }
   let m = "";
   if (lvl.json) { const r = df().id === "doom" ? camp.ckpt : camp.ri; setCampResume(camp.wi, r); m = `Tu reprendras ${CWORLDS[camp.wi].name}, salle ${r + 1}`; }
   enterHub({ x: 380, msg: m });
@@ -2386,7 +2388,8 @@ function loadCampRoom(wi, ri, opts = {}) {
   setTimeFx(false, false);
   state = "play";
   lvl.hurt = false;   // touché dans cette salle (défi Délicat, boss sans dégâts)
-  if (!opts.restart && !chal) { setCampResume(wi, ri); emit("visit", { wid: W.id }); }
+  if (!opts.restart && !chal && !rush) { setCampResume(wi, ri); emit("visit", { wid: W.id }); }
+  if (rush) rushApply(opts.restart);
   if (!opts.restart) speakCampRoom();
   if (ri === 0 && !opts.restart) hintT = 0;
 }
@@ -2690,7 +2693,7 @@ function updateBig(e, dt) {
   e.at += dt; e.inv = Math.max(0, e.inv - dt); e.flashT = Math.max(0, e.flashT - dt);
   const B = e.B, sp = bigSpeed(e), p = targetOf(e), [cx] = bigCenter(e);
   const grav = () => { if (!B.fly) { e.vy = Math.min(e.vy + 1500 * dt, 700); moveBody(e, dt); } };
-  if (e.dying) { e.t -= dt; e.vx = 0; grav(); if (e.t <= 0) { e.alive = false; campVictory(e); } return; }
+  if (e.dying) { e.t -= dt; e.vx = 0; grav(); if (e.t <= 0) { e.alive = false; if (rush) rushWin(e); else campVictory(e); } return; }
   if (roomLost()) { e.st = "taunt"; e.vx = 0; grav(); return; }
   if (e.st === "intro") { e.t -= dt; e.vx = 0; if (B.fly) e.y += (90 - e.y) * Math.min(1, dt * 1.5); else grav(); if (e.t <= 0) { e.st = "idle"; e.t = 0.6; } return; }
   if (e.st === "transform") { e.t -= dt; e.vx = 0; grav(); if (e.t <= 0) { e.st = "idle"; e.t = 0.4; } return; }
@@ -2818,7 +2821,7 @@ function damageBig(e, dmg) {
     e.rocks = null;
     shake = 12; flash = 0.25; hitstop = 0.25; bossDefeatSfx(BOSS_IDS.indexOf(e.id)); audio.sfx("victory"); rumble(700, 1, 1);
     msg = { text: `${e.name} est vaincu !`, t: 3 }; voice.say(msg.text, true);
-    if (!chal) emit("boss", { id: e.id, noDamage: !lvl.hurt, doom: df().id === "doom" });
+    if (!chal && !rush) emit("boss", { id: e.id, noDamage: !lvl.hurt, doom: df().id === "doom" });
     return;
   }
   const frac = e.hp / e.maxHp, ph = 1 + e.th.filter(t => frac <= t).length;
@@ -3173,7 +3176,7 @@ function updateCamp(dt) {
   const p = players[0];
   if (p.onGround && !p.dead && !p.hidden && supportAt(p.x - 4, p.y + p.h + 1) && supportAt(p.x + p.w + 4, p.y + p.h + 1)
     && !lvl.hazards.some(h => h.kind === "pit" && Math.abs(h.x + h.w / 2 - (p.x + 5)) < h.w)) lvl.lastSafe = { x: p.x, y: p.y };
-  updateMachine(dt); updateArrival(dt); updateCampTransition(dt); updateFx(dt);
+  updateMachine(dt); updateArrival(dt); updateCampTransition(dt); updateRush(dt); updateFx(dt);
   if (mach && mach.fadeIn > 0) { mach.fadeIn -= dt; campFade = Math.max(0, mach.fadeIn / 0.4); }
   if (!campTrans && !mach && !arrival && campFade > 0) campFade = Math.max(0, campFade - dt * 3);
   if (arrival && arrival.done && !campTrans && campFade > 0) campFade = Math.max(0, campFade - dt * 3);
@@ -3407,12 +3410,12 @@ function drawCampHUD() {
   const d = df(), C = ch(), W = CWORLDS[camp.wi], R0 = campRoom(), P1 = player1();
   R(0, 0, VW, 16, "rgba(10,6,24,0.7)");
   const accent = MACHINE_FX[W.id][0];
-  const tag = lvl.bossSpawn ? `${W.name}  BOSS` : `${W.name}  ${camp.ri + 1}/${W.rooms.length - 1}`;
+  const tag = rush ? `Boss rush  ${Math.min(rush.i + 1, CWORLDS.length)}/${CWORLDS.length}` : lvl.bossSpawn ? `${W.name}  BOSS` : `${W.name}  ${camp.ri + 1}/${W.rooms.length - 1}`;
   text(tag, 6, 8, 9, accent);
   ctx.font = `700 9px ${FONT}`; const nw = ctx.measureText(tag).width;
   text(R0.name, 14 + nw, 8, 9, "#e8dcff");
   const nw2 = ctx.measureText(R0.name).width;
-  text(fmtTime(runTime), Math.max(VW / 2 + 40, 14 + nw + nw2 + 30), 8, 9, C.ui, "center");
+  text(fmtTime(rush ? rush.t : runTime), Math.max(VW / 2 + 40, 14 + nw + nw2 + 30), 8, 9, C.ui, "center");
   let hx = VW - (TOUCH && !PAD ? 52 : 8);
   if (d.id === "doom") { ctx.globalAlpha = 0.6 + 0.4 * Math.sin(time * 8); text("☠ DOOM", hx, 8, 9, d.color, "right", d.color); ctx.globalAlpha = 1; }
   else {
@@ -3976,7 +3979,8 @@ function newSave() {
     cos: { char: {}, machine: null, hub: { tile: "tile_damier", light: "light_blanc", sign: "sign_violet", items: {}, show: {} } },
     jukebox: null, lastChar: null,
     weapons: { owned: randomWeapons(2), eq: {} },            // armes du râtelier : possédées, et arme choisie par héros
-    dahaka: { best: {} },                                    // niveau secret : record (mètres) par difficulté
+    dahaka: { best: {} },
+    rush: { best: {} },                                      // boss rush : record (secondes) par difficulté, en solo ou à deux                                    // niveau secret : record (mètres) par difficulté
   };
 }
 // n armes tirées au hasard parmi celles qu'on n'a pas encore (le sabre est toujours là)
@@ -4270,7 +4274,7 @@ function hubSetRoom(id, x) {
   hub.cam = clamp(coopCamX() - VW / 2, 0, H.w - VW);
 }
 function enterHub(opts = {}) {
-  mode = "camp"; chal = null; players = [];
+  mode = "camp"; chal = null; rush = null; players = [];
   hubSetRoom(opts.room || "salle", opts.x ?? 380);
   mach = null; arrival = null; campTrans = null; campFade = 0; hub.trans = null;
   enemies = []; lasers = []; parts = []; pickups = []; ghosts = []; fxs = [];
@@ -6020,6 +6024,96 @@ function coopCharsDraw() {
   text(COOP.dev === "pad" ? "Manette 2" : "Clavier : flèches, " + [K2_KB.attack[0], K2_KB.special[0], K2_KB.power[0]].map(keyName).join(" "), r.x + 38, r.y + 34, 7, "#b9a6e0");
 }
 
+/* ---------------- Boss rush ---------------- */
+// Carte de l'écran des mondes (RUSH_CARD, après les 6 mondes) : les 6 boss de la campagne d'affilée, dans leurs arènes.
+// rush : { i (boss en cours), t (chrono, temps réel en jeu), hp (cœurs gardés d'un boss à l'autre), startHp, next (pause
+// entre deux boss), res (résultat) }. Perdre recommence le boss en cours, avec les cœurs du début de ce combat ; le chrono
+// continue. Record par difficulté, en solo et à deux : SAVE.rush.best["diff|1"] ou ["diff|2"].
+// Ni pièce, ni arme, ni chaussette : le boss rush ne compte que pour le record (et ses badges).
+let rush = null;
+const rushOpen = () => campProgress() >= CWORLDS.length;
+const rushKey = () => `${df().id}|${COOP.on ? 2 : 1}`;
+const rushBest = () => (SAVE.rush.best || {})[rushKey()];
+function startRush() {
+  rush = { i: 0, t: 0, hp: null, startHp: null, next: 0, res: null };
+  runTime = 0; deaths = 0; msg = null; spokenRoom = -1; audio.sfx("start");
+  rushLoad();
+}
+function rushLoad() {
+  const wi = rush.i, W = CWORLDS[wi], ri = W.rooms.length - 1;
+  camp.ckpt = ri; camp.fromStart = false;   // en Doom aussi, on recommence ce boss
+  loadCampRoom(wi, ri, { fadeIn: true });
+  msg = { text: `Boss ${wi + 1} sur ${CWORLDS.length} : ${BIG[W.boss].name}`, t: 2.4 };
+}
+// Appelé par loadCampRoom : cœurs gardés d'un boss à l'autre ; un combat recommencé repart avec les cœurs de son début
+function rushApply(restart) {
+  if (!restart) rush.startHp = rush.hp ? rush.hp.slice() : null;
+  const hp = rush.startHp;
+  if (hp) for (const p of players) p.hp = clamp(hp[p.idx] ?? df().hp, 1, df().hp);
+}
+// Le boss est vaincu (à la place de campVictory) : un cœur de plus, le copain dans sa bulle revient, puis le boss suivant
+function rushWin(e) {
+  foeDefeatFx(e.B.defeat, e.x + e.w / 2, e.y + e.h / 2, true);
+  for (const p of players) { if (p.dead) coopRevive(p, true); p.hp = Math.min(df().hp, p.hp + 1); p.gauge = 1; }
+  rush.hp = players.map(p => p.hp);
+  rush.i++;
+  if (rush.i >= CWORLDS.length) { rushEnd(); return; }
+  rush.next = 2.2; msg = { text: "Boss suivant !", t: 2 }; voice.say("Boss suivant !", true);
+}
+// Appelé par updateCamp : pause entre deux boss, puis fondu
+function updateRush(dt) {
+  if (!rush || rush.next <= 0) return;
+  rush.next -= dt;
+  if (rush.next < 0.4) campFade = Math.min(1, 1 - rush.next / 0.4);
+  if (rush.next <= 0) rushLoad();
+}
+function rushEnd() {
+  const k = rushKey(), prev = rushBest(), rec = prev === undefined || rush.t < prev;
+  if (rec) SAVE.rush.best[k] = rush.t;
+  rush.res = { time: rush.t, rec, prev, t: 0, sel: 0 };
+  emit("rush", { time: rush.t, diff: df().id, duo: COOP.on });
+  saveGame(); setTimeFx(false, false);
+  audio.sfx("chal_ok"); voice.say("Boss rush terminé ! Bravo !", true);
+  state = "rushres";
+}
+function rushQuit() { rush = null; enterHub({ x: 380 }); }
+// Carte de l'écran des mondes : les portraits des 6 boss
+function drawRushCard(r, tw, th) {
+  R(r.x + 4, r.y + 4, tw, th, "#1a0a26");
+  const ids = Object.keys(BIG), cw = Math.floor(tw / 3), chh = Math.floor(th / 2);
+  CWORLDS.forEach((W, k) => {
+    const pi = ids.indexOf(W.boss), x = r.x + 4 + (k % 3) * cw, y = r.y + 4 + Math.floor(k / 3) * chh;
+    ctx.save(); ctx.beginPath(); ctx.rect(x, y, cw, chh); ctx.clip();
+    R(x, y, cw, chh, k % 2 ? "#24123a" : "#2c1646");
+    const sc = Math.min(cw / 40, chh / 37) * 0.95;   // portrait entier (40 × 37), pieds en bas de la case
+    drawFrame("portraits_boss", pi, x + cw / 2, y + chh - 1, 1, 1, sc);
+    ctx.restore();
+  });
+  R(r.x + 4, r.y + 4, tw, th, `rgba(255,60,90,${0.06 + 0.04 * Math.sin(time * 3)})`);
+}
+const RR_BTN = [{ x: 140, y: 200, w: 96, h: 22, label: "Rejouer" }, { x: 244, y: 200, w: 96, h: 22, label: "Laverie" }];
+SCREENS.rushres = {
+  update(rdt) {
+    const r = rush.res; r.t += rdt; updateParts(rdt);
+    if (r.t < 0.6) return;
+    if (hit(...K.left, ...K.right, ...K.up, ...K.down)) { r.sel = 1 - r.sel; audio.sfx("select"); }
+    const act = i => { if (i === 0) startRush(); else rushQuit(); };
+    if (hit(...K.ok)) { act(r.sel); return; }
+    if (hit("Escape", "GB")) { act(1); return; }
+    if (hit("Mouse0")) RR_BTN.forEach((b, i) => { if (state === "rushres" && inside(b)) act(i); });
+  },
+  draw() {
+    const r = rush.res;
+    drawCampWorld(); R(0, 0, VW, VH, "rgba(10,6,24,0.82)");
+    text("Boss rush terminé !", VW / 2, 56, 22, "#ff5a7a", "center", "#ff5a7a");
+    text(`${df().label}  ·  ${COOP.on ? "à deux" : "en solo"}`, VW / 2, 80, 9, "#e8dcff", "center");
+    text(`Temps : ${fmtTime(r.time)}` + (r.rec ? "   Nouveau record !" : ""), VW / 2, 104, 12, r.rec ? "#fccc28" : "#ffffff", "center");
+    const b = rushBest(); if (b !== undefined) text(`Record : ${fmtTime(b)}`, VW / 2, 124, 8, "#b9a6e0", "center");
+    if (typeof drawMedalLine === "function") drawMedalLine("rush", r.time, VW / 2, 150);
+    RR_BTN.forEach((bt, i) => drawButton(bt, bt.label, (PAD || TOUCH) ? r.sel === i : inside(bt), i ? "#b9a6e0" : "#ff5a7a", 9));
+  },
+};
+
 /* ---------------- Niveau secret : la course du Dahaka ---------------- */
 // Débloqué en tapant DAHAKA sur l'écran des mondes (SAVE.flags.dahaka). Deux parcours au choix (DK_LEVELS) : le temple et la grotte.
 // Niveau sans fin vers la droite, fabriqué par morceaux de 480 px (sol, trous, plateformes et pièges annoncés). Le Dahaka,
@@ -6942,7 +7036,8 @@ function drawWorlds() {
 let bonusThumb = null, bonusThumbFor = null;
 const SECRET_CARD = () => SAVE.flags.dahaka ? CWORLDS.length + 1 : -1;   // carte du niveau secret, une fois le mot de passe trouvé
 const EGLISE_CARD = () => egliseOpen() ? CWORLDS.length + (SAVE.flags.dahaka ? 2 : 1) : -1;   // l'église, après les 6 mondes (eglise.js)
-const campCardCount = () => CWORLDS.length + 1 + (SAVE.flags.dahaka ? 1 : 0) + (egliseOpen() ? 1 : 0);
+const RUSH_CARD = () => rushOpen() ? CWORLDS.length + 1 + (SAVE.flags.dahaka ? 1 : 0) + (egliseOpen() ? 1 : 0) : -1;   // boss rush (rush.js)
+const campCardCount = () => CWORLDS.length + 1 + (SAVE.flags.dahaka ? 1 : 0) + (egliseOpen() ? 1 : 0) + (rushOpen() ? 1 : 0);
 // cartes par pages de 8 (WPAGE) : la carte i est dessinée dans la case WUI[i % WPAGE] de la page de la carte choisie
 const campRect = i => WUI[i % WPAGE], campOnPage = i => Math.floor(i / WPAGE) === Math.floor(worldSel / WPAGE);
 function updateCampWorlds() {
@@ -6950,7 +7045,7 @@ function updateCampWorlds() {
   egliseCheat();
   const prog = campProgress(), n = campCardCount();
   const open = i => i >= CWORLDS.length || i <= prog;
-  const go = i => { if (i === EGLISE_CARD()) startEglise(); else if (i === SECRET_CARD()) openDkPick(); else if (i === CWORLDS.length) { mode = "bonus"; audio.sfx("select"); openWorlds(); } else startCampWorld(i); };
+  const go = i => { if (i === RUSH_CARD()) startRush(); else if (i === EGLISE_CARD()) startEglise(); else if (i === SECRET_CARD()) openDkPick(); else if (i === CWORLDS.length) { mode = "bonus"; audio.sfx("select"); openWorlds(); } else startCampWorld(i); };
   if (hit("Escape", "GB") || (hit("Mouse0") && inside({ x: 8, y: 6, w: 50, h: 20 }))) { audio.sfx("back"); enterHub({ x: 380 }); return; }
   if ((keys.ShiftLeft || keys.ShiftRight) && hit("KeyD")) { setCampProgress(CWORLDS.length); msg = { text: "Tous les mondes sont débloqués", t: 2 }; audio.sfx("door"); }
   if (hit(...K.left)) { worldSel = (worldSel + n - 1) % n; audio.sfx("select"); }
@@ -6969,17 +7064,22 @@ function drawCampWorlds() {
   if (pages > 1) text(`Page ${Math.floor(worldSel / WPAGE) + 1}/${pages}`, VW - 10, 30, 7, "#b9a6e0", "right");
   for (let i = 0; i < n; i++) {
     if (!campOnPage(i)) continue;
-    const r = campRect(i), sel = i === worldSel, secret = i === SECRET_CARD(), eglise = i === EGLISE_CARD(), bonus = i === CWORLDS.length, locked = !bonus && !secret && !eglise && i > prog;
+    const r = campRect(i), sel = i === worldSel, secret = i === SECRET_CARD(), eglise = i === EGLISE_CARD(), rushC = i === RUSH_CARD(), bonus = i === CWORLDS.length, locked = !bonus && !secret && !eglise && !rushC && i > prog;
     const tw = r.w - 8, th = Math.round(tw * VH / VW);
     R(r.x, r.y, r.w, r.h, "rgba(14,8,30,0.9)");
     ctx.imageSmoothingEnabled = true;
-    if (eglise) drawEgliseCard(r, tw, th);
+    if (rushC) drawRushCard(r, tw, th);
+    else if (eglise) drawEgliseCard(r, tw, th);
     else if (secret) drawDahakaCard(r, tw, th);
     else if (bonus) { if (bonusThumbFor !== C.id) { bonusThumb = oldThumb(0); bonusThumbFor = C.id; } ctx.drawImage(bonusThumb, r.x + 4, r.y + 4, tw, th); }
     else { const im = getImg(CWORLDS[i].rooms[0].bg); if (im.ok) ctx.drawImage(im.img, r.x + 4, r.y + 4, tw, th); else R(r.x + 4, r.y + 4, tw, th, "#1a1030"); }
     ctx.imageSmoothingEnabled = false;
     if (locked) { R(r.x + 4, r.y + 4, tw, th, "rgba(10,6,24,0.75)"); text("Verrouillé", r.x + r.w / 2, r.y + 30, 8, "#8a7aa8", "center"); }
-    if (eglise) {
+    if (rushC) {
+      text("⚔ Boss rush", r.x + 5, r.y + r.h - 22, 8, "#ff5a7a");
+      text("Les 6 boss d'affilée", r.x + 5, r.y + r.h - 10, 6, "#b9a6e0");
+      const b = rushBest(); if (b !== undefined) text(fmtTime(b), r.x + r.w - 5, r.y + r.h - 22, 7, "#7dffb0", "right");
+    } else if (eglise) {
       text("✝ L'église", r.x + 5, r.y + r.h - 22, 8, "#ff5a7a");
       text("Un mariage pas comme les autres…", r.x + 5, r.y + r.h - 10, 6, "#b9a6e0");
     } else if (secret) {
