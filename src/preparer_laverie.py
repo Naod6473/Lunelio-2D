@@ -64,6 +64,8 @@ SPEC = {
     # trésors de la collection : une ligne par objet, 4 images animées (de simple à très brillant)
     **{f"tresors_{i}": (f"tresors_{i}.png", 4, 5 if i == 4 else 6, 32, 32, "center", {"play": [0, 4]}, True) for i in range(1, 6)},
     "etagere": ("etagere.png", 1, 1, 64, 72, "bottom", {"play": [0, 1]}, True),
+    # l'église (combat des mariés) : trois plans fixes d'arène, sol à y = 236
+    **{f"eglise_{i}": (f"eglise/eglise_{i}.jpeg", 1, 1, 480, 272, "bottom", {"play": [0, 1]}, True) for i in range(1, 4)},
     "livre_deco": ("livre_deco.png", 2, 1, 52, 56, "feet", {"fermee": [0, 1], "ouverture": [1, 1]}, True),
     # niveau secret du Dahaka, la grotte : scènes (terrain de jeu), cadres de premier plan, cascade, monstres du fond et gardiens du premier plan
     **{f"grotte_scene_{i}": (f"dahaka_grotte/scene_{i}.png", 1, 1, 480, 272, "bottom", {"play": [0, 1]}, True) for i in range(1, 7)},

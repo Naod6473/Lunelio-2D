@@ -762,6 +762,51 @@
    },
    "note": "laverie : etagere.png"
   },
+  "eglise_1": {
+   "src": "assets/laverie/eglise_1.webp",
+   "cw": 480,
+   "ch": 272,
+   "ax": 240,
+   "ay": 272,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : eglise/eglise_1.jpeg"
+  },
+  "eglise_2": {
+   "src": "assets/laverie/eglise_2.webp",
+   "cw": 480,
+   "ch": 272,
+   "ax": 240,
+   "ay": 272,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : eglise/eglise_2.jpeg"
+  },
+  "eglise_3": {
+   "src": "assets/laverie/eglise_3.webp",
+   "cw": 480,
+   "ch": 272,
+   "ax": 240,
+   "ay": 272,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : eglise/eglise_3.jpeg"
+  },
   "livre_deco": {
    "src": "assets/laverie/livre_deco.png",
    "cw": 52,

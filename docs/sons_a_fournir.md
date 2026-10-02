@@ -85,6 +85,8 @@ audio/
 │   │   └── ombres_kage.mp3            récompense de la quête de Kage (calme, flûte)
 │   └── bonus/                         facultatif : ancienne aventure, une piste par monde ; dahaka.mp3 : niveau secret, les deux parcours (fourni : dahaka_8bit_arcade) ; dahaka_grotte.mp3 facultatif, pour la grotte seulement
 │       └── bar.mp3, immeuble.mp3, ruelle.mp3, cinema.mp3, avion.mp3, parking.mp3, metro.mp3, labo.mp3
+│   (église : musique/eglise/eglise.mp3, jouée « à fond » et reprise là où elle s'est arrêtée ; fournie mais gardée hors du dépôt
+│    public tant que ses droits ne sont pas réglés ; à défaut, la musique du Maître des ombres)
 │
 ├── jingles/
 │   ├── victoire_boss.mp3      ★ boss vaincu
@@ -177,6 +179,11 @@ audio/
     │   ├── armoire.mp3            porte de casier
     │   ├── equiper.mp3            accessoire équipé
     │   └── jukebox_piece.mp3      pièce dans le jukebox
+    ├── eglise/                (fournis avec l'église)
+    │   ├── cloche.mp3             cloche au loin dans la laverie, après les 6 mondes (churchbell)
+    │   ├── cloche_mariage.mp3     arrivée à l'église (churchweddinbell), coupée en fondu quand la musique démarre
+    │   ├── cloche_sinistre.mp3    glas entre deux plans de l'arène (creepychurchbell)
+    │   ├── ambiance.mp3           ambiance de l'église en boucle (churchambiance ; churchambiance2 → ambiance2.mp3)
     ├── interface/
     │   ├── deplacer.mp3           curseur dans un menu, « select »
     │   ├── valider.mp3            « start »

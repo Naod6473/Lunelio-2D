@@ -80,6 +80,8 @@ function enterHub(opts = {}) {
     if (M) hub.queue.push(() => { if (has("mem:" + M.id) && !SAVE.memSeen[M.id]) openMemory(M.id, true); });
   }
   if (SAVE.camp.done >= CWORLDS.length && !SAVE.flags.ending) hub.queue.push(() => startDialog(STORY.ending, () => { startEnding(); }));
+  // après les 6 mondes, une cloche sonne au loin à chaque retour, tant que l'église n'est pas vaincue (eglise.js)
+  if (egliseOpen() && !SAVE.flags.egliseWon) hub.queue.push(() => { audio.sfx("eg_cloche"); hub.msg = { text: "Une cloche sonne au loin… La machine peut t'emmener à l'église.", t: 6 }; });
 }
 function hubToMachine() {
   audio.sfx("machine"); hub.machShake = 0.5;
