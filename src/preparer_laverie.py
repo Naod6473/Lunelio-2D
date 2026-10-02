@@ -20,6 +20,7 @@ OUT = os.path.join(HERE, "..", "assets", "laverie")
 # nom de l'atlas : (fichier source, colonnes, lignes, largeur et hauteur d'une case en jeu, ancrage, animations, même échelle pour toutes les cases)
 # ancrage : "feet" (milieu du bas), "center", "bottom" (bas, pour les décors)
 # Le fichier source peut être une liste : le premier qui existe est pris (noms du prompt ou noms des images déjà fournies).
+# Chaque fichier est aussi cherché à la racine de pack_laverie/ (sans son sous-dossier).
 # FIT : pour une planche à même échelle, hauteur visée et images qui servent à la mesurer (sinon toutes, ajustées à la case).
 NPCS = ["bulle", "capitaine", "bobine", "kage", "firmin"]
 SPEC = {
@@ -54,9 +55,9 @@ SPEC = {
     **{f"portrait_{n}": ([f"pnj/portrait_{n}.png", f"portrait_{n}.png"], 1, 1, 40, 40, "bottom", {"play": [0, 1]}, True) for n in NPCS},
     "cadres_cartes": ("cartes/cadres_cartes.png", 5, 1, 80, 112, "center", {"play": [0, 5]}, True),
     "illus_monstres": ("cartes/illus_monstres.png", 6, 1, 40, 40, "bottom", {"play": [0, 6]}, False),
-    "badges": ("icones/badges.png", 6, 3, 16, 16, "center", {"play": [0, 18]}, False),
+    "badges": ("icones/badges.png", 5, 4, 16, 16, "center", {"play": [0, 19]}, False),
     "icones_jeu": ("icones/icones_jeu.png", 8, 1, 12, 12, "center", {"play": [0, 8]}, False),
-    "chaussette_bonus": ("objets/chaussette_bonus.png", 6, 2, 16, 16, "center", {"flotte": [0, 6], "collecte": [6, 6]}, True),
+    "chaussette_bonus": ("objets/chaussette_bonus.png", 4, 2, 28, 28, "center", {"flotte": [0, 4], "collecte": [4, 4]}, True),
     "objets_quete": ("objets/objets_quete.png", 8, 1, 16, 16, "center", {"play": [0, 8]}, False),
     "fx_vent": ("objets/fx_vent.png", 4, 1, 32, 16, "center", {"play": [0, 4]}, True),
     "accessoires": ("cosmetiques/accessoires.png", 6, 2, 24, 24, "bottom", {"play": [0, 12]}, False),
@@ -66,7 +67,7 @@ SPEC = {
 }
 
 # hauteur visée et images de référence pour l'échelle commune (la chaussette se mesure sans les étincelles de la collecte)
-FIT = {"robot_marcheur": (24, None), "robot_canon": (24, None), "drone_ancien": (14, None), "chaussette": (22, [0, 1, 2, 3]), "tas_chaussettes": (100, None), "trophees": (32, None), "portes_laverie": (56, None)}
+FIT = {"robot_marcheur": (24, None), "robot_canon": (24, None), "drone_ancien": (14, None), "chaussette": (22, [0, 1, 2, 3]), "chaussette_bonus": (22, [0, 1, 2, 3]), "tas_chaussettes": (100, None), "trophees": (32, None), "portes_laverie": (56, None)}
 
 for _n in NPCS: FIT["pnj_" + _n] = (38, None)   # clients : environ 38 px de haut, comme les héros
 
@@ -89,6 +90,7 @@ def bbox(cell):
 def prepare(name, spec):
     path, cols, rows, cw, ch, anchor, anims, uniform = spec
     paths = path if isinstance(path, list) else [path]
+    paths = paths + [os.path.basename(q) for q in paths if os.path.basename(q) not in paths]   # aussi accepté à la racine du dossier
     full = next((os.path.join(SRC, q) for q in paths if os.path.exists(os.path.join(SRC, q))), None)
     if not full: return None
     path = os.path.relpath(full, SRC).replace(os.sep, "/")
