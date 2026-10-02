@@ -760,7 +760,7 @@ function musicKey() {
   const doom = df().id === "doom";
   if (state === "chars") return charMusic(CHARS[charSel]);
   if (state === "dahaka") return DK.lv === "grotte"
-    ? pickList(audio.list("dahaka_grotte", "musique/bonus/dahaka_grotte"), 0) || pickList(audio.list("boss:reine_chauve_souris", "musique/boss/reine_chauve_souris"), 0) || "synth:boss"
+    ? pickList(audio.list("dahaka_grotte", "musique/bonus/dahaka_grotte"), 0) || pickList(audio.list("dahaka", "musique/bonus/dahaka"), 0) || pickList(audio.list("boss:reine_chauve_souris", "musique/boss/reine_chauve_souris"), 0) || "synth:boss"
     : pickList(audio.list("dahaka", "musique/bonus/dahaka"), 0) || pickList(audio.list("boss:maitre_ombres", "musique/boss/maitre_ombres"), 0) || "synth:boss";
   if (typeof screenMusic === "function") { const m = screenMusic(); if (m !== undefined) return m; }   // laverie, souvenirs, fin, défis
   const inRoom = ["play", "clear", "worldclear", "pause"].includes(state) || (optFrom === "pause" && (state === "options" || state === "keys"));
