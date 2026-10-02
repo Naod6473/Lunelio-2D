@@ -61,6 +61,10 @@ __PWA_HEAD__
   #rotate b { font-size: 54px; display: block; animation: tourne 2s ease-in-out infinite; }
   @keyframes tourne { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
   @media (orientation: portrait) { body.touch #rotate { display: flex; } }
+  /* écran de chargement (images de assets/chargement/, une par palier de 10 %), affiché avant que le jeu soit prêt */
+  #loader { position: fixed; inset: 0; z-index: 40; background: #0a1446; display: flex; align-items: center; justify-content: center; transition: opacity .35s; }
+  #loader img { width: 100%; height: 100%; object-fit: contain; }
+  #loader.fin { opacity: 0; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -75,6 +79,31 @@ __PWA_HEAD__
   <div id="bFull" class="ctl always">⛶</div>
 </div>
 <div id="rotate"><b>📱</b>Tourne ton appareil<br>pour jouer à Lunelio</div>
+<div id="loader"><img id="loaderImg" alt="Chargement de Lunelio…"></div>
+<script>
+// Écran de chargement : affiché tout de suite, avant la lecture du gros script du jeu. LOADER.set(part) avance la barre
+// (au plus 1/1,2 par seconde : on voit chaque palier), LOADER.done(suite) va jusqu'à 100 %, s'efface en fondu puis lance la suite.
+const LOADER = (() => {
+  const imgs = __LOADER_IMGS__, el = document.getElementById("loader"), im = document.getElementById("loaderImg");
+  if (!imgs.length) { el.remove(); return { set() {}, done(f) { f(); } }; }
+  const pre = imgs.map(s => { const i = new Image(); i.src = s; return i; });
+  let goal = 0, disp = 0, shown = 0, last = performance.now(), next = null, endT = 0, giveUp = Infinity;
+  im.src = imgs[0];
+  function tick(now) {
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    disp = Math.min(goal, disp + dt / 1.2);
+    const k = Math.max(0, Math.min(imgs.length - 1, Math.floor(disp * imgs.length + 1e-6) - 1));
+    if (k !== shown && pre[k].complete) { im.src = imgs[k]; shown = k; }
+    if (next && (shown === imgs.length - 1 || now > giveUp)) {   // image 100 % trop lente : on n'attend pas plus de 2 s
+      if (!endT) endT = now + 300;   // un instant à 100 %
+      else if (now >= endT) { el.classList.add("fin"); const f = next; next = null; setTimeout(() => { el.remove(); f(); }, 350); return; }
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+  return { set(p) { goal = Math.max(goal, Math.min(1, p)); }, done(f) { goal = 1; next = f; giveUp = performance.now() + 1200 + 2000; } };
+})();
+</script>
 <script>
 "use strict";
 // Planches de sprites (src/assets/images/<id>_spritesheet.png) et logos (logo_<id>.webp), ajoutées par build.py
@@ -2564,11 +2593,14 @@ function frame(now) {
   for (const k in pressed) delete pressed[k];
   requestAnimationFrame(frame);
 }
-Promise.all(Object.entries(SPRITES).map(([k, src]) => new Promise(res => { const i = new Image(); i.onload = () => { IMG[k] = i; res(); }; i.onerror = res; i.src = src; })))
-  .then(() => preloadAtlases())
+// Chargement : planches, atlas puis police ; chaque élément chargé fait avancer l'écran de chargement
+const ldTotal = Object.keys(SPRITES).length + Object.keys(ATL).filter(k => !ATLAS_SPRITE[k]).length + 1;
+let ldN = 0; const ldStep = () => LOADER.set(++ldN / ldTotal);
+Promise.all(Object.entries(SPRITES).map(([k, src]) => new Promise(res => { const i = new Image(); i.onload = () => { IMG[k] = i; ldStep(); res(); }; i.onerror = () => { ldStep(); res(); }; i.src = src; })))
+  .then(() => preloadAtlases(8000, ldStep))
   .then(() => (document.fonts && document.fonts.load ? Promise.race([document.fonts.load(`700 12px "Pixelify Sans"`), new Promise(r => setTimeout(r, 1500))]) : null))
   .catch(() => {})
-  .then(() => { goMenu(); cv.focus(); });
+  .then(() => { ldStep(); LOADER.done(() => { goMenu(); cv.focus(); }); });
 requestAnimationFrame(frame);
 // Appli installable : le service worker garde le jeu et les sons pour jouer hors ligne (HTTPS ou localhost seulement)
 if (AUDIO_MODE === "files" && "serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});

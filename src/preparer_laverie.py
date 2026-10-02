@@ -244,6 +244,17 @@ def fade_foreground():
                 if k < 1: r, g, b, a = px[x, y]; px[x, y] = (r, g, b, round(a * k))
         im.save(f, lossless=True, quality=100, method=6)
 
+def prepare_loading():
+    """Écran de chargement : chargement/chargement_<pourcentage>.png (une image par palier de 10 %) → ../assets/chargement/*.webp (960 × 540)."""
+    d = os.path.join(SRC, "chargement"); out = os.path.join(HERE, "..", "assets", "chargement")
+    if not os.path.isdir(d): return 0
+    os.makedirs(out, exist_ok=True); n = 0
+    for f in sorted(os.listdir(d)):
+        if not (f.startswith("chargement_") and f.endswith(".png")): continue
+        Image.open(os.path.join(d, f)).convert("RGB").resize((960, 540), Image.LANCZOS).save(os.path.join(out, f[:-4] + ".webp"), quality=80, method=6)
+        n += 1
+    return n
+
 def main():
     atlas, missing = {}, []
     d = prepare_dahaka()
@@ -256,6 +267,7 @@ def main():
         if a: atlas[name] = a
         else: missing.append(spec[0])
     fade_foreground()
+    prepare_loading()
     json.dump({"atlas": atlas}, open(os.path.join(HERE, "laverie.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print(f"{len(atlas)} planches prêtes dans assets/laverie/ ; {len(missing)} images pas encore fournies (dessin provisoire)")
     if "-v" in sys.argv: print("\n".join("  manque : " + m for m in missing))

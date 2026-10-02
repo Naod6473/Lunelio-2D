@@ -24,9 +24,10 @@ function atlasImg(aid) {
   const o = getImg(A.src); return o.ok ? o.img : null;
 }
 // Charge toutes les planches au démarrage (une image manquante ou lente ne bloque jamais le jeu plus de quelques secondes)
-function preloadAtlases(timeout = 8000) {
+// onEach : appelé pour chaque planche prête (écran de chargement)
+function preloadAtlases(timeout = 8000, onEach = () => {}) {
   const list = Object.keys(ATL).filter(k => !ATLAS_SPRITE[k]).map(k => getImg(ATL[k].src));
-  const all = Promise.all(list.map(o => o.done ? 0 : new Promise(r => { o.img.addEventListener("load", r); o.img.addEventListener("error", r); })));
+  const all = Promise.all(list.map(o => o.done ? onEach() : new Promise(r => { const f = () => { onEach(); r(); }; o.img.addEventListener("load", f); o.img.addEventListener("error", f); })));
   return Promise.race([all, new Promise(r => setTimeout(r, timeout))]);
 }
 // Dessine l'image i d'un atlas, son point d'ancrage (pieds, centre ou base selon l'atlas) en (x, y). face < 0 : retournée.

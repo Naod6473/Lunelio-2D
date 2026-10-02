@@ -48,13 +48,17 @@ lav = os.path.join(HERE, "laverie.json")
 if os.path.exists(lav): camp["atlas"].update(json.load(open(lav, encoding="utf-8")).get("atlas", {}))
 ajouts = json.load(open(os.path.join(HERE, "campagne_ajouts.json"), encoding="utf-8"))
 t = t.replace("__AJOUTS__", json.dumps(ajouts, ensure_ascii=False, separators=(",", ":")))
-asset_paths = sorted({a["src"] for a in camp["atlas"].values()} | {r["bg"] for w in camp["worlds"] for r in w["rooms"]})
+# écran de chargement : une image par palier de 10 % (assets/chargement/chargement_<p>.webp, écrites par preparer_laverie.py)
+LD = os.path.join(ROOT, "assets", "chargement")
+loader_imgs = sorted((f"assets/chargement/{f}" for f in (os.listdir(LD) if os.path.isdir(LD) else []) if f.endswith(".webp")), key=lambda p: int(p.rsplit("_", 1)[1][:-5]))
+asset_paths = sorted({a["src"] for a in camp["atlas"].values()} | {r["bg"] for w in camp["worlds"] for r in w["rooms"]} | set(loader_imgs))
 missing = [a for a in asset_paths if not os.path.exists(os.path.join(ROOT, a))]
 if missing: sys.exit(f"Images manquantes dans assets/ ({len(missing)}), relancer preparer_pack.py : {missing[:5]}")
 asset_ver = {a: hashlib.sha256(open(os.path.join(ROOT, a), "rb").read()).hexdigest()[:10] for a in asset_paths}
 mime = {".png": "image/png", ".webp": "image/webp"}
 asset_embed = {a: f"data:{mime[os.path.splitext(a)[1]]};base64," + b64(os.path.join(ROOT, a)) for a in asset_paths} if embed else {}
 t = t.replace("__CAMPAGNE__", json.dumps(camp, ensure_ascii=False, separators=(",", ":")))
+t = t.replace("__LOADER_IMGS__", json.dumps([asset_embed[p] if embed else f"{p}?v={asset_ver[p]}" for p in loader_imgs]))
 t = t.replace("__ASSET_EMBED__", json.dumps(asset_embed)).replace("__ASSET_VER__", json.dumps(asset_ver))
 # appli installable (PWA) : seulement en version serveur, la version autonome s'ouvre sans serveur
 PWA_HEAD = """<link rel="manifest" href="manifest.json">

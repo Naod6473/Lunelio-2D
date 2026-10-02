@@ -2,7 +2,7 @@
 
 Jeu d'action en pixel art néon, jouable dans le navigateur, sur ordinateur, tablette et téléphone. Huit héros au sabre lumineux voyagent d'époque en époque à bord d'une vieille machine à laver temporelle, à travers six mondes et 72 salles. Entre deux mondes, on revient à la **laverie** de Mme Bulle : on y répare la machine, on range ses trouvailles, on aide des clients et on essaie des programmes de lavage. L'ancienne aventure d'Hélio et Lune contre le Dr. Boulon reste jouable en monde bonus.
 
-Le jeu se compose de `index.html` (code et niveaux), du dossier `assets/` (fonds et sprites de la campagne) et du dossier `audio/` (musiques et bruitages). Il doit être servi par un serveur web pour que les sons et les images fonctionnent. Il se joue au clavier, à la souris, au tactile ou à la manette, et peut s'installer comme une appli.
+Le jeu se compose de `index.html` (code et niveaux), du dossier `assets/` (fonds et sprites de la campagne) et du dossier `audio/` (musiques et bruitages). Il doit être servi par un serveur web pour que les sons et les images fonctionnent. Il se joue au clavier, à la souris, au tactile ou à la manette, et peut s'installer comme une appli. Au démarrage, un écran de chargement (logo et barre de progression) s'affiche le temps que toutes les images soient prêtes.
 
 ## Les personnages
 
