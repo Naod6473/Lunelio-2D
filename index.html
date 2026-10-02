@@ -320,12 +320,21 @@ const K = {
   // menus (fixes)
   up: ["ArrowUp", "KeyW", "GUp"], down: ["ArrowDown", "KeyS", "GDown"], ok: ["Enter", "Space", "NumpadEnter", "GA", "GStart"],
 };
+// Coop (coop.js) : deuxième joueur. dev : "pad" (deuxième manette, touches virtuelles H…) ou "kb" (flèches et touches de droite,
+// retirées alors des touches du joueur 1). ci : héros du joueur 2. K2 : ses commandes, au format de K.
+const COOP = { on: false, ci: 1, dev: null, pad: null };
+const K2_KB = { left: ["ArrowLeft"], right: ["ArrowRight"], jump: ["ArrowUp", "Numpad0"], drop: ["ArrowDown"], attack: ["Period", "Numpad1"], special: ["Slash", "Numpad2"], power: ["ShiftRight", "Numpad3"] };
+const K2 = {};
 // Actions de jeu : touches choisies dans les options, plus la souris, le tactile et la manette (GJump… suivent les boutons choisis)
 function rebuildK() {
-  const kb = OPT.kb;
+  const kb2 = COOP.on && COOP.dev === "kb", taken = new Set(kb2 ? Object.values(K2_KB).flat() : []), kb = {};
+  for (const a in OPT.kb) kb[a] = OPT.kb[a].filter(c => !taken.has(c));
+  K.act = kb2 ? ["KeyW", "GUp"] : ["ArrowUp", "KeyW", "GUp"];   // Haut devant une porte ou la machine : entrer
   K.left = [...kb.left, "TLeft", "GLeft"]; K.right = [...kb.right, "TRight", "GRight"]; K.jump = [...kb.jump, "TJump", "GJump"];
   K.drop = [...kb.drop, "TDown", "GDown"]; K.attack = [...kb.attack, "Mouse0", "TAtk", "GAtk"]; K.special = [...kb.special, "Mouse2", "TSpec", "GSpec"];
   K.power = [...kb.power, "TPow", "GPower"];
+  if (COOP.dev === "kb") Object.assign(K2, K2_KB, { act: ["ArrowUp"] });
+  else Object.assign(K2, { left: ["HLeft"], right: ["HRight"], jump: ["HJump"], drop: ["HDown"], attack: ["HAtk"], special: ["HSpec"], power: ["HPower"], act: ["HUp"] });
 }
 rebuildK();
 
@@ -403,10 +412,11 @@ const padStyleOf = id => /054c|sony|playstation|dualshock|dualsense/i.test(id) ?
 const padBtn = (g, i) => { const b = g.buttons[i]; return !!b && (b.pressed || b.value > 0.5); };
 function readPads() {
   const list = navigator.getGamepads ? navigator.getGamepads() : [];
+  coopPads(list);   // deuxième manette (coop.js) : touches virtuelles H…, et « rejoindre » sur l'écran du choix du héros
   let g = padIdx !== null ? list[padIdx] : null;
   if (!g || !g.connected) {
     g = null; padIdx = null;
-    for (const p of list) if (p && p.connected && (p.buttons.some(b => b.pressed) || Math.abs(p.axes[0] || 0) > 0.6 || Math.abs(p.axes[1] || 0) > 0.6)) {
+    for (const p of list) if (p && p.connected && !(COOP.dev === "pad" && p.index === COOP.pad) && (p.buttons.some(b => b.pressed) || Math.abs(p.axes[0] || 0) > 0.6 || Math.abs(p.axes[1] || 0) > 0.6)) {
       g = p; padIdx = p.index; padStyle = padStyleOf(p.id); break;
     }
   }
@@ -1233,7 +1243,7 @@ function loadLevel(i) {
   lvl = parseLevel(L);
   bgCanvas = makeWorldBg(L, lvl, ch()); tileCanvas = makeTiles(lvl, WORLD_STYLE[wid], wid);
   const d = df();
-  players = [makePlayer(ch(), K, 0)];
+  players = makePlayers();
   enemies = lvl.ents.map((e, k) => { if (e.type === "boss") return makeBoss(e, wid); const m = makeEnemy(e.type, e.x, e.y); m.var = foeVariant(`ancien:${i}:${k}`); return m; });
   pickups = d.id === "doom" ? [] : lvl.items.map(it => ({ ...it, alive: true }));
   lasers = []; parts = []; ghosts = []; roomTime = 0; hintT = 0; doorOpen = false; deathT = 0;
@@ -1252,6 +1262,8 @@ function makePlayer(C, input, idx) {
 }
 const player1 = () => players[0];
 const allDead = () => players.every(p => p.dead);
+// La salle est perdue quand tous les héros sont tombés (en Doom à deux : dès qu'un héros tombe)
+const roomLost = () => allDead() || (players.length > 1 && df().id === "doom" && players.some(p => p.dead));
 const usingPower = (p, fx) => p.powerOn && powerOf(p.C) && powerOf(p.C).timeFx === fx;
 // Joueur visé par un ennemi : le plus proche encore en vie (et visible : pouvoir d'invisibilité)
 function targetOf(e) {
@@ -1355,9 +1367,11 @@ function hurtPlayer(p, srcX) {
     audio.sfx("heal"); rumble(250, 0.5, 0.5);
     msg = { text: "Mode copain : on repart !", t: 2 }; voice.say("On repart !", true);
   } else if (p.hp <= 0) {
-    p.dead = true; p.powerOn = false; deaths++; audio.sfx("gameover"); rumble(500, 1, 0.8);
+    p.dead = true; p.powerOn = false; deaths++; rumble(500, 1, 0.8);
     burst(p.x + 5, p.y + 16, 40, [p.C.color, "#ffffff", "#ff4fd8"], 260, 0.9, 250, 2);
-    if (allDead()) {
+    if (!roomLost()) coopBubble(p);   // à deux : le héros devient une bulle que son copain peut toucher
+    else audio.sfx("gameover");
+    if (roomLost()) {
       deathT = 1.4; voice.say("Raté ! On recommence.", true);
       doomReset = df().id === "doom" && (lvl.json ? camp.ri > camp.ckpt : ROOMS[lvlIdx].ri > 0);
       setTimeFx(false, false);
@@ -1685,7 +1699,7 @@ function updateParts(dt) {
 
 function updatePlay(rdt) {
   const d = df();
-  if (hit("Escape", "KeyP", "TPause", "GStart")) { pauseGame(); return; }
+  if (hit("Escape", "KeyP", "TPause", "GStart", "HStart")) { pauseGame(); return; }
   if (hit("KeyR", "GSelect") && !(lvl.json && campLocked(players[0]))) { if (lvl.json) loadCampRoom(camp.wi, camp.ri, { restart: true }); else loadLevel(lvlIdx); return; }
   // pouvoirs : chaque joueur a sa jauge ; le ralenti d'un joueur ralentit tout le jeu.
   // Pouvoir maintenu : la jauge se vide pendant l'effet. Coup unique (burst) : il coûte une part de la jauge.
@@ -1705,10 +1719,11 @@ function updatePlay(rdt) {
   if (hitstop > 0) { hitstop -= rdt; return; }
   const dt = rdt * (slowOn ? 0.35 : 1);
   for (const p of players) if (!(lvl.json && campLocked(p))) updatePlayer(p, dt);
+  updateBubbles(dt);
   if (lvl.json) updateCamp(dt); else updateEnemies(dt);
   updateLasers(dt); updateParts(dt);
   if (chal) { chalUpdate(dt, rdt); if (state !== "play") return; }
-  if (allDead()) {
+  if (roomLost()) {
     deathT -= rdt;
     if (deathT <= 0) {
       if (lvl.json) {
@@ -1984,6 +1999,7 @@ function drawWorld() {
   for (const e of enemies) if (e.alive && e.stunT > 0) stunStars(e);
   drawBubbled();
   drawGhosts(); for (const p of players) drawPlayer(p);
+  drawBubbles(); drawCoopTags();
   for (const q of parts) { ctx.globalAlpha = Math.min(1, q.life / q.max * 1.5); R(Math.round(q.x), Math.round(q.y), q.size, q.size, q.color); }
   ctx.globalAlpha = 1;
 }
@@ -2041,7 +2057,7 @@ function drawHUD() {
     ctx.restore(); ctx.globalAlpha = 1;
   }
   if (msg && msg.t > 0) { ctx.globalAlpha = Math.min(1, msg.t); text(msg.text, VW / 2, 66, 11, "#7dffb0", "center", "#7dffb0"); ctx.globalAlpha = 1; }
-  if (allDead()) {
+  if (roomLost()) {
     R(0, VH / 2 - 22, VW, 44, "rgba(10,6,24,0.75)");
     text("Raté ! On recommence…", VW / 2, VH / 2 - 4, 16, "#ff4f8a", "center", "#ff4f8a");
     text("La salle redémarre", VW / 2, VH / 2 + 12, 8, "#b9a6e0", "center");
@@ -2356,7 +2372,7 @@ function loadCampRoom(wi, ri, opts = {}) {
   lvl = buildRoom(wi, ri);
   terrainCanvas = null; terrainFor = null;
   const W = CWORLDS[wi], d = df();
-  players = [makePlayer(ch(), K, 0)];
+  players = makePlayers(!!chal);   // programmes de lavage : en solo
   enemies = lvl.foeSpawns.map((o, i) => { const e = makeFoe(o, W); e.var = foeVariant(`${lvl.R.id}:${i}`); return e; });
   if (lvl.bossSpawn) { enemies.push(makeBig(lvl.bossSpawn, W)); audio.sfx("boss_intro"); audio.sfx("sig_" + W.boss); }
   pickups = []; lasers = []; parts = []; ghosts = []; fxs = [];
@@ -2675,7 +2691,7 @@ function updateBig(e, dt) {
   const B = e.B, sp = bigSpeed(e), p = targetOf(e), [cx] = bigCenter(e);
   const grav = () => { if (!B.fly) { e.vy = Math.min(e.vy + 1500 * dt, 700); moveBody(e, dt); } };
   if (e.dying) { e.t -= dt; e.vx = 0; grav(); if (e.t <= 0) { e.alive = false; campVictory(e); } return; }
-  if (allDead()) { e.st = "taunt"; e.vx = 0; grav(); return; }
+  if (roomLost()) { e.st = "taunt"; e.vx = 0; grav(); return; }
   if (e.st === "intro") { e.t -= dt; e.vx = 0; if (B.fly) e.y += (90 - e.y) * Math.min(1, dt * 1.5); else grav(); if (e.t <= 0) { e.st = "idle"; e.t = 0.6; } return; }
   if (e.st === "transform") { e.t -= dt; e.vx = 0; grav(); if (e.t <= 0) { e.st = "idle"; e.t = 0.4; } return; }
   if (e.stunT > 0) { e.stunT -= dt; e.vx = 0; grav(); return; }
@@ -2846,13 +2862,14 @@ function machNear(p) { return mach && Math.abs(p.x + 5 - mach.x) < 40 && p.y + p
 function updateMachine(dt) {
   if (!mach) return;
   mach.t += dt;
-  const p = players[0];
+  const p = mach.who || players[0];   // le héros qui est entré dans la machine
   if (mach.st === "activating" && mach.t > 0.9) { mach.st = "ready"; mach.t = 0; }
   else if (mach.st === "entering") {
     const k = Math.min(1, mach.t / 0.7);
     p.x = mach.ex + (mach.x + MACH_HOLE.x - 5 - mach.ex) * k; p.y = mach.ey + (mach.y + MACH_HOLE.y - 16 - mach.ey) * k;
     p.vx = p.vy = 0;
     if (Math.random() < 0.5) parts.push({ x: mach.x + MACH_HOLE.x + (Math.random() - 0.5) * 30, y: mach.y + MACH_HOLE.y + (Math.random() - 0.5) * 30, vx: 0, vy: 0, life: 0.3, max: 0.3, color: "#c86eff", size: 1, grav: 0 });
+    for (const q of players) if (q !== p && !q.hidden) { q.hidden = true; addFx("fx_teleport", q.x + 5, q.y + q.h); }   // à deux : le copain saute aussi dans la machine
     if (mach.t >= 0.7) { mach.st = "departing"; mach.t = 0; p.hidden = true; audio.sfx("spin"); SAVE.flags.machineSeen = 1; saveGame(); }
   } else if (mach.st === "departing") {
     shake = Math.max(shake, 2);
@@ -2866,7 +2883,7 @@ function updateMachine(dt) {
 }
 function machInteract(p) {
   if (!mach || mach.st !== "ready" || !p.onGround || p.inv > 1 || p.dead || !machNear(p)) return false;
-  mach.st = "entering"; mach.t = 0; mach.ex = p.x; mach.ey = p.y; p.atkT = -1; p.dashT = 0;
+  mach.st = "entering"; mach.t = 0; mach.who = p; mach.ex = p.x; mach.ey = p.y; p.atkT = -1; p.dashT = 0;
   for (const q of players) q.powerOn = false;
   setTimeFx(false, false); audio.sfx(pickSfx("mach_door", "door"));   // le hublot s'ouvre
   return true;
@@ -2877,8 +2894,7 @@ function updateArrival(dt) {
   if (!arrival || arrival.done) return;
   arrival.t += dt;
   campFade = Math.max(0, 1 - arrival.t / 0.4);
-  const p = players[0];
-  if (arrival.t >= 1.0 && p.hidden) { p.hidden = false; p.inv = 0.6; addFx("fx_teleport", p.x + 5, p.y + p.h); burst(p.x + 5, p.y + 16, 16, MACHINE_FX[CWORLDS[camp.wi].id], 140, 0.5, 100, 1); audio.sfx("heal"); }
+  for (const p of players) if (arrival.t >= 1.0 + p.idx * 0.15 && p.hidden) { p.hidden = false; p.inv = 0.6; addFx("fx_teleport", p.x + 5, p.y + p.h); burst(p.x + 5, p.y + 16, 16, MACHINE_FX[CWORLDS[camp.wi].id], 140, 0.5, 100, 1); audio.sfx("heal"); }
   if (arrival.t >= 1.4) arrival.done = true;
 }
 function drawMachineAt(x, y, st, t) { drawMachineSkin(x, y, st, t); }
@@ -3060,7 +3076,7 @@ function drawCovers() {
 // Haut devant une porte ou la machine : entre (le saut est alors ignoré)
 function campTryInteract(p) {
   if (!lvl.json || lvl.leaving || p.dead || p.hidden) return false;
-  const want = hit(...p.input.jump) || hit("ArrowUp", "KeyW", "GUp");
+  const want = hit(...p.input.jump) || hit(...(p.input.act || []));
   if (!want || !p.onGround) return false;
   if (machInteract(p)) return true;
   if (mach && mach.st === "activating" && machNear(p)) return true;   // la machine s'ouvre : on attend sans sauter
@@ -3082,17 +3098,17 @@ function updateCampTransition(dt) {
   const x = T0.ex, p = players[0];
   if (T0.kind === "door") {
     if (T0.t < 0.15) x.st = "half"; else x.st = "open";
-    if (T0.t > 0.3) { p.x += (x.x + x.w / 2 - 5 - p.x) * Math.min(1, dt * 10); p.fade = Math.max(0, 1 - (T0.t - 0.3) / 0.25); }
+    if (T0.t > 0.3) for (const q of players) { q.x += (x.x + x.w / 2 - 5 - q.x) * Math.min(1, dt * 10); q.fade = Math.max(0, 1 - (T0.t - 0.3) / 0.25); }
     campFade = Math.max(0, (T0.t - 0.45) / 0.25);
     if (T0.t >= 0.7 && !T0.done) {
       T0.done = true;
       const W = CWORLDS[camp.wi];
       if (lvl.bossSpawn) {
         // porte du boss franchie : la machine temporelle attend derrière
-        campTrans = null; lvl.leaving = false; p.fade = 1; x.st = "closed";
+        campTrans = null; lvl.leaving = false; x.st = "closed";
         const m = lvl.machine;
         const mx = m ? m.x + m.w / 2 : 392, my = m ? m.y + m.h : 240;
-        p.x = mx - 44; p.y = 240 - p.h; p.face = 1; p.vx = p.vy = 0;
+        for (const q of players) { q.fade = 1; q.x = mx - 44 - q.idx * 18; q.y = 240 - q.h; q.face = 1; q.vx = q.vy = 0; if (q.dead) coopRevive(q, true); }
         startMachine(mx, my); campFade = 1; mach.fadeIn = 0.4;
         for (const e of lvl.exits) e.locked = true;   // la porte se referme derrière
         return;
@@ -3342,7 +3358,7 @@ function drawPrompt(x, y, label) {
 }
 function drawCampPlayer(p) {
   if (p.dead || p.hidden) return;
-  if (mach && mach.st === "entering") { drawEntering(p); return; }
+  if (mach && mach.st === "entering") { if (p === (mach.who || players[0])) drawEntering(p); return; }
   if (p.inv > 0 && Math.floor(time * 20) % 2 && p.inv < 1.25 && !(arrival && !arrival.done)) return;
   let a = p.fade ?? 1;
   if (hidden(p)) a *= 0.35 + 0.1 * Math.sin(time * 12);
@@ -3373,6 +3389,7 @@ function drawCampWorld() {
   }
   drawBubbled();
   drawGhosts(); for (const p of players) drawCampPlayer(p);
+  drawBubbles(); drawCoopTags();
   drawCovers();
   drawArenaFx();
   // invites « entrer »
@@ -3469,7 +3486,7 @@ function drawCampHUD() {
     ctx.globalAlpha = 1;
   }
   if (campFade > 0) { ctx.globalAlpha = Math.min(1, campFade); R(0, 0, VW, VH, "#0d0820"); ctx.globalAlpha = 1; }
-  if (allDead()) {
+  if (roomLost()) {
     R(0, VH / 2 - 22, VW, 44, "rgba(10,6,24,0.75)");
     text("Raté ! On recommence…", VW / 2, VH / 2 - 4, 16, "#ff4f8a", "center", "#ff4f8a");
     text(df().id === "doom" && doomReset ? (camp.ckpt ? "Retour au drapeau" : "Retour au début du monde") : "La salle redémarre", VW / 2, VH / 2 + 12, 8, "#b9a6e0", "center");
@@ -4246,10 +4263,11 @@ function hubSetRoom(id, x) {
     blocks: [], hazards: [], dest: [], items: [], exits: [], decor: [], covers: [], gold: [], qitems: [], sock: null,
     start: { x: clamp(x, 4, H.w - 14), y: H.floor - 32 }, lastSafe: null, W: CWORLDS[0], R: { id: "laverie", bg: "" }, leaving: false };
   lvl = hub.lvl;
-  const p = players[0];
-  if (p && p.C === ch()) { p.x = lvl.start.x; p.y = lvl.start.y; p.vx = p.vy = 0; } else players = [makePlayer(ch(), K, 0)];
-  players[0].inv = 0;
-  hub.cam = clamp(players[0].x + 5 - VW / 2, 0, H.w - VW);
+  const want = makePlayers();   // à deux : le copain arrive à côté
+  if (players.length === want.length && players.every((p, i) => p.C === want[i].C)) for (const p of players) { p.x = clamp(lvl.start.x + p.idx * 14, 4, H.w - 14); p.y = lvl.start.y; p.vx = p.vy = 0; if (p.dead) coopRevive(p, true); }
+  else players = want;
+  for (const p of players) p.inv = 0;
+  hub.cam = clamp(coopCamX() - VW / 2, 0, H.w - VW);
 }
 function enterHub(opts = {}) {
   mode = "camp"; chal = null; players = [];
@@ -4259,7 +4277,7 @@ function enterHub(opts = {}) {
   setTimeFx(false, false);
   hub.t = 0; hub.dlg = null; hub.visits++; hub.msg = opts.msg ? { text: opts.msg, t: 5 } : null;
   hub.arrive = opts.arrive ? { t: 0 } : null;
-  if (hub.arrive) { hubSetRoom("salle", 398); players[0].hidden = true; }
+  if (hub.arrive) { hubSetRoom("salle", 398); for (const p of players) p.hidden = true; }
   state = "hub"; voice.stop();
   // à faire en arrivant : prologue, réparation d'une pièce, souvenir, fin de la campagne
   hub.queue = [];
@@ -4291,7 +4309,7 @@ function updateHubTrans(rdt) {
     T0.done = true;
     const back = HUB_ROOMS[T0.door.to].doors.find(d => d.to === hub.room);
     hubSetRoom(T0.door.to, back ? back.x - 5 : 40);
-    players[0].face = back && back.x > HUB_ROOMS[T0.door.to].w / 2 ? -1 : 1;
+    for (const p of players) p.face = back && back.x > HUB_ROOMS[T0.door.to].w / 2 ? -1 : 1;
   }
   if (T0.t >= 0.5) hub.trans = null;
   return true;
@@ -4383,16 +4401,16 @@ function updateHub(rdt) {
   hub.machShake = Math.max(0, hub.machShake - rdt);
   if (hub.repairFx) { hub.repairFx.t += rdt; if (hub.repairFx.t > 2.5) hub.repairFx = null; }
   const p = players[0], H = hubRoom();
-  hub.cam = clamp(p.x + 5 - VW / 2, 0, H.w - VW);
+  hub.cam = clamp(coopCamX() - VW / 2, 0, H.w - VW);   // à deux : la caméra suit le milieu des deux héros
   if (hub.arrive) {
     const a = hub.arrive; a.t += rdt;
-    if (a.t > 0.9 && p.hidden) { p.hidden = false; p.inv = 0.4; p.vy = -200; p.vx = -60; addFx("fx_teleport", p.x + 5, p.y + p.h); burst(408, H.floor - 40, 24, ["#7dffb0", "#ffffff", "#c86eff"], 160, 0.6, 100, 1); audio.sfx("arrive"); }
-    if (a.t > 1.4) hub.arrive = null;
+    for (const q of players) if (a.t > 0.9 + q.idx * 0.2 && q.hidden) { q.hidden = false; q.inv = 0.4; q.vy = -200; q.vx = -60; addFx("fx_teleport", q.x + 5, q.y + q.h); burst(408, H.floor - 40, 24, ["#7dffb0", "#ffffff", "#c86eff"], 160, 0.6, 100, 1); if (!q.idx) audio.sfx("arrive"); }
+    if (a.t > 1.6) hub.arrive = null;
   }
   if (updateHubTrans(rdt)) { updateParts(rdt); updateFx(rdt); return; }
   if (updateDialog(rdt)) { updateParts(rdt); updateFx(rdt); return; }
   if (!hub.arrive && hub.queue.length) { hub.queue.shift()(); if (state !== "hub") return; }
-  if (hit("Escape", "KeyP", "GStart", "TPause")) { openHubMenu(); return; }
+  if (hit("Escape", "KeyP", "GStart", "TPause", "HStart")) { openHubMenu(); return; }
   if (hit("KeyO", "GY")) { openOptions("hub"); return; }
   // le poste le plus proche devant lequel on se tient (à la bonne hauteur : le jukebox est sur une étagère)
   const things = hubThings();
@@ -4410,7 +4428,7 @@ function updateHub(rdt) {
     const mx = mouse.x + hub.cam;
     for (const it of things) { const fy = thingFloor(it); if (mx >= it.x - it.w / 2 && mx <= it.x + it.w / 2 && mouse.y >= fy - it.h && mouse.y <= fy + 4) { delete pressed.Mouse0; hubInteract(it); return; } }
   }
-  if (!hub.arrive) updatePlayer(p, rdt);
+  if (!hub.arrive) for (const q of players) { updatePlayer(q, rdt); if (q.idx) coopKeepNear(q, H); }
   updateParts(rdt); updateFx(rdt);
 }
 function openHubMenu() { state = "hubmenu"; hubMenuSel = 0; audio.sfx("pause"); }
@@ -4493,6 +4511,7 @@ function drawHub() {
   for (const n of hubNpcs()) if (n.room === hub.room) drawNpc(n.npc, n.x, H.floor, n.x > players[0].x ? -1 : 1, hub.dlg && hub.dlg.lines[hub.dlg.i][0] === n.npc, n.quest);
   drawFxList(true);
   drawGhosts(); for (const p of players) drawCampPlayer(p);
+  drawCoopTags();
   drawFxList(false);
   for (const q of parts) { ctx.globalAlpha = Math.min(1, q.life / q.max * 1.5); R(Math.round(q.x), Math.round(q.y), q.size, q.size, q.color); }
   ctx.globalAlpha = 1;
@@ -5855,6 +5874,152 @@ SCREENS.armory = {
   },
 };
 
+/* ---------------- Coop à deux sur le même écran ---------------- */
+// COOP (template.html) : on, ci (héros du joueur 2), dev ("pad" : deuxième manette ; "kb" : flèches et touches de droite), pad.
+// Le joueur 2 rejoint sur l'écran du choix du héros : Start sur une autre manette, ou la touche 2 du clavier.
+// Ses commandes (K2) produisent les mêmes actions que celles du joueur 1 ; les menus restent au joueur 1.
+// Un héros sans cœur devient une bulle qui suit son copain : en la touchant, le copain le ramène avec 1 cœur.
+// La salle ne recommence que si les deux sont tombés (en Doom : dès qu'un héros tombe, voir roomLost()).
+const COOP_COL = ["#ffb43c", "#c86eff"];   // J1 soleil, J2 lune : flèche au-dessus des têtes et cœurs du joueur 2
+const PAD2_KEYS = ["HLeft", "HRight", "HUp", "HDown", "HJump", "HAtk", "HSpec", "HPower", "HStart"];
+const coopPrev = {};
+function coopPads(list) {
+  for (const g of list) {
+    if (!g || !g.connected) continue;
+    const st = padBtn(g, 9), sel = padBtn(g, 8), was = coopPrev[g.index] || {};
+    coopPrev[g.index] = { st, sel };
+    if (state !== "chars") continue;
+    // Start sur une manette qui n'est pas celle du joueur 1 (ou sur la seule manette quand le joueur 1 joue au clavier)
+    if (!COOP.on && st && !was.st && (g.index !== padIdx || !PAD)) { if (g.index === padIdx) padIdx = null; coopJoin("pad", g.index); }
+    else if (COOP.on && COOP.dev === "pad" && g.index === COOP.pad && sel && !was.sel) coopLeave();
+  }
+  const s = {}, g = COOP.on && COOP.dev === "pad" ? list[COOP.pad] : null;
+  if (g && g.connected) {
+    const ax = g.axes[0] || 0, ay = g.axes[1] || 0, vert = Math.abs(ay) > Math.abs(ax), any = l => l.some(i => padBtn(g, i));
+    s.HLeft = padBtn(g, 14) || ax < -0.45; s.HRight = padBtn(g, 15) || ax > 0.45;
+    s.HUp = padBtn(g, 12) || (ay < -0.6 && vert); s.HDown = padBtn(g, 13) || (ay > 0.6 && vert);
+    s.HJump = any(OPT.pad.jump); s.HAtk = any(OPT.pad.attack); s.HSpec = any(OPT.pad.special); s.HPower = any(OPT.pad.power); s.HStart = padBtn(g, 9);
+  }
+  for (const k of PAD2_KEYS) vkey(k, !!s[k]);
+}
+addEventListener("gamepaddisconnected", e => { if (COOP.on && COOP.dev === "pad" && e.gamepad.index === COOP.pad && state === "play") pauseGame(); });
+function coopJoin(dev, pad = null) {
+  Object.assign(COOP, { on: true, dev, pad, ci: charSel === 1 ? 0 : 1 });
+  rebuildK(); audio.sfx("start"); voice.say("Joueur 2 arrive !", true);
+}
+function coopLeave() { Object.assign(COOP, { on: false, dev: null, pad: null }); rebuildK(); audio.sfx("back"); }
+
+// Joueurs d'une salle : le joueur 1, et le joueur 2 en coop (solo : programmes de lavage, course du Dahaka)
+function makePlayers(solo) {
+  const list = [makePlayer(ch(), K, 0)];
+  if (COOP.on && !solo) list.push(makePlayer(CHARS[COOP.ci], K2, 1));
+  return list;
+}
+
+/* ---- Bulles de secours ---- */
+function coopBubble(p) {
+  p.bubble = { t: 0, x: p.x + 5, y: Math.min(p.y + 12, VH - 40) };
+  audio.sfx("dj"); msg = { text: "Touche la bulle pour sauver ton copain !", t: 2.5 };
+  voice.say("Touche la bulle pour sauver ton copain !", true);
+}
+// quiet : changement de salle ou de plan (le héros revient sans bruit, avec tous ses cœurs)
+function coopRevive(p, quiet) {
+  const b = p.bubble; p.dead = false; p.bubble = null; p.inv = 2; p.vx = 0;
+  if (quiet) { p.hp = df().hp; return; }
+  p.hp = 1; p.x = b.x - 5; p.y = b.y - 16; p.vy = -180;
+  audio.sfx("heal"); burst(b.x, b.y, 24, ["#bff4ff", "#ffffff", p.C.color], 160, 0.6, 100, 2); rumble(200, 0.4, 0.4);
+  msg = { text: "Sauvé !", t: 1.6 }; voice.say("Sauvé !", true);
+  emit("rescue", {});
+}
+function updateBubbles(dt) {
+  if (players.length < 2) return;
+  for (const p of players) {
+    const b = p.bubble; if (!p.dead || !b) continue;
+    b.t += dt;
+    const q = players.find(o => o !== p && !o.dead && !o.hidden); if (!q) continue;
+    // la bulle flotte à distance derrière le copain (devant lui s'il est contre un mur), en se balançant
+    const W = lvl.width || VW, side = q.x + 5 - q.face * 44 < 14 || q.x + 5 - q.face * 44 > W - 14 ? 1 : -1;
+    const tx = q.x + 5 + side * q.face * 44, ty = q.y - 4 + Math.sin(b.t * 3) * 4, dx = tx - b.x, dy = ty - b.y, d = Math.hypot(dx, dy) || 1;
+    const sp = Math.min(d, 60 * dt * (d > 120 ? 2 : 1));
+    b.x = clamp(b.x + dx / d * sp, 12, W - 12); b.y = clamp(b.y + dy / d * sp, 26, VH - 30);
+    // il faut aller la toucher exprès (en courant ou en sautant)
+    const moving = Math.abs(q.vx) > 30 || !q.onGround;
+    if (b.t > 0.8 && moving && Math.abs(q.x + 5 - b.x) < 16 && Math.abs(q.y + 16 - b.y) < 24) coopRevive(p);
+  }
+}
+function drawBubbles() {
+  for (const p of players) {
+    const b = p.bubble; if (!p.dead || !b) continue;
+    const x = Math.round(b.x), y = Math.round(b.y), r = 12 + Math.sin(time * 4) * 0.8;
+    ctx.fillStyle = "rgba(190,240,255,0.18)"; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    drawChar(p.C, Math.floor(time * 5) % 4, x, y + 9, 1, 0.55, 0.85);
+    ctx.strokeStyle = "rgba(220,250,255,0.85)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+    R(x - 6, y - 8, 2, 2, "#ffffff"); R(x - 8, y - 5, 1, 2, "#ffffff");
+    if (Math.floor(time * 3) % 2) text("!", x, y - r - 5, 8, COOP_COL[p.idx], "center");
+  }
+}
+// Flèche de couleur au-dessus de chaque héros (seulement à deux)
+function drawCoopTags() {
+  if (players.length < 2) return;
+  for (const p of players) {
+    if (p.dead || p.hidden || (p.fade ?? 1) < 0.5) continue;
+    const x = Math.round(p.x + 5), y = Math.round(p.y) - 10 + Math.round(Math.sin(time * 4 + p.idx) * 1.5), c = COOP_COL[p.idx];
+    R(x - 3, y, 7, 1, c); R(x - 2, y + 1, 5, 1, c); R(x - 1, y + 2, 3, 1, c); R(x, y + 3, 1, 1, c);
+    text(String(p.idx + 1), x + 1, y - 5, 7, c, "center");
+  }
+}
+// Cœurs et jauge du joueur 2, sous la barre du haut à droite
+function drawCoopHud() {
+  if (players.length < 2) return;
+  const q = players[1], d = df(), pw = powerOf(q.C), right = VW - (TOUCH && !PAD ? 52 : 8), w = d.hp * 10;
+  R(right - w - 18, 17, w + 18 + (VW - right), 15, "rgba(10,6,24,0.6)");
+  for (let i = 0; i < d.hp; i++) drawHeartIcon(right - w + i * 10 + 4, 23, !q.dead && i < q.hp);
+  if (pw && d.power) { R(right - w, 29, w - 2, 2, "#2a1a44"); R(right - w, 29, Math.round((w - 2) * q.gauge), 2, q.powerOn ? "#ffffff" : pw.color); }
+  text("J2", right - w - 4, 24, 8, COOP_COL[1], "right");
+}
+/* ---- Laverie : caméra au milieu des deux héros, le copain reste dans l'écran ---- */
+function coopCamX() {
+  const vis = players.filter(p => !p.hidden);
+  if (!vis.length) return players[0] ? players[0].x + 5 : VW / 2;
+  return vis.reduce((a, p) => a + p.x + 5, 0) / vis.length;
+}
+function coopKeepNear(q, H) {
+  if (q.hidden) return;
+  const lo = Math.max(4, hub.cam + 4), hi = Math.min(H.w - 14, hub.cam + VW - 14);
+  if (q.x < lo) { q.x = lo; q.vx = Math.max(0, q.vx); } else if (q.x > hi) { q.x = hi; q.vx = Math.min(0, q.vx); }
+}
+
+/* ---- Écran du choix du héros : le joueur 2 rejoint et choisit son héros ---- */
+const COOP_BOX = { x: 12, y: 166, w: 222, h: 42 };
+function coopCharsUpdate() {
+  if (hit("Digit2")) { if (!COOP.on) coopJoin("kb"); else if (COOP.dev === "kb") coopLeave(); return; }
+  if (!COOP.on) return;
+  const n = CHARS.length, mv = i => { COOP.ci = (COOP.ci + i + n) % n; audio.sfx("select"); };
+  if (hit(...K2.left)) mv(-1);
+  if (hit(...K2.right)) mv(1);
+  if (hit(...K2.drop, ...(K2.act || []))) mv(4);
+}
+function coopCharsDraw() {
+  const r = COOP_BOX;
+  if (COOP.on) {   // carte choisie par le joueur 2 : cadre violet en pointillés
+    const c = CUI.cards[COOP.ci];
+    ctx.strokeStyle = COOP_COL[1]; ctx.lineWidth = 1; ctx.setLineDash([3, 2]); ctx.strokeRect(c.x + 2.5, c.y + 2.5, c.w - 5, c.h - 5); ctx.setLineDash([]);
+    text("J2", c.x + 8, c.y + 8, 7, COOP_COL[1], "center");
+  }
+  R(r.x, r.y, r.w, r.h, "rgba(14,8,30,0.85)"); ctx.strokeStyle = COOP.on ? COOP_COL[1] : "#3a2a5c"; ctx.lineWidth = 1; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+  if (!COOP.on) {
+    text("Jouer à deux ?", r.x + r.w / 2, r.y + 10, 9, COOP_COL[1], "center");
+    text(`Joueur 2 : Start sur une manette, ou la touche ${keyName("Digit2")}`, r.x + r.w / 2, r.y + 24, 7, "#e8dcff", "center");
+    text("(clavier : flèches, " + [K2_KB.attack[0], K2_KB.special[0], K2_KB.power[0]].map(keyName).join(" ") + ")", r.x + r.w / 2, r.y + 34, 7, "#b9a6e0", "center");
+    return;
+  }
+  const C2 = CHARS[COOP.ci];
+  drawChar(C2, Math.floor(time * 5) % 4, r.x + 20, r.y + r.h - 4, 1, 0.8);
+  text(`Joueur 2 : ${C2.name}`, r.x + 38, r.y + 11, 9, C2.ui);
+  text(COOP.dev === "pad" ? "Croix pour choisir, Select pour partir" : `Flèches pour choisir, ${keyName("Digit2")} pour partir`, r.x + 38, r.y + 24, 7, "#e8dcff");
+  text(COOP.dev === "pad" ? "Manette 2" : "Clavier : flèches, " + [K2_KB.attack[0], K2_KB.special[0], K2_KB.power[0]].map(keyName).join(" "), r.x + 38, r.y + 34, 7, "#b9a6e0");
+}
+
 /* ---------------- Niveau secret : la course du Dahaka ---------------- */
 // Débloqué en tapant DAHAKA sur l'écran des mondes (SAVE.flags.dahaka). Deux parcours au choix (DK_LEVELS) : le temple et la grotte.
 // Niveau sans fin vers la droite, fabriqué par morceaux de 480 px (sol, trous, plateformes et pièges annoncés). Le Dahaka,
@@ -6481,10 +6646,12 @@ function egArena() {
   lvl = { json: true, eglise: true, W, R: W.rooms[0], width: VW, solids: [{ x: -40, y: EG_FLOOR, w: VW + 80, h: VH }], plats: [], blocks: [], decor: [], hazards: [], dest: [], items: [], exits: [],
     machine: null, ckpt: null, start: { x: 40, y: EG_FLOOR - 32 }, foeSpawns: [], bossSpawn: null, lastSafe: null, leaving: false, arena: null, covers: [], gold: [], qitems: [], sock: null };
 }
+// Héros au bord gauche de l'arène (à deux : côte à côte)
+function egPlace() { for (const p of players) { p.x = 40 + p.idx * 20; p.y = EG_FLOOR - p.h; p.vx = 0; p.face = 1; } }
 function startEglise() {
   egArena();
   enemies = []; lasers = []; parts = []; pickups = []; ghosts = []; fxs = []; mach = null; chal = null; roomTime = 0; hitstop = 0; hub.dlg = null;
-  players = [makePlayer(ch(), K, 0)]; const p = players[0]; p.x = 40; p.y = EG_FLOOR - p.h; p.face = 1;
+  players = makePlayers(); egPlace();
   Object.assign(EG, { step: 0, plan: 0, st: "intro", t: 0, fade: 1, trans: null, paused: false, music: null, bosses: [], poops: [], bubbles: [], brieEdge: null, deathT: 0, endT: 0, nextT: 0, loudT: 0, saidEnd: false });
   audio.resume.add(EG_MUSIC); audio.load(EG_MUSIC);   // gros fichier : chargé pendant les cloches
   EG.bell = egSound("eg_mariage", 0.9);   // les cloches du mariage, puis la musique de l'église, à fond
@@ -6503,7 +6670,6 @@ function egStep(i) {
   else go();
 }
 function egFight(S) {
-  const p = players[0];
   EG.st = "fight"; EG.fightT = 0; lasers = []; EG.poops = []; EG.bubbles = [];
   // les boss du combat entrent (à leur place s'ils étaient déjà là, debout ou à terre) ; les vaincus des autres actes restent à terre en décor
   const fighters = S.fight.map((id, k) => {
@@ -6516,7 +6682,7 @@ function egFight(S) {
   // le duo : ils se relèvent en criant (Laurène se transforme) ; Brie aboie depuis le bord
   if (S.duo) { for (const b of fighters) egStartMove(b, "cri"); EG.brieEdge = { x: VW - 26, t: 0 }; }
   EG.music = egFightMusic(S);
-  p.inv = 1;
+  for (const p of players) p.inv = 1;
 }
 // Musique d'un combat : le thème du boss s'il existe (musique/eglise/<boss>), sinon l'église ; le duo alterne les deux thèmes
 function egFightMusic(S) {
@@ -6551,8 +6717,8 @@ function egLeave() {
 }
 // Le héros est tombé : on recommence le combat en cours (sans redire le dialogue)
 function egRetry() {
-  const S = EG_SCRIPT[EG.step], p = players[0];
-  players = [makePlayer(ch(), K, 0)]; const q = players[0]; q.x = 40; q.y = EG_FLOOR - q.h; q.face = 1;
+  const S = EG_SCRIPT[EG.step];
+  players = makePlayers(); egPlace();
   EG.bosses = EG.bosses.filter(b => b.down && !(S.fight || []).includes(b.id)); lasers = []; parts = []; EG.poops = []; EG.bubbles = [];
   if (S.fight) egFight(S);
   msg = { text: "On recommence !", t: 2 };
@@ -6562,7 +6728,7 @@ SCREENS.eglise = {
   update(rdt) {
     const p = players[0];
     if (hub.dlg && !EG.trans) { updateDialog(rdt); return; }
-    if (EG.st !== "end" && hit("Escape", "KeyP", "TPause", "GStart")) { EG.paused = !EG.paused; audio.sfx("pause"); }
+    if (EG.st !== "end" && hit("Escape", "KeyP", "TPause", "GStart", "HStart")) { EG.paused = !EG.paused; audio.sfx("pause"); }
     if (EG.paused) { if (hit("KeyQ", "GB", "Backspace")) egLeave(); return; }
     if (hitstop > 0) { hitstop -= rdt; return; }
     const dt = rdt * (slowOn ? 0.35 : 1);
@@ -6577,7 +6743,7 @@ SCREENS.eglise = {
     if (EG.trans) {
       const T0 = EG.trans; T0.t += rdt;
       if (T0.t > 0.6 && !T0.done) {
-        T0.done = true; EG.plan = T0.plan; p.x = 40; p.y = EG_FLOOR - p.h; p.vx = 0; p.face = 1; lasers = []; EG.poops = []; audio.duck(1.2);
+        T0.done = true; EG.plan = T0.plan; egPlace(); for (const q of players) if (q.dead) coopRevive(q, true); lasers = []; EG.poops = []; audio.duck(1.2);
         for (const b of EG.bosses) if (b.down && b.id !== "brie") { b.x = VW - 120; }   // le marié vaincu suit sa femme dans la nef
         if (EG.bosses.some(b => b.id === "brie")) EG.bosses = EG.bosses.filter(b => b.id !== "brie");   // Brie reste sur le parvis… jusqu'au duo
         EG.extras = (EG.extras || []).map(x => ({ ...x, x: x.id === "laurene" ? 400 : 360 }));
@@ -6586,16 +6752,19 @@ SCREENS.eglise = {
       updateParts(dt); return;
     }
     // pouvoirs comme en jeu
-    const d = df(), pw = powerOf(p.C);
-    if (pw && pw.burst) { p.powerOn = false; if (d.power && hit(...p.input.power) && !p.dead) burstPower(p, pw); p.gauge = Math.min(1, p.gauge + d.regen * rdt); }
-    else { p.powerOn = !!(d.power && pw && down(...p.input.power) && p.gauge > 0 && !p.dead); p.gauge = p.powerOn ? Math.max(0, p.gauge - d.drain * rdt) : Math.min(1, p.gauge + d.regen * rdt); }
-    setTimeFx(usingPower(p, "slow"), usingPower(p, "fast"));
-    if (!p.dead && EG.st !== "end") updatePlayer(p, dt);
-    p.x = clamp(p.x, 2, VW - 12);
+    const d = df();
+    for (const q of players) {
+      const pw = powerOf(q.C);
+      if (pw && pw.burst) { q.powerOn = false; if (d.power && hit(...q.input.power) && !q.dead) burstPower(q, pw); q.gauge = Math.min(1, q.gauge + d.regen * rdt); }
+      else { q.powerOn = !!(d.power && pw && down(...q.input.power) && q.gauge > 0 && !q.dead); q.gauge = q.powerOn ? Math.max(0, q.gauge - d.drain * rdt) : Math.min(1, q.gauge + d.regen * rdt); }
+    }
+    setTimeFx(players.some(q => usingPower(q, "slow")), players.some(q => usingPower(q, "fast")));
+    for (const q of players) { if (!q.dead && EG.st !== "end") updatePlayer(q, dt); q.x = clamp(q.x, 2, VW - 12); }
+    updateBubbles(dt);
     for (const e of EG.bosses) egUpdateBoss(e, dt);
     updateLasers(dt);
     // crottes de Brie : elles restent quelques secondes ; les toucher fait mal
-    for (const c of EG.poops) { c.t -= dt; if (!p.dead && ov(c, p)) hurtPlayer(p, c.x + 7); }
+    for (const c of EG.poops) { c.t -= dt; for (const q of players) if (!q.dead && ov(c, q)) hurtPlayer(q, c.x + 7); }
     EG.poops = EG.poops.filter(c => c.t > 0);
     // Brie aboie depuis le bord pendant le duo (sans attaquer)
     if (EG.brieEdge && !EG.brieEdge.happy) { const B = EG.brieEdge; B.t += dt; if (B.t > 2.2 + Math.random()) { B.t = 0; audio.sfx("eg_aboie"); EG.bubbles.push({ edge: true, text: Math.random() < 0.5 ? "WAF !" : "WAF WAF !", t: 1 }); } }
@@ -6603,7 +6772,7 @@ SCREENS.eglise = {
     EG.bubbles = EG.bubbles.filter(b => b.t > 0 && (b.edge || (EG.bosses.includes(b.e) && !b.e.gone)));
     egCheckWin();
     // le héros est tombé : on recommence ce combat
-    if (p.dead) { EG.deathT += rdt; if (EG.deathT > 1.6) { EG.deathT = 0; egRetry(); } }
+    if (roomLost()) { EG.deathT += rdt; if (EG.deathT > 1.6) { EG.deathT = 0; egRetry(); } }
     if (EG.st === "end") {
       EG.endT += rdt;
       if (EG.endT > 2.5 && !EG.saidEnd) { EG.saidEnd = true; startDialog(EG_DLG.apres, () => {}); }
@@ -6649,7 +6818,7 @@ SCREENS.eglise = {
       }
       else if (l.kind === "shard") R(Math.round(l.x), Math.round(l.y), 4, 3, "#7dffb0");
     }
-    drawFxList(true); if (!p.dead) drawCampPlayer(p); drawFxList(false);
+    drawFxList(true); for (const q of players) drawCampPlayer(q); drawBubbles(); drawCoopTags(); drawFxList(false);
     for (const q of parts) { ctx.globalAlpha = Math.min(1, q.life / q.max * 1.5); R(Math.round(q.x), Math.round(q.y), q.size, q.size, q.color); }
     ctx.globalAlpha = 1;
     // bulles des répliques
@@ -6670,6 +6839,7 @@ SCREENS.eglise = {
       const pw = powerOf(p.C); hx -= 8;
       if (pw) { R(hx - 44, 5, 44, 6, "#2a1a44"); R(hx - 44, 5, Math.round(44 * p.gauge), 6, p.powerOn ? "#ffffff" : pw.color); }
     }
+    drawCoopHud();
     // barres de vie des boss, en bas
     const fs = enemies.filter(e => e.type === "egboss").sort((a, b) => egCx(a) - egCx(b));   // une barre par combattant, dans l'ordre de l'écran
     if (EG.st === "fight") fs.forEach((e, k) => {
@@ -6944,7 +7114,9 @@ function updateChars(rdt) {
   if (hit("Escape", "GB", "Backspace") || (hit("Mouse0") && inside(CUI.back))) { if (charsFrom === "hub") enterHub({ x: 100 }); else goMenu(); audio.sfx("back"); return; }
   if (hit(...K.left)) moveCharSel((charSel + n - 1) % n);
   if (hit(...K.right)) moveCharSel((charSel + 1) % n);
-  if (hit(...K.up, ...K.down)) moveCharSel((charSel + cols) % n);
+  const vert = COOP.dev === "kb" ? [...K.up, ...K.down].filter(k => !k.startsWith("Arrow")) : [...K.up, ...K.down];   // flèches au joueur 2
+  if (hit(...vert)) moveCharSel((charSel + cols) % n);
+  coopCharsUpdate();
   if (hit("Mouse0")) {
     if (inside(CUI.ok)) { confirmChar(); return; }
     for (let i = 0; i < n; i++) if (inside(CUI.cards[i])) { if (i === charSel) { confirmChar(); return; } moveCharSel(i); }
@@ -6970,6 +7142,7 @@ function drawChars() {
     ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1); ctx.shadowBlur = 0;
     if (i === charIdx) text("✓", r.x + r.w - 6, r.y + 8, 8, "#7dffb0", "center");
   });
+  coopCharsDraw();
   // panneau du héros mis en avant
   const px = 248, pw = 222;
   R(px, 30, pw, 206, "rgba(14,8,30,0.88)"); ctx.strokeStyle = C.ui; ctx.lineWidth = 1; ctx.strokeRect(px + 0.5, 30.5, pw - 1, 205);
@@ -7228,7 +7401,7 @@ function frame(now) {
   ctx.imageSmoothingEnabled = false;
   if (state === "loading") { text("Chargement…", VW / 2, VH / 2, 12, "#e8dcff", "center"); }
   else if (state === "menu") { updateMenu(); if (state === "menu") drawMenu(); }
-  else if (state === "play") { updatePlay(rdt); if (state === "play") { if (lvl.json) { drawCampWorld(); drawOverlays(); drawCampHUD(); } else { drawWorld(); drawOverlays(); drawHUD(); } } }
+  else if (state === "play") { updatePlay(rdt); if (state === "play") { if (lvl.json) { drawCampWorld(); drawOverlays(); drawCampHUD(); } else { drawWorld(); drawOverlays(); drawHUD(); } drawCoopHud(); } }
   else if (state === "chars") { updateChars(rdt); if (state === "chars") drawChars(); }
   else if (state === "campwin") { drawCampWin(rdt); }
   else if (state === "clear") { updateClear(rdt); if (state === "clear") drawClear(); }

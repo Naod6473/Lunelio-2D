@@ -283,7 +283,7 @@ function loadCampRoom(wi, ri, opts = {}) {
   lvl = buildRoom(wi, ri);
   terrainCanvas = null; terrainFor = null;
   const W = CWORLDS[wi], d = df();
-  players = [makePlayer(ch(), K, 0)];
+  players = makePlayers(!!chal);   // programmes de lavage : en solo
   enemies = lvl.foeSpawns.map((o, i) => { const e = makeFoe(o, W); e.var = foeVariant(`${lvl.R.id}:${i}`); return e; });
   if (lvl.bossSpawn) { enemies.push(makeBig(lvl.bossSpawn, W)); audio.sfx("boss_intro"); audio.sfx("sig_" + W.boss); }
   pickups = []; lasers = []; parts = []; ghosts = []; fxs = [];
@@ -602,7 +602,7 @@ function updateBig(e, dt) {
   const B = e.B, sp = bigSpeed(e), p = targetOf(e), [cx] = bigCenter(e);
   const grav = () => { if (!B.fly) { e.vy = Math.min(e.vy + 1500 * dt, 700); moveBody(e, dt); } };
   if (e.dying) { e.t -= dt; e.vx = 0; grav(); if (e.t <= 0) { e.alive = false; campVictory(e); } return; }
-  if (allDead()) { e.st = "taunt"; e.vx = 0; grav(); return; }
+  if (roomLost()) { e.st = "taunt"; e.vx = 0; grav(); return; }
   if (e.st === "intro") { e.t -= dt; e.vx = 0; if (B.fly) e.y += (90 - e.y) * Math.min(1, dt * 1.5); else grav(); if (e.t <= 0) { e.st = "idle"; e.t = 0.6; } return; }
   if (e.st === "transform") { e.t -= dt; e.vx = 0; grav(); if (e.t <= 0) { e.st = "idle"; e.t = 0.4; } return; }
   if (e.stunT > 0) { e.stunT -= dt; e.vx = 0; grav(); return; }
@@ -773,13 +773,14 @@ function machNear(p) { return mach && Math.abs(p.x + 5 - mach.x) < 40 && p.y + p
 function updateMachine(dt) {
   if (!mach) return;
   mach.t += dt;
-  const p = players[0];
+  const p = mach.who || players[0];   // le héros qui est entré dans la machine
   if (mach.st === "activating" && mach.t > 0.9) { mach.st = "ready"; mach.t = 0; }
   else if (mach.st === "entering") {
     const k = Math.min(1, mach.t / 0.7);
     p.x = mach.ex + (mach.x + MACH_HOLE.x - 5 - mach.ex) * k; p.y = mach.ey + (mach.y + MACH_HOLE.y - 16 - mach.ey) * k;
     p.vx = p.vy = 0;
     if (Math.random() < 0.5) parts.push({ x: mach.x + MACH_HOLE.x + (Math.random() - 0.5) * 30, y: mach.y + MACH_HOLE.y + (Math.random() - 0.5) * 30, vx: 0, vy: 0, life: 0.3, max: 0.3, color: "#c86eff", size: 1, grav: 0 });
+    for (const q of players) if (q !== p && !q.hidden) { q.hidden = true; addFx("fx_teleport", q.x + 5, q.y + q.h); }   // à deux : le copain saute aussi dans la machine
     if (mach.t >= 0.7) { mach.st = "departing"; mach.t = 0; p.hidden = true; audio.sfx("spin"); SAVE.flags.machineSeen = 1; saveGame(); }
   } else if (mach.st === "departing") {
     shake = Math.max(shake, 2);
@@ -793,7 +794,7 @@ function updateMachine(dt) {
 }
 function machInteract(p) {
   if (!mach || mach.st !== "ready" || !p.onGround || p.inv > 1 || p.dead || !machNear(p)) return false;
-  mach.st = "entering"; mach.t = 0; mach.ex = p.x; mach.ey = p.y; p.atkT = -1; p.dashT = 0;
+  mach.st = "entering"; mach.t = 0; mach.who = p; mach.ex = p.x; mach.ey = p.y; p.atkT = -1; p.dashT = 0;
   for (const q of players) q.powerOn = false;
   setTimeFx(false, false); audio.sfx(pickSfx("mach_door", "door"));   // le hublot s'ouvre
   return true;
@@ -804,8 +805,7 @@ function updateArrival(dt) {
   if (!arrival || arrival.done) return;
   arrival.t += dt;
   campFade = Math.max(0, 1 - arrival.t / 0.4);
-  const p = players[0];
-  if (arrival.t >= 1.0 && p.hidden) { p.hidden = false; p.inv = 0.6; addFx("fx_teleport", p.x + 5, p.y + p.h); burst(p.x + 5, p.y + 16, 16, MACHINE_FX[CWORLDS[camp.wi].id], 140, 0.5, 100, 1); audio.sfx("heal"); }
+  for (const p of players) if (arrival.t >= 1.0 + p.idx * 0.15 && p.hidden) { p.hidden = false; p.inv = 0.6; addFx("fx_teleport", p.x + 5, p.y + p.h); burst(p.x + 5, p.y + 16, 16, MACHINE_FX[CWORLDS[camp.wi].id], 140, 0.5, 100, 1); audio.sfx("heal"); }
   if (arrival.t >= 1.4) arrival.done = true;
 }
 function drawMachineAt(x, y, st, t) { drawMachineSkin(x, y, st, t); }
@@ -987,7 +987,7 @@ function drawCovers() {
 // Haut devant une porte ou la machine : entre (le saut est alors ignoré)
 function campTryInteract(p) {
   if (!lvl.json || lvl.leaving || p.dead || p.hidden) return false;
-  const want = hit(...p.input.jump) || hit("ArrowUp", "KeyW", "GUp");
+  const want = hit(...p.input.jump) || hit(...(p.input.act || []));
   if (!want || !p.onGround) return false;
   if (machInteract(p)) return true;
   if (mach && mach.st === "activating" && machNear(p)) return true;   // la machine s'ouvre : on attend sans sauter
@@ -1009,17 +1009,17 @@ function updateCampTransition(dt) {
   const x = T0.ex, p = players[0];
   if (T0.kind === "door") {
     if (T0.t < 0.15) x.st = "half"; else x.st = "open";
-    if (T0.t > 0.3) { p.x += (x.x + x.w / 2 - 5 - p.x) * Math.min(1, dt * 10); p.fade = Math.max(0, 1 - (T0.t - 0.3) / 0.25); }
+    if (T0.t > 0.3) for (const q of players) { q.x += (x.x + x.w / 2 - 5 - q.x) * Math.min(1, dt * 10); q.fade = Math.max(0, 1 - (T0.t - 0.3) / 0.25); }
     campFade = Math.max(0, (T0.t - 0.45) / 0.25);
     if (T0.t >= 0.7 && !T0.done) {
       T0.done = true;
       const W = CWORLDS[camp.wi];
       if (lvl.bossSpawn) {
         // porte du boss franchie : la machine temporelle attend derrière
-        campTrans = null; lvl.leaving = false; p.fade = 1; x.st = "closed";
+        campTrans = null; lvl.leaving = false; x.st = "closed";
         const m = lvl.machine;
         const mx = m ? m.x + m.w / 2 : 392, my = m ? m.y + m.h : 240;
-        p.x = mx - 44; p.y = 240 - p.h; p.face = 1; p.vx = p.vy = 0;
+        for (const q of players) { q.fade = 1; q.x = mx - 44 - q.idx * 18; q.y = 240 - q.h; q.face = 1; q.vx = q.vy = 0; if (q.dead) coopRevive(q, true); }
         startMachine(mx, my); campFade = 1; mach.fadeIn = 0.4;
         for (const e of lvl.exits) e.locked = true;   // la porte se referme derrière
         return;
@@ -1269,7 +1269,7 @@ function drawPrompt(x, y, label) {
 }
 function drawCampPlayer(p) {
   if (p.dead || p.hidden) return;
-  if (mach && mach.st === "entering") { drawEntering(p); return; }
+  if (mach && mach.st === "entering") { if (p === (mach.who || players[0])) drawEntering(p); return; }
   if (p.inv > 0 && Math.floor(time * 20) % 2 && p.inv < 1.25 && !(arrival && !arrival.done)) return;
   let a = p.fade ?? 1;
   if (hidden(p)) a *= 0.35 + 0.1 * Math.sin(time * 12);
@@ -1300,6 +1300,7 @@ function drawCampWorld() {
   }
   drawBubbled();
   drawGhosts(); for (const p of players) drawCampPlayer(p);
+  drawBubbles(); drawCoopTags();
   drawCovers();
   drawArenaFx();
   // invites « entrer »
@@ -1396,7 +1397,7 @@ function drawCampHUD() {
     ctx.globalAlpha = 1;
   }
   if (campFade > 0) { ctx.globalAlpha = Math.min(1, campFade); R(0, 0, VW, VH, "#0d0820"); ctx.globalAlpha = 1; }
-  if (allDead()) {
+  if (roomLost()) {
     R(0, VH / 2 - 22, VW, 44, "rgba(10,6,24,0.75)");
     text("Raté ! On recommence…", VW / 2, VH / 2 - 4, 16, "#ff4f8a", "center", "#ff4f8a");
     text(df().id === "doom" && doomReset ? (camp.ckpt ? "Retour au drapeau" : "Retour au début du monde") : "La salle redémarre", VW / 2, VH / 2 + 12, 8, "#b9a6e0", "center");

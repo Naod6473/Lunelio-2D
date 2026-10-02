@@ -318,12 +318,21 @@ const K = {
   // menus (fixes)
   up: ["ArrowUp", "KeyW", "GUp"], down: ["ArrowDown", "KeyS", "GDown"], ok: ["Enter", "Space", "NumpadEnter", "GA", "GStart"],
 };
+// Coop (coop.js) : deuxième joueur. dev : "pad" (deuxième manette, touches virtuelles H…) ou "kb" (flèches et touches de droite,
+// retirées alors des touches du joueur 1). ci : héros du joueur 2. K2 : ses commandes, au format de K.
+const COOP = { on: false, ci: 1, dev: null, pad: null };
+const K2_KB = { left: ["ArrowLeft"], right: ["ArrowRight"], jump: ["ArrowUp", "Numpad0"], drop: ["ArrowDown"], attack: ["Period", "Numpad1"], special: ["Slash", "Numpad2"], power: ["ShiftRight", "Numpad3"] };
+const K2 = {};
 // Actions de jeu : touches choisies dans les options, plus la souris, le tactile et la manette (GJump… suivent les boutons choisis)
 function rebuildK() {
-  const kb = OPT.kb;
+  const kb2 = COOP.on && COOP.dev === "kb", taken = new Set(kb2 ? Object.values(K2_KB).flat() : []), kb = {};
+  for (const a in OPT.kb) kb[a] = OPT.kb[a].filter(c => !taken.has(c));
+  K.act = kb2 ? ["KeyW", "GUp"] : ["ArrowUp", "KeyW", "GUp"];   // Haut devant une porte ou la machine : entrer
   K.left = [...kb.left, "TLeft", "GLeft"]; K.right = [...kb.right, "TRight", "GRight"]; K.jump = [...kb.jump, "TJump", "GJump"];
   K.drop = [...kb.drop, "TDown", "GDown"]; K.attack = [...kb.attack, "Mouse0", "TAtk", "GAtk"]; K.special = [...kb.special, "Mouse2", "TSpec", "GSpec"];
   K.power = [...kb.power, "TPow", "GPower"];
+  if (COOP.dev === "kb") Object.assign(K2, K2_KB, { act: ["ArrowUp"] });
+  else Object.assign(K2, { left: ["HLeft"], right: ["HRight"], jump: ["HJump"], drop: ["HDown"], attack: ["HAtk"], special: ["HSpec"], power: ["HPower"], act: ["HUp"] });
 }
 rebuildK();
 
@@ -401,10 +410,11 @@ const padStyleOf = id => /054c|sony|playstation|dualshock|dualsense/i.test(id) ?
 const padBtn = (g, i) => { const b = g.buttons[i]; return !!b && (b.pressed || b.value > 0.5); };
 function readPads() {
   const list = navigator.getGamepads ? navigator.getGamepads() : [];
+  coopPads(list);   // deuxième manette (coop.js) : touches virtuelles H…, et « rejoindre » sur l'écran du choix du héros
   let g = padIdx !== null ? list[padIdx] : null;
   if (!g || !g.connected) {
     g = null; padIdx = null;
-    for (const p of list) if (p && p.connected && (p.buttons.some(b => b.pressed) || Math.abs(p.axes[0] || 0) > 0.6 || Math.abs(p.axes[1] || 0) > 0.6)) {
+    for (const p of list) if (p && p.connected && !(COOP.dev === "pad" && p.index === COOP.pad) && (p.buttons.some(b => b.pressed) || Math.abs(p.axes[0] || 0) > 0.6 || Math.abs(p.axes[1] || 0) > 0.6)) {
       g = p; padIdx = p.index; padStyle = padStyleOf(p.id); break;
     }
   }
@@ -1231,7 +1241,7 @@ function loadLevel(i) {
   lvl = parseLevel(L);
   bgCanvas = makeWorldBg(L, lvl, ch()); tileCanvas = makeTiles(lvl, WORLD_STYLE[wid], wid);
   const d = df();
-  players = [makePlayer(ch(), K, 0)];
+  players = makePlayers();
   enemies = lvl.ents.map((e, k) => { if (e.type === "boss") return makeBoss(e, wid); const m = makeEnemy(e.type, e.x, e.y); m.var = foeVariant(`ancien:${i}:${k}`); return m; });
   pickups = d.id === "doom" ? [] : lvl.items.map(it => ({ ...it, alive: true }));
   lasers = []; parts = []; ghosts = []; roomTime = 0; hintT = 0; doorOpen = false; deathT = 0;
@@ -1250,6 +1260,8 @@ function makePlayer(C, input, idx) {
 }
 const player1 = () => players[0];
 const allDead = () => players.every(p => p.dead);
+// La salle est perdue quand tous les héros sont tombés (en Doom à deux : dès qu'un héros tombe)
+const roomLost = () => allDead() || (players.length > 1 && df().id === "doom" && players.some(p => p.dead));
 const usingPower = (p, fx) => p.powerOn && powerOf(p.C) && powerOf(p.C).timeFx === fx;
 // Joueur visé par un ennemi : le plus proche encore en vie (et visible : pouvoir d'invisibilité)
 function targetOf(e) {
@@ -1353,9 +1365,11 @@ function hurtPlayer(p, srcX) {
     audio.sfx("heal"); rumble(250, 0.5, 0.5);
     msg = { text: "Mode copain : on repart !", t: 2 }; voice.say("On repart !", true);
   } else if (p.hp <= 0) {
-    p.dead = true; p.powerOn = false; deaths++; audio.sfx("gameover"); rumble(500, 1, 0.8);
+    p.dead = true; p.powerOn = false; deaths++; rumble(500, 1, 0.8);
     burst(p.x + 5, p.y + 16, 40, [p.C.color, "#ffffff", "#ff4fd8"], 260, 0.9, 250, 2);
-    if (allDead()) {
+    if (!roomLost()) coopBubble(p);   // à deux : le héros devient une bulle que son copain peut toucher
+    else audio.sfx("gameover");
+    if (roomLost()) {
       deathT = 1.4; voice.say("Raté ! On recommence.", true);
       doomReset = df().id === "doom" && (lvl.json ? camp.ri > camp.ckpt : ROOMS[lvlIdx].ri > 0);
       setTimeFx(false, false);
@@ -1683,7 +1697,7 @@ function updateParts(dt) {
 
 function updatePlay(rdt) {
   const d = df();
-  if (hit("Escape", "KeyP", "TPause", "GStart")) { pauseGame(); return; }
+  if (hit("Escape", "KeyP", "TPause", "GStart", "HStart")) { pauseGame(); return; }
   if (hit("KeyR", "GSelect") && !(lvl.json && campLocked(players[0]))) { if (lvl.json) loadCampRoom(camp.wi, camp.ri, { restart: true }); else loadLevel(lvlIdx); return; }
   // pouvoirs : chaque joueur a sa jauge ; le ralenti d'un joueur ralentit tout le jeu.
   // Pouvoir maintenu : la jauge se vide pendant l'effet. Coup unique (burst) : il coûte une part de la jauge.
@@ -1703,10 +1717,11 @@ function updatePlay(rdt) {
   if (hitstop > 0) { hitstop -= rdt; return; }
   const dt = rdt * (slowOn ? 0.35 : 1);
   for (const p of players) if (!(lvl.json && campLocked(p))) updatePlayer(p, dt);
+  updateBubbles(dt);
   if (lvl.json) updateCamp(dt); else updateEnemies(dt);
   updateLasers(dt); updateParts(dt);
   if (chal) { chalUpdate(dt, rdt); if (state !== "play") return; }
-  if (allDead()) {
+  if (roomLost()) {
     deathT -= rdt;
     if (deathT <= 0) {
       if (lvl.json) {
@@ -1982,6 +1997,7 @@ function drawWorld() {
   for (const e of enemies) if (e.alive && e.stunT > 0) stunStars(e);
   drawBubbled();
   drawGhosts(); for (const p of players) drawPlayer(p);
+  drawBubbles(); drawCoopTags();
   for (const q of parts) { ctx.globalAlpha = Math.min(1, q.life / q.max * 1.5); R(Math.round(q.x), Math.round(q.y), q.size, q.size, q.color); }
   ctx.globalAlpha = 1;
 }
@@ -2039,7 +2055,7 @@ function drawHUD() {
     ctx.restore(); ctx.globalAlpha = 1;
   }
   if (msg && msg.t > 0) { ctx.globalAlpha = Math.min(1, msg.t); text(msg.text, VW / 2, 66, 11, "#7dffb0", "center", "#7dffb0"); ctx.globalAlpha = 1; }
-  if (allDead()) {
+  if (roomLost()) {
     R(0, VH / 2 - 22, VW, 44, "rgba(10,6,24,0.75)");
     text("Raté ! On recommence…", VW / 2, VH / 2 - 4, 16, "#ff4f8a", "center", "#ff4f8a");
     text("La salle redémarre", VW / 2, VH / 2 + 12, 8, "#b9a6e0", "center");
@@ -2321,7 +2337,9 @@ function updateChars(rdt) {
   if (hit("Escape", "GB", "Backspace") || (hit("Mouse0") && inside(CUI.back))) { if (charsFrom === "hub") enterHub({ x: 100 }); else goMenu(); audio.sfx("back"); return; }
   if (hit(...K.left)) moveCharSel((charSel + n - 1) % n);
   if (hit(...K.right)) moveCharSel((charSel + 1) % n);
-  if (hit(...K.up, ...K.down)) moveCharSel((charSel + cols) % n);
+  const vert = COOP.dev === "kb" ? [...K.up, ...K.down].filter(k => !k.startsWith("Arrow")) : [...K.up, ...K.down];   // flèches au joueur 2
+  if (hit(...vert)) moveCharSel((charSel + cols) % n);
+  coopCharsUpdate();
   if (hit("Mouse0")) {
     if (inside(CUI.ok)) { confirmChar(); return; }
     for (let i = 0; i < n; i++) if (inside(CUI.cards[i])) { if (i === charSel) { confirmChar(); return; } moveCharSel(i); }
@@ -2347,6 +2365,7 @@ function drawChars() {
     ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1); ctx.shadowBlur = 0;
     if (i === charIdx) text("✓", r.x + r.w - 6, r.y + 8, 8, "#7dffb0", "center");
   });
+  coopCharsDraw();
   // panneau du héros mis en avant
   const px = 248, pw = 222;
   R(px, 30, pw, 206, "rgba(14,8,30,0.88)"); ctx.strokeStyle = C.ui; ctx.lineWidth = 1; ctx.strokeRect(px + 0.5, 30.5, pw - 1, 205);
@@ -2605,7 +2624,7 @@ function frame(now) {
   ctx.imageSmoothingEnabled = false;
   if (state === "loading") { text("Chargement…", VW / 2, VH / 2, 12, "#e8dcff", "center"); }
   else if (state === "menu") { updateMenu(); if (state === "menu") drawMenu(); }
-  else if (state === "play") { updatePlay(rdt); if (state === "play") { if (lvl.json) { drawCampWorld(); drawOverlays(); drawCampHUD(); } else { drawWorld(); drawOverlays(); drawHUD(); } } }
+  else if (state === "play") { updatePlay(rdt); if (state === "play") { if (lvl.json) { drawCampWorld(); drawOverlays(); drawCampHUD(); } else { drawWorld(); drawOverlays(); drawHUD(); } drawCoopHud(); } }
   else if (state === "chars") { updateChars(rdt); if (state === "chars") drawChars(); }
   else if (state === "campwin") { drawCampWin(rdt); }
   else if (state === "clear") { updateClear(rdt); if (state === "clear") drawClear(); }

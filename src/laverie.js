@@ -56,10 +56,11 @@ function hubSetRoom(id, x) {
     blocks: [], hazards: [], dest: [], items: [], exits: [], decor: [], covers: [], gold: [], qitems: [], sock: null,
     start: { x: clamp(x, 4, H.w - 14), y: H.floor - 32 }, lastSafe: null, W: CWORLDS[0], R: { id: "laverie", bg: "" }, leaving: false };
   lvl = hub.lvl;
-  const p = players[0];
-  if (p && p.C === ch()) { p.x = lvl.start.x; p.y = lvl.start.y; p.vx = p.vy = 0; } else players = [makePlayer(ch(), K, 0)];
-  players[0].inv = 0;
-  hub.cam = clamp(players[0].x + 5 - VW / 2, 0, H.w - VW);
+  const want = makePlayers();   // à deux : le copain arrive à côté
+  if (players.length === want.length && players.every((p, i) => p.C === want[i].C)) for (const p of players) { p.x = clamp(lvl.start.x + p.idx * 14, 4, H.w - 14); p.y = lvl.start.y; p.vx = p.vy = 0; if (p.dead) coopRevive(p, true); }
+  else players = want;
+  for (const p of players) p.inv = 0;
+  hub.cam = clamp(coopCamX() - VW / 2, 0, H.w - VW);
 }
 function enterHub(opts = {}) {
   mode = "camp"; chal = null; players = [];
@@ -69,7 +70,7 @@ function enterHub(opts = {}) {
   setTimeFx(false, false);
   hub.t = 0; hub.dlg = null; hub.visits++; hub.msg = opts.msg ? { text: opts.msg, t: 5 } : null;
   hub.arrive = opts.arrive ? { t: 0 } : null;
-  if (hub.arrive) { hubSetRoom("salle", 398); players[0].hidden = true; }
+  if (hub.arrive) { hubSetRoom("salle", 398); for (const p of players) p.hidden = true; }
   state = "hub"; voice.stop();
   // à faire en arrivant : prologue, réparation d'une pièce, souvenir, fin de la campagne
   hub.queue = [];
@@ -101,7 +102,7 @@ function updateHubTrans(rdt) {
     T0.done = true;
     const back = HUB_ROOMS[T0.door.to].doors.find(d => d.to === hub.room);
     hubSetRoom(T0.door.to, back ? back.x - 5 : 40);
-    players[0].face = back && back.x > HUB_ROOMS[T0.door.to].w / 2 ? -1 : 1;
+    for (const p of players) p.face = back && back.x > HUB_ROOMS[T0.door.to].w / 2 ? -1 : 1;
   }
   if (T0.t >= 0.5) hub.trans = null;
   return true;
@@ -193,16 +194,16 @@ function updateHub(rdt) {
   hub.machShake = Math.max(0, hub.machShake - rdt);
   if (hub.repairFx) { hub.repairFx.t += rdt; if (hub.repairFx.t > 2.5) hub.repairFx = null; }
   const p = players[0], H = hubRoom();
-  hub.cam = clamp(p.x + 5 - VW / 2, 0, H.w - VW);
+  hub.cam = clamp(coopCamX() - VW / 2, 0, H.w - VW);   // à deux : la caméra suit le milieu des deux héros
   if (hub.arrive) {
     const a = hub.arrive; a.t += rdt;
-    if (a.t > 0.9 && p.hidden) { p.hidden = false; p.inv = 0.4; p.vy = -200; p.vx = -60; addFx("fx_teleport", p.x + 5, p.y + p.h); burst(408, H.floor - 40, 24, ["#7dffb0", "#ffffff", "#c86eff"], 160, 0.6, 100, 1); audio.sfx("arrive"); }
-    if (a.t > 1.4) hub.arrive = null;
+    for (const q of players) if (a.t > 0.9 + q.idx * 0.2 && q.hidden) { q.hidden = false; q.inv = 0.4; q.vy = -200; q.vx = -60; addFx("fx_teleport", q.x + 5, q.y + q.h); burst(408, H.floor - 40, 24, ["#7dffb0", "#ffffff", "#c86eff"], 160, 0.6, 100, 1); if (!q.idx) audio.sfx("arrive"); }
+    if (a.t > 1.6) hub.arrive = null;
   }
   if (updateHubTrans(rdt)) { updateParts(rdt); updateFx(rdt); return; }
   if (updateDialog(rdt)) { updateParts(rdt); updateFx(rdt); return; }
   if (!hub.arrive && hub.queue.length) { hub.queue.shift()(); if (state !== "hub") return; }
-  if (hit("Escape", "KeyP", "GStart", "TPause")) { openHubMenu(); return; }
+  if (hit("Escape", "KeyP", "GStart", "TPause", "HStart")) { openHubMenu(); return; }
   if (hit("KeyO", "GY")) { openOptions("hub"); return; }
   // le poste le plus proche devant lequel on se tient (à la bonne hauteur : le jukebox est sur une étagère)
   const things = hubThings();
@@ -220,7 +221,7 @@ function updateHub(rdt) {
     const mx = mouse.x + hub.cam;
     for (const it of things) { const fy = thingFloor(it); if (mx >= it.x - it.w / 2 && mx <= it.x + it.w / 2 && mouse.y >= fy - it.h && mouse.y <= fy + 4) { delete pressed.Mouse0; hubInteract(it); return; } }
   }
-  if (!hub.arrive) updatePlayer(p, rdt);
+  if (!hub.arrive) for (const q of players) { updatePlayer(q, rdt); if (q.idx) coopKeepNear(q, H); }
   updateParts(rdt); updateFx(rdt);
 }
 function openHubMenu() { state = "hubmenu"; hubMenuSel = 0; audio.sfx("pause"); }
@@ -303,6 +304,7 @@ function drawHub() {
   for (const n of hubNpcs()) if (n.room === hub.room) drawNpc(n.npc, n.x, H.floor, n.x > players[0].x ? -1 : 1, hub.dlg && hub.dlg.lines[hub.dlg.i][0] === n.npc, n.quest);
   drawFxList(true);
   drawGhosts(); for (const p of players) drawCampPlayer(p);
+  drawCoopTags();
   drawFxList(false);
   for (const q of parts) { ctx.globalAlpha = Math.min(1, q.life / q.max * 1.5); R(Math.round(q.x), Math.round(q.y), q.size, q.size, q.color); }
   ctx.globalAlpha = 1;

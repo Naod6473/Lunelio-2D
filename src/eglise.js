@@ -259,10 +259,12 @@ function egArena() {
   lvl = { json: true, eglise: true, W, R: W.rooms[0], width: VW, solids: [{ x: -40, y: EG_FLOOR, w: VW + 80, h: VH }], plats: [], blocks: [], decor: [], hazards: [], dest: [], items: [], exits: [],
     machine: null, ckpt: null, start: { x: 40, y: EG_FLOOR - 32 }, foeSpawns: [], bossSpawn: null, lastSafe: null, leaving: false, arena: null, covers: [], gold: [], qitems: [], sock: null };
 }
+// Héros au bord gauche de l'arène (à deux : côte à côte)
+function egPlace() { for (const p of players) { p.x = 40 + p.idx * 20; p.y = EG_FLOOR - p.h; p.vx = 0; p.face = 1; } }
 function startEglise() {
   egArena();
   enemies = []; lasers = []; parts = []; pickups = []; ghosts = []; fxs = []; mach = null; chal = null; roomTime = 0; hitstop = 0; hub.dlg = null;
-  players = [makePlayer(ch(), K, 0)]; const p = players[0]; p.x = 40; p.y = EG_FLOOR - p.h; p.face = 1;
+  players = makePlayers(); egPlace();
   Object.assign(EG, { step: 0, plan: 0, st: "intro", t: 0, fade: 1, trans: null, paused: false, music: null, bosses: [], poops: [], bubbles: [], brieEdge: null, deathT: 0, endT: 0, nextT: 0, loudT: 0, saidEnd: false });
   audio.resume.add(EG_MUSIC); audio.load(EG_MUSIC);   // gros fichier : chargé pendant les cloches
   EG.bell = egSound("eg_mariage", 0.9);   // les cloches du mariage, puis la musique de l'église, à fond
@@ -281,7 +283,6 @@ function egStep(i) {
   else go();
 }
 function egFight(S) {
-  const p = players[0];
   EG.st = "fight"; EG.fightT = 0; lasers = []; EG.poops = []; EG.bubbles = [];
   // les boss du combat entrent (à leur place s'ils étaient déjà là, debout ou à terre) ; les vaincus des autres actes restent à terre en décor
   const fighters = S.fight.map((id, k) => {
@@ -294,7 +295,7 @@ function egFight(S) {
   // le duo : ils se relèvent en criant (Laurène se transforme) ; Brie aboie depuis le bord
   if (S.duo) { for (const b of fighters) egStartMove(b, "cri"); EG.brieEdge = { x: VW - 26, t: 0 }; }
   EG.music = egFightMusic(S);
-  p.inv = 1;
+  for (const p of players) p.inv = 1;
 }
 // Musique d'un combat : le thème du boss s'il existe (musique/eglise/<boss>), sinon l'église ; le duo alterne les deux thèmes
 function egFightMusic(S) {
@@ -329,8 +330,8 @@ function egLeave() {
 }
 // Le héros est tombé : on recommence le combat en cours (sans redire le dialogue)
 function egRetry() {
-  const S = EG_SCRIPT[EG.step], p = players[0];
-  players = [makePlayer(ch(), K, 0)]; const q = players[0]; q.x = 40; q.y = EG_FLOOR - q.h; q.face = 1;
+  const S = EG_SCRIPT[EG.step];
+  players = makePlayers(); egPlace();
   EG.bosses = EG.bosses.filter(b => b.down && !(S.fight || []).includes(b.id)); lasers = []; parts = []; EG.poops = []; EG.bubbles = [];
   if (S.fight) egFight(S);
   msg = { text: "On recommence !", t: 2 };
@@ -340,7 +341,7 @@ SCREENS.eglise = {
   update(rdt) {
     const p = players[0];
     if (hub.dlg && !EG.trans) { updateDialog(rdt); return; }
-    if (EG.st !== "end" && hit("Escape", "KeyP", "TPause", "GStart")) { EG.paused = !EG.paused; audio.sfx("pause"); }
+    if (EG.st !== "end" && hit("Escape", "KeyP", "TPause", "GStart", "HStart")) { EG.paused = !EG.paused; audio.sfx("pause"); }
     if (EG.paused) { if (hit("KeyQ", "GB", "Backspace")) egLeave(); return; }
     if (hitstop > 0) { hitstop -= rdt; return; }
     const dt = rdt * (slowOn ? 0.35 : 1);
@@ -355,7 +356,7 @@ SCREENS.eglise = {
     if (EG.trans) {
       const T0 = EG.trans; T0.t += rdt;
       if (T0.t > 0.6 && !T0.done) {
-        T0.done = true; EG.plan = T0.plan; p.x = 40; p.y = EG_FLOOR - p.h; p.vx = 0; p.face = 1; lasers = []; EG.poops = []; audio.duck(1.2);
+        T0.done = true; EG.plan = T0.plan; egPlace(); for (const q of players) if (q.dead) coopRevive(q, true); lasers = []; EG.poops = []; audio.duck(1.2);
         for (const b of EG.bosses) if (b.down && b.id !== "brie") { b.x = VW - 120; }   // le marié vaincu suit sa femme dans la nef
         if (EG.bosses.some(b => b.id === "brie")) EG.bosses = EG.bosses.filter(b => b.id !== "brie");   // Brie reste sur le parvis… jusqu'au duo
         EG.extras = (EG.extras || []).map(x => ({ ...x, x: x.id === "laurene" ? 400 : 360 }));
@@ -364,16 +365,19 @@ SCREENS.eglise = {
       updateParts(dt); return;
     }
     // pouvoirs comme en jeu
-    const d = df(), pw = powerOf(p.C);
-    if (pw && pw.burst) { p.powerOn = false; if (d.power && hit(...p.input.power) && !p.dead) burstPower(p, pw); p.gauge = Math.min(1, p.gauge + d.regen * rdt); }
-    else { p.powerOn = !!(d.power && pw && down(...p.input.power) && p.gauge > 0 && !p.dead); p.gauge = p.powerOn ? Math.max(0, p.gauge - d.drain * rdt) : Math.min(1, p.gauge + d.regen * rdt); }
-    setTimeFx(usingPower(p, "slow"), usingPower(p, "fast"));
-    if (!p.dead && EG.st !== "end") updatePlayer(p, dt);
-    p.x = clamp(p.x, 2, VW - 12);
+    const d = df();
+    for (const q of players) {
+      const pw = powerOf(q.C);
+      if (pw && pw.burst) { q.powerOn = false; if (d.power && hit(...q.input.power) && !q.dead) burstPower(q, pw); q.gauge = Math.min(1, q.gauge + d.regen * rdt); }
+      else { q.powerOn = !!(d.power && pw && down(...q.input.power) && q.gauge > 0 && !q.dead); q.gauge = q.powerOn ? Math.max(0, q.gauge - d.drain * rdt) : Math.min(1, q.gauge + d.regen * rdt); }
+    }
+    setTimeFx(players.some(q => usingPower(q, "slow")), players.some(q => usingPower(q, "fast")));
+    for (const q of players) { if (!q.dead && EG.st !== "end") updatePlayer(q, dt); q.x = clamp(q.x, 2, VW - 12); }
+    updateBubbles(dt);
     for (const e of EG.bosses) egUpdateBoss(e, dt);
     updateLasers(dt);
     // crottes de Brie : elles restent quelques secondes ; les toucher fait mal
-    for (const c of EG.poops) { c.t -= dt; if (!p.dead && ov(c, p)) hurtPlayer(p, c.x + 7); }
+    for (const c of EG.poops) { c.t -= dt; for (const q of players) if (!q.dead && ov(c, q)) hurtPlayer(q, c.x + 7); }
     EG.poops = EG.poops.filter(c => c.t > 0);
     // Brie aboie depuis le bord pendant le duo (sans attaquer)
     if (EG.brieEdge && !EG.brieEdge.happy) { const B = EG.brieEdge; B.t += dt; if (B.t > 2.2 + Math.random()) { B.t = 0; audio.sfx("eg_aboie"); EG.bubbles.push({ edge: true, text: Math.random() < 0.5 ? "WAF !" : "WAF WAF !", t: 1 }); } }
@@ -381,7 +385,7 @@ SCREENS.eglise = {
     EG.bubbles = EG.bubbles.filter(b => b.t > 0 && (b.edge || (EG.bosses.includes(b.e) && !b.e.gone)));
     egCheckWin();
     // le héros est tombé : on recommence ce combat
-    if (p.dead) { EG.deathT += rdt; if (EG.deathT > 1.6) { EG.deathT = 0; egRetry(); } }
+    if (roomLost()) { EG.deathT += rdt; if (EG.deathT > 1.6) { EG.deathT = 0; egRetry(); } }
     if (EG.st === "end") {
       EG.endT += rdt;
       if (EG.endT > 2.5 && !EG.saidEnd) { EG.saidEnd = true; startDialog(EG_DLG.apres, () => {}); }
@@ -427,7 +431,7 @@ SCREENS.eglise = {
       }
       else if (l.kind === "shard") R(Math.round(l.x), Math.round(l.y), 4, 3, "#7dffb0");
     }
-    drawFxList(true); if (!p.dead) drawCampPlayer(p); drawFxList(false);
+    drawFxList(true); for (const q of players) drawCampPlayer(q); drawBubbles(); drawCoopTags(); drawFxList(false);
     for (const q of parts) { ctx.globalAlpha = Math.min(1, q.life / q.max * 1.5); R(Math.round(q.x), Math.round(q.y), q.size, q.size, q.color); }
     ctx.globalAlpha = 1;
     // bulles des répliques
@@ -448,6 +452,7 @@ SCREENS.eglise = {
       const pw = powerOf(p.C); hx -= 8;
       if (pw) { R(hx - 44, 5, 44, 6, "#2a1a44"); R(hx - 44, 5, Math.round(44 * p.gauge), 6, p.powerOn ? "#ffffff" : pw.color); }
     }
+    drawCoopHud();
     // barres de vie des boss, en bas
     const fs = enemies.filter(e => e.type === "egboss").sort((a, b) => egCx(a) - egCx(b));   // une barre par combattant, dans l'ordre de l'écran
     if (EG.st === "fight") fs.forEach((e, k) => {
