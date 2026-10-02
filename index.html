@@ -245,7 +245,7 @@ const KB_DEFAULT = { left: ["ArrowLeft", "KeyA"], right: ["ArrowRight", "KeyD"],
 const PAD_DEFAULT = { jump: [0], attack: [2, 3], special: [1], power: [7, 6, 5, 4] };
 const KB_RESERVED = ["Escape", "KeyP", "KeyR", "KeyM", "Semicolon", "KeyO", "Tab", "MetaLeft", "MetaRight", "ContextMenu"];   // pause, recommencer, son, options…
 const PAD_BINDABLE = [0, 1, 2, 3, 4, 5, 6, 7, 10, 11];   // pas Select/Start (8, 9) ni la croix (12-15)
-const OPT_DEFAULT = { music: true, sfx: true, voice: false, buddy: false, rumble: true };
+const OPT_DEFAULT = { music: true, sfx: true, voice: false, buddy: false, rumble: true, bigHead: false, mirror: false };   // bigHead, mirror : secrets (secrets.js)
 const OPT = { ...OPT_DEFAULT, kb: {}, pad: {}, labels: {} };
 function loadOptions() {
   let o = null;
@@ -2296,6 +2296,7 @@ function buildRoom(wi, ri) {
   // salle normale : porte verrouillée tant qu'il reste des ennemis (foeLock : ouverte par updateDoorLocks) ; pas dans les programmes de lavage, qui ont leurs propres règles
   else if (L.foeSpawns.length && !chal) for (const e of L.exits) if (e.kind === "door") { e.locked = true; e.foeLock = true; }
   if (L.bossSpawn && L.hazards.some(h => h.arena)) L.arena = { t: 1.5, cur: null, side: 0 };
+  if (mirrorOn() && !L.bossSpawn) mirrorRoom(L);   // mode miroir (secrets.js) : pas les arènes de boss
   return L;
 }
 // Ajouts de campagne_ajouts.json : plateformes et caisses en plus, chaussette de la salle, chaussettes dorées, objets de quête.
@@ -3382,7 +3383,8 @@ function drawCampPlayer(p) {
 }
 function drawCampWorld() {
   const bg = getImg(lvl.R.bg);
-  if (bg.ok) ctx.drawImage(bg.img, 0, 0, VW, VH); else R(0, 0, VW, VH, "#120a22");
+  if (bg.ok && lvl.mirror) { ctx.save(); ctx.translate(VW, 0); ctx.scale(-1, 1); ctx.drawImage(bg.img, 0, 0, VW, VH); ctx.restore(); }
+  else if (bg.ok) ctx.drawImage(bg.img, 0, 0, VW, VH); else R(0, 0, VW, VH, "#120a22");
   R(0, 0, VW, VH, "rgba(8,4,20,0.16)");   // le décor reste plus sombre que les éléments jouables
   if (terrainFor !== lvl) { terrainCanvas = makeTerrain(lvl); if (terrainCanvas) terrainFor = lvl; }
   if (terrainCanvas) ctx.drawImage(terrainCanvas, 0, 0);
@@ -3702,6 +3704,10 @@ function drawTreasure(t, x, y, s = 1, own = true) {
   else { ctx.save(); ctx.filter = "brightness(0)"; drawFrame(t.atlas, fr, x, y, 1, 0.35, s); ctx.restore(); }   // silhouette (simplement pâle si le navigateur ignore filter)
 }
 
+/* ---- Surprises du calendrier (secrets.js) ---- */
+// birthdays : anniversaires des enfants, « JJ-MM » (jour et mois seulement), par exemple ["14-03", "02-11"]
+const CALENDAR = { birthdays: [] };
+
 /* ---- Cartes ---- */
 // cat : pnj, heros, monstres, boss. world : filtre (id de monde, "laverie" ou "bonus").
 // art : { atlas, frame } (portrait du pack) ou { npc } (portrait dessiné) ou { foe } / { old } (sprite du jeu).
@@ -3709,6 +3715,8 @@ const CARD_CATS = [["pnj", "Clients"], ["heros", "Héros"], ["monstres", "Monstr
 const CARDS = [
   { id: "pnj_bulle", cat: "pnj", world: "laverie", name: "Mme Bulle", art: { npc: "bulle" }, cond: { met: "bulle" }, how: "Entre dans la laverie",
     desc: "La gérante de la laverie. Elle connaît tous les programmes.", tip: "Ses bigoudis ne sont pas des pièces de la machine. Promis." },
+  { id: "pnj_bulle_secret", cat: "pnj", world: "laverie", name: "Mme Bulle (en secret)", art: { npc: "bulle" }, cond: { flag: "bulleSecret" }, how: "Un secret de la laverie",
+    desc: "Elle connaît des devinettes, des blagues… et elle danse avec le balai.", tip: "Plus on lui parle, plus elle en raconte." },
   { id: "pnj_capitaine", cat: "pnj", world: "05_port", name: "Capitaine Barbe-Mouillée", art: { npc: "capitaine" }, cond: { quest: "capitaine" }, how: "Termine la quête du capitaine",
     desc: "Un pirate perdu dans la laverie, avec un seul pied chaussé.", tip: "Sa barbe goutte toujours. Même au soleil." },
   { id: "pnj_bobine", cat: "pnj", world: "02_usine", name: "Bobine", art: { npc: "bobine" }, cond: { quest: "bobine" }, how: "Termine la quête de Bobine",
@@ -4484,7 +4492,8 @@ function hubInteract(it) {
 }
 function talkTo(it) {
   const q = it.quest, id = it.npc;
-  if (!q) {   // Mme Bulle : une phrase selon l'avancée, plus un conseil
+  if (!q) {   // Mme Bulle : une phrase selon l'avancée, plus un conseil (et une devinette si on lui parle cinq fois de suite)
+    const sec = bulleSecret(); if (sec) { startDialog(sec.lines, sec.end); return; }
     const lines = [...(STORY.bulle.filter(b => testCond(b.cond)).pop() || STORY.bulle[0]).lines];
     const waiting = QUESTS.find(q2 => testCond(q2.appear) && !SAVE.quests[q2.id]);
     if (waiting) lines.push(["bulle", `${NPCS[waiting.npc].name} a besoin d'aide. Va lui parler !`]);
@@ -4505,6 +4514,7 @@ function talkTo(it) {
 }
 function updateHub(rdt) {
   hub.t += rdt; if (hub.msg && hub.msg.t > 0) hub.msg.t -= rdt;
+  updateSeason(rdt);
   hub.machShake = Math.max(0, hub.machShake - rdt);
   if (hub.repairFx) { hub.repairFx.t += rdt; if (hub.repairFx.t > 2.5) hub.repairFx = null; }
   const p = players[0], H = hubRoom();
@@ -4564,7 +4574,7 @@ function drawButton(r, label, hov, col = "#e8dcff", size = 9) {
   ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
   text(label, r.x + r.w / 2, r.y + r.h / 2 + 1, size, hov ? "#120828" : col, "center");
 }
-SCREENS.hub = { update: updateHub, draw: () => { drawHub(); drawHubHUD(); drawDialog(); } };
+SCREENS.hub = { update: updateHub, draw: () => { drawHub(); drawSeasonScreen(); drawHubHUD(); drawDialog(); } };
 
 /* ---- Dessin de la laverie ---- */
 const hubDeco = () => SAVE.cos.hub;
@@ -4616,6 +4626,7 @@ function drawHub() {
   drawShowcase();
   for (const d of hubDoors()) drawHubDoor(d);
   for (const s of STATIONS) if (s.room === hub.room) drawStation(s);
+  drawSeasonWorld();   // surprises du calendrier (secrets.js)
   for (const n of hubNpcs()) if (n.room === hub.room) drawNpc(n.npc, n.x, H.floor, n.x > players[0].x ? -1 : 1, hub.dlg && hub.dlg.lines[hub.dlg.i][0] === n.npc, n.quest);
   drawFxList(true);
   drawGhosts(); for (const p of players) drawCampPlayer(p);
@@ -4877,7 +4888,11 @@ function screenMusic() {
   if (state === "worlds" && mode === "camp") return hubMusic();
   return undefined;
 }
-function hubAmbience() { if (state === "eglise") return; audio.setAmbience(HUB_STATES.includes(state) && hasSound("sfx/laverie/ambiance") ? "sfx/laverie/ambiance" : null); }
+function hubAmbience() {
+  if (state === "eglise") return;
+  const inHub = HUB_STATES.includes(state);
+  audio.setAmbience(inHub && seasonAmbience() ? seasonAmbience() : inHub && hasSound("sfx/laverie/ambiance") ? "sfx/laverie/ambiance" : null);   // jour de pluie : bruit de pluie
+}
 
 /* ---------------- Cosmétiques : rendu ---------------- */
 // Les cosmétiques changent l'apparence seulement. Couleurs : la planche est recolorée une fois (teinte, saturation,
@@ -4958,7 +4973,8 @@ function drawAccessory(id, hx, hy, face, s = 1, alpha = 1) {
 function drawCharCos(C, frame, x, y, face = 1, scale = 1, alpha = 1, opts = {}) {
   const aid = charAtlas(C), pal = opts.pal !== undefined ? opts.pal : cosOn(C, "pal"), acc = opts.acc !== undefined ? opts.acc : cosOn(C, "acc");
   drawFrame(aid, frame, x, y, face, alpha, scale, pal);
-  if (acc) { const h = headOf(aid, frame); drawAccessory(acc, x + face * h.dx * scale, y + h.dy * scale, face, scale, alpha); }
+  const big = bigHeads() && !opts.noBig ? drawBigHead(aid, pal ? atlasImgCos(aid, pal) : atlasImg(aid), frame, x, y, face, scale, alpha) : null;   // secret (secrets.js)
+  if (acc) { const h = big || headOf(aid, frame); drawAccessory(acc, x + face * h.dx * scale, y + h.dy * scale, face, scale * (big ? big.k : 1), alpha); }
   if (pal && COS_BY_ID[pal].shiny && Math.floor(time * 3 + x) % 4 === 0) { const h = headOf(aid, frame); R(Math.round(x + (Math.sin(time * 7) * 8) * scale), Math.round(y + (h.dy + 10 + Math.cos(time * 5) * 8) * scale), 2, 2, "#ffffff"); }
 }
 // Couleur du sabre et des effets du joueur (cosmétique « fx », sinon la couleur du héros)
@@ -5023,7 +5039,7 @@ const hoverable = () => !TOUCH && !PAD;
 
 /* ---------------- Collections : cartes, badges, chaussettes ---------------- */
 const ALB = { tab: 0, cat: 0, world: 0, sel: 0, focus: "list", page: 0 };
-const ALB_TABS = ["Cartes", "Badges", "Chaussettes", "Trésors", "Famille"];
+const ALB_TABS = ["Cartes", "Badges", "Chaussettes", "Trésors", "Famille", "Secrets"];
 const WORLD_FILTERS = [["all", "Tous les lieux"], ["laverie", "Laverie"], ...CWORLDS.map(W => [W.id, W.name]), ["bonus", "Ancienne aventure"]];
 function openAlbum() { state = "album"; ALB.sel = 0; ALB.focus = "list"; audio.sfx("page"); }
 function albumCards() {
@@ -5039,7 +5055,8 @@ SCREENS.album = {
     if (uiBack()) { backToHub(); return; }
     const t = clickTab(ALB_TABS.length, 72, VW - 80); if (t >= 0) { ALB.tab = t; ALB.sel = 0; audio.sfx("page"); if (t === 4) openFamily(); }
     if (ALB.tab === 4 && (hit("KeyC", "GX") || (hit("Mouse0") && inside({ x: 150, y: 25, w: 96, h: 14 })))) { const i = DIFFS.findIndex(d => d.id === FAM.diff); FAM.diff = DIFFS[(i + 1) % DIFFS.length].id; audio.sfx("page"); }
-    const n = ALB.tab === 0 ? Math.min(ALB_PAGE, albumCards().length - ALB.page * ALB_PAGE) : ALB.tab === 1 ? BADGES.length : ALB.tab === 3 ? TREASURES.length : 0;
+    const n = ALB.tab === 0 ? Math.min(ALB_PAGE, albumCards().length - ALB.page * ALB_PAGE) : ALB.tab === 1 ? BADGES.length : ALB.tab === 3 ? TREASURES.length : ALB.tab === 5 ? SECRETS.length : 0;
+    if (ALB.tab === 5 && hit("Mouse0")) SECRETS.forEach((s, i) => { if (inside(secRect(i))) { ALB.sel = i; ALB.focus = "list"; audio.sfx("select"); } });
     if (ALB.tab === 0) {
       // filtres : catégorie (4 boutons) et lieu (bouton qui change à chaque clic)
       if (hit("Mouse0")) {
@@ -5059,7 +5076,7 @@ SCREENS.album = {
   draw() {
     drawHub(); R(0, 0, VW, VH, "rgba(10,6,24,0.86)");
     drawTabs(ALB_TABS, ALB.tab, ALB.focus === "tabs", 72, VW - 80); drawBack();
-    if (ALB.tab === 0) drawAlbumCards(); else if (ALB.tab === 1) drawAlbumBadges(); else if (ALB.tab === 2) drawAlbumSocks(); else if (ALB.tab === 3) drawAlbumTreasures(); else drawAlbumFamily();
+    if (ALB.tab === 0) drawAlbumCards(); else if (ALB.tab === 1) drawAlbumBadges(); else if (ALB.tab === 2) drawAlbumSocks(); else if (ALB.tab === 3) drawAlbumTreasures(); else if (ALB.tab === 4) drawAlbumFamily(); else drawAlbumSecrets();
   },
 };
 function drawAlbumCards() {
@@ -6847,6 +6864,216 @@ SCREENS.pluieres = {
   },
 };
 
+/* ---------------- Secrets : grosses têtes, miroir, devinettes, carnet, surprises du calendrier ---------------- */
+
+/* ---- Code Konami sur l'écran titre : le mode « grosses têtes » ---- */
+// ↑ ↑ ↓ ↓ ← → ← → B A (clavier ou manette). Une fois trouvé (SAVE.flags.bigHeads), il s'allume et s'éteint dans les
+// options (OPT.bigHead). Purement visuel : drawCharCos() redessine le haut du personnage agrandi (drawBigHead).
+const KONAMI = "UUDDLRLRBA";
+const KON = { buf: [], typed: "" };
+function konamiUpdate() {   // appelé par updateMenu, avant les touches du menu ; vrai si le code vient d'être fini
+  let tok = null;
+  if (hit("ArrowUp", "GUp")) tok = "U"; else if (hit("ArrowDown", "GDown")) tok = "D";
+  else if (hit("ArrowLeft", "GLeft")) tok = "L"; else if (hit("ArrowRight", "GRight")) tok = "R";
+  else if (hit("GB")) tok = "B"; else if (hit("GA")) tok = "A";
+  if (typedBuf !== KON.typed) { const c = typedBuf.slice(-1); KON.typed = typedBuf; if (c === "B" || c === "A") tok = c; }
+  if (!tok) return false;
+  KON.buf = [...KON.buf, { tok, diff: diffIdx }].slice(-KONAMI.length);
+  if (KON.buf.map(b => b.tok).join("") !== KONAMI) return false;
+  diffIdx = KON.buf[0].diff;   // les flèches du code ne changent pas la difficulté
+  KON.buf = []; for (const k of ["GA", "Enter", "Space"]) delete pressed[k];
+  const first = !SAVE.flags.bigHeads;
+  SAVE.flags.bigHeads = 1; OPT.bigHead = !OPT.bigHead || first; saveOptions(); saveGame();
+  toast(first ? "Secret trouvé !" : "Grosses têtes", OPT.bigHead ? "Mode « grosses têtes »" : "Grosses têtes rangées", "badge", "#ffd23c");
+  audio.sfx("boss_intro"); shake = 6;
+  return true;
+}
+const bigHeads = () => OPT.bigHead && SAVE.flags.bigHeads;
+// Le haut du personnage (tête et cou), agrandi 1,55 fois autour du cou
+const BIG_K = 1.55;
+function drawBigHead(aid, img, frame, x, y, face, scale, alpha) {
+  const A = ATL[aid]; if (!A || !img) return null;
+  const h = headOf(aid, frame), hh = Math.max(6, Math.round(-h.dy * 0.42)), top = Math.max(0, A.ay + h.dy - 1);
+  const sx = (frame % A.cols) * A.cw, sy = Math.floor(frame / A.cols) * A.ch + top, k = BIG_K;
+  const dw = A.cw * scale * k, dh = (hh + 1) * scale * k, neck = y + (h.dy + hh) * scale, piv = (A.ax + h.dx) * scale * k;
+  ctx.globalAlpha = alpha;
+  if (face >= 0) ctx.drawImage(img, sx, sy, A.cw, hh + 1, Math.round(x + h.dx * scale - piv), Math.round(neck - dh), dw, dh);
+  else { ctx.save(); ctx.translate(Math.round(x - h.dx * scale + piv), Math.round(neck - dh)); ctx.scale(-1, 1); ctx.drawImage(img, sx, sy, A.cw, hh + 1, 0, 0, dw, dh); ctx.restore(); }
+  ctx.globalAlpha = 1;
+  return { dx: h.dx, dy: (neck - dh - y) / scale, k };   // haut de la grosse tête (pour l'accessoire)
+}
+
+/* ---- Mode miroir : mot de passe MIROIR devant les mondes ---- */
+// SAVE.flags.miroir (trouvé) et OPT.mirror (allumé) : les salles normales de la campagne sont retournées gauche-droite
+// (mirrorRoom, appelé par buildRoom ; décor dessiné retourné). Les arènes de boss restent comme elles sont.
+const MIRROR_WORD = "MIROIR";
+function miroirType() {
+  if (!typedBuf.endsWith(MIRROR_WORD)) return false;
+  typedBuf = "";
+  const first = !SAVE.flags.miroir;
+  SAVE.flags.miroir = 1; OPT.mirror = !OPT.mirror || first; saveOptions(); saveGame();
+  toast(first ? "Secret trouvé !" : "Mode miroir", OPT.mirror ? "Mode miroir : les salles sont retournées" : "Mode miroir éteint", "badge", "#5ef0ff");
+  audio.sfx("boss_intro");
+  return true;
+}
+const mirrorOn = () => OPT.mirror && SAVE.flags.miroir;
+function mirrorRoom(L) {
+  const f = r => { if (r) r.x = VW - r.x - r.w; };
+  for (const k of ["solids", "plats", "blocks", "decor", "hazards", "dest", "items", "exits", "covers", "gold", "qitems"]) for (const r of L[k] || []) f(r);
+  for (const x of L.exits) f(x.draw);
+  f(L.ckpt); f(L.machine); f(L.sock);
+  L.start = { x: VW - L.start.x - 10, y: L.start.y };
+  L.foeSpawns = L.foeSpawns.map(o => {
+    const [x, y, w, h] = o.r, pb = o.patrolBounds;
+    return { ...o, r: [VW - x - w, y, w, h], patrolBounds: pb && typeof pb.x === "number" && typeof pb.width === "number" ? { ...pb, x: VW - pb.x - pb.width } : pb };
+  });
+  L.mirror = true;
+}
+
+/* ---- Les devinettes de Mme Bulle : lui parler cinq fois de suite ---- */
+const BULLE_SECRETS = [
+  ["Devinette ! Qu'est-ce qui est plein de trous mais qui garde l'eau ?", "Une éponge ! Hihi."],
+  ["Pourquoi les chaussettes vont-elles toujours par deux ?", "Parce qu'elles ont peur de se perdre dans la machine !"],
+  ["Devinette : plus j'ai chaud, plus je rapetisse. Qui suis-je ?", "Un glaçon ! Pas une chaussette, rassure-toi."],
+  ["Tu sais ce que dit une machine à laver à une autre machine à laver ?", "« On se fait un petit tour ? »"],
+  ["Devinette : je tourne, je tourne, et je ne me fatigue jamais. Qui suis-je ?", "Le tambour de ma machine, bien sûr !"],
+  ["Je vais te dire un secret : quand personne ne regarde, je danse avec le balai.", "Ne le dis à personne !"],
+  ["Devinette : j'ai des dents mais je ne mords jamais. Qui suis-je ?", "Un peigne ! Comme pour mes bigoudis."],
+  ["Pourquoi le Roi Slime est-il toujours de bonne humeur ?", "Parce qu'il est plein d'énergie !"],
+  ["Devinette : je suis toujours devant toi, mais tu ne me vois jamais. Qui suis-je ?", "L'avenir ! Et peut-être une chaussette perdue."],
+  ["Qu'est-ce qui est jaune et qui attend ?", "Jonathan ! Bon, celle-là, c'est Grand-père Firmin qui me l'a apprise."],
+];
+const BULLE = { n: 0, t: 0, last: -1 };
+// Appelé par talkTo() quand on parle à Mme Bulle : renvoie les lignes du secret au cinquième appel de suite, sinon null
+function bulleSecret() {
+  BULLE.n = hub.t - BULLE.t < 30 ? BULLE.n + 1 : 1; BULLE.t = hub.t;
+  if (BULLE.n < 5) return null;
+  BULLE.n = 0;
+  let i; do i = Math.floor(Math.random() * BULLE_SECRETS.length); while (i === BULLE.last && BULLE_SECRETS.length > 1);
+  BULLE.last = i;
+  const [q, a] = BULLE_SECRETS[i], first = !SAVE.flags.bulleSecret;
+  return { lines: [["bulle", first ? "Tu insistes, hein ? D'accord, je te dis un secret…" : "Encore toi ! Bon, écoute bien…"], ["bulle", q], ["bulle", a]],
+    end: () => { if (first) { SAVE.flags.bulleSecret = 1; checkUnlocks(false); } } };
+}
+
+/* ---- Le carnet des secrets (onglet « Secrets » des collections) ---- */
+// Les secrets trouvés, et un indice pour les autres. Image : atlas carnet_secrets s'il existe (fourni plus tard), sinon un
+// carnet dessiné par le code (provisoire).
+const SECRETS = [
+  { id: "dahaka", name: "La course du Dahaka", found: () => SAVE.flags.dahaka, what: "Un niveau sans fin : cours, le démon du temps te poursuit !",
+    hint: "Devant les mondes, tape le nom du démon qui poursuit le prince (six lettres, il commence par D)." },
+  { id: "pluie", name: "La pluie de chaussettes", found: () => SAVE.flags.pluie, what: "Attrape 50 chaussettes qui tombent du ciel.",
+    hint: "Le tas de chaussettes de la laverie n'aime pas qu'on le chatouille… au sabre, plusieurs fois de suite." },
+  { id: "grosses_tetes", name: "Les grosses têtes", found: () => SAVE.flags.bigHeads, what: "Tout le monde a une énorme tête ! (dans les options)",
+    hint: "Sur l'écran titre : haut, haut, bas, bas, gauche, droite, gauche, droite, puis B et A." },
+  { id: "miroir", name: "Le mode miroir", found: () => SAVE.flags.miroir, what: "Les salles sont retournées, comme dans un miroir ! (dans les options)",
+    hint: "Devant les mondes, tape le nom de ce qui te montre ton reflet dans la salle de bain." },
+  { id: "bulle", name: "Les devinettes de Mme Bulle", found: () => SAVE.flags.bulleSecret, what: "Mme Bulle connaît plein de devinettes.",
+    hint: "Mme Bulle a beaucoup à raconter, si on lui parle encore et encore…" },
+  { id: "dorees", name: "Les chaussettes dorées", found: () => SAVE.flags.secret, what: "Des chemins cachés, pour les héros qui ont la bonne capacité.",
+    hint: "Certaines chaussettes brillent là où seul un super saut, un dash ou un double saut peut aller." },
+  { id: "eglise", name: "L'église", found: () => SAVE.flags.egliseWon, what: "Le mariage de Laurène et Jules, dans une autre réalité.",
+    hint: "Une cloche sonne quand les six mondes sont finis…" },
+];
+const SEC = { sel: 0 };
+const secRect = i => ({ x: 10, y: 34 + i * 30, w: 228, h: 27 });
+function drawCarnet(x, y, s = 1) {
+  if (hasAtlas("carnet_secrets")) { const A = ATL.carnet_secrets, an = A.anims.anime || A.anims.play || [0, 1]; drawFrame("carnet_secrets", an[0] + Math.floor(time * 6) % an[1], x, y, 1, 1, s); return; }
+  // provisoire : un petit carnet violet avec un point d'interrogation
+  const X = Math.round(x - 12 * s), Y = Math.round(y - 30 * s), w = Math.round(24 * s), h = Math.round(30 * s);
+  R(X - 1, Y - 1, w + 2, h + 2, "#0e0a1a"); R(X, Y, w, h, "#6a2a9a"); R(X, Y, Math.round(4 * s), h, "#3a1260");
+  R(X + Math.round(6 * s), Y + Math.round(4 * s), w - Math.round(9 * s), h - Math.round(8 * s), "#8a4aca");
+  text("?", x + 2 * s, y - 15 * s, Math.round(14 * s), "#ffd23c", "center");
+  ctx.globalAlpha = 0.5 + 0.5 * Math.sin(time * 4); R(Math.round(x + 9 * s), Math.round(y - 32 * s), 2, 2, "#ffffff"); ctx.globalAlpha = 1;
+}
+function drawAlbumSecrets() {
+  const n = SECRETS.filter(s => s.found()).length;
+  text(`Secrets trouvés : ${n}/${SECRETS.length}`, 12, 28, 8, "#fccc28");
+  SECRETS.forEach((s, i) => {
+    const r = secRect(i), ok = s.found(), sel = i === ALB.sel && ALB.focus === "list";
+    R(r.x, r.y, r.w, r.h, sel ? "rgba(255,255,255,0.14)" : "rgba(20,12,40,0.8)");
+    if (sel) { ctx.strokeStyle = "#ffffff"; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1); }
+    text(ok ? "✦" : "?", r.x + 10, r.y + r.h / 2, 10, ok ? "#ffd23c" : "#5a4a80", "center");
+    text(ok ? s.name : "Secret à trouver", r.x + 22, r.y + 9, 8, ok ? "#ffffff" : "#b9a6e0");
+    text(ok ? "Trouvé !" : "Indice à droite", r.x + 22, r.y + 19, 6, ok ? "#7dffb0" : "#8a7aa8");
+  });
+  const s = SECRETS[ALB.sel]; if (!s) return;
+  const ok = s.found(), px = 248, py = 30;
+  drawPanel(px, py, 224, 200, ok ? "#ffd23c" : "#3a2a5c");
+  drawCarnet(px + 112, py + 66, 1.6);
+  text(ok ? s.name : "Un secret à trouver…", px + 112, py + 84, 9, ok ? "#ffd23c" : "#b9a6e0", "center");
+  let y = py + 104;
+  for (const l of wrapText(ok ? s.what : "Indice : " + s.hint, 204, 8)) { text(l, px + 10, y, 8, "#e8dcff"); y += 12; }
+}
+
+/* ---- Surprises du calendrier (laverie) ---- */
+// Neige en décembre, citrouilles et chauves-souris en papier fin octobre (dessins provisoires), confettis et banderole
+// aux anniversaires (CALENDAR.birthdays, « JJ-MM »), et des jours de pluie au printemps et à l'automne (gouttes derrière
+// les vitres ; bruit de pluie si sfx/laverie/pluie.mp3 existe). Pour essayer : ajouter ?jour=JJ-MM à l'adresse du jeu.
+function calToday() {
+  const q = /[?&]jour=(\d{2})-(\d{2})/.exec(location.search);
+  if (q) return { d: +q[1], m: +q[2] };
+  const t = new Date(); return { d: t.getDate(), m: t.getMonth() + 1 };
+}
+function season() {
+  const { d, m } = calToday(), key = `${String(d).padStart(2, "0")}-${String(m).padStart(2, "0")}`;
+  if ((CALENDAR.birthdays || []).includes(key)) return "anniversaire";
+  if (m === 12) return "neige";
+  if (m === 10 && d >= 15) return "halloween";
+  // un jour sur cinq environ, au printemps (mars à mai) et à l'automne (septembre, octobre avant Halloween, novembre)
+  if ([3, 4, 5, 9, 10, 11].includes(m) && ((d * 37 + m * 11) % 5 === 0)) return "pluie";
+  return null;
+}
+const CAL = { parts: [], said: false };
+function updateSeason(rdt) {
+  const s = season(); if (!s) { CAL.parts = []; return; }
+  if (!CAL.said && s === "anniversaire") { CAL.said = true; toast("Joyeux anniversaire !", "Mme Bulle a décoré la laverie", "badge", "#ff4f8a"); }
+  const want = s === "neige" ? 60 : s === "pluie" ? 90 : s === "anniversaire" ? 50 : 0;
+  while (CAL.parts.length < want) CAL.parts.push({ x: Math.random() * VW, y: -Math.random() * VH, v: 0.5 + Math.random(), ph: Math.random() * 6, c: Math.floor(Math.random() * 6) });
+  for (const p of CAL.parts) {
+    if (s === "neige") { p.y += (14 + 16 * p.v) * rdt; p.x += Math.sin(time + p.ph) * 8 * rdt; }
+    else if (s === "pluie") { p.y += (180 + 120 * p.v) * rdt; p.x -= 30 * rdt; }
+    else { p.y += (30 + 30 * p.v) * rdt; p.x += Math.sin(time * 2 + p.ph) * 20 * rdt; }
+    if (p.y > VH + 4) { p.y = -4 - Math.random() * 20; p.x = Math.random() * (VW + 40); }
+  }
+}
+// Par-dessus la laverie (coordonnées de l'écran)
+function drawSeasonScreen() {
+  const s = season(); if (!s) return;
+  for (const p of CAL.parts) {
+    if (s === "neige") { ctx.globalAlpha = 0.5 + 0.4 * p.v / 1.5; R(Math.round(p.x), Math.round(p.y), p.v > 1 ? 2 : 1, p.v > 1 ? 2 : 1, "#ffffff"); }
+    else if (s === "pluie") { if (p.y > 108) continue; ctx.globalAlpha = (0.25 + 0.2 * p.v) * Math.min(1, (108 - p.y) / 30); R(Math.round(p.x), Math.round(p.y), 1, 5, "#bfe4ff"); }   // derrière les vitres (le haut de la pièce)
+    else { ctx.globalAlpha = 0.9; R(Math.round(p.x), Math.round(p.y), 2, 2, ["#ff4f8a", "#fccc28", "#5ef0ff", "#7dffb0", "#c86eff", "#ffffff"][p.c]); }
+  }
+  ctx.globalAlpha = 1;
+  if (s === "pluie") R(0, 0, VW, 110, "rgba(40,60,100,0.08)");
+}
+// Dans la pièce (avec la caméra) : décorations provisoires dessinées par le code, remplacées par saison.png s'il existe
+function drawSeasonWorld() {
+  const s = season(); if (!s || hub.room !== "salle") return;
+  const fl = hubRoom().floor;
+  if (hasAtlas("saison")) { const an = ATL.saison.anims[s]; if (an) drawFrame("saison", an[0] + Math.floor(time * 4) % an[1], 408, fl - 70); return; }
+  if (s === "halloween") {
+    for (const x of [140, 300, 560, 700]) {   // citrouilles en papier
+      R(x - 7, fl - 12, 14, 11, "#0e0a1a"); R(x - 6, fl - 11, 12, 9, "#ff8a3c"); R(x - 1, fl - 14, 2, 3, "#3a6a2a");
+      R(x - 4, fl - 8, 2, 2, "#2a1206"); R(x + 2, fl - 8, 2, 2, "#2a1206"); R(x - 3, fl - 5, 6, 1, "#2a1206");
+    }
+    for (let i = 0; i < 3; i++) { const x = 200 + i * 180 + Math.sin(time * 1.5 + i) * 20, y = 70 + Math.sin(time * 3 + i) * 6, wg = Math.floor(time * 8 + i) % 2 ? 3 : 1;   // chauves-souris en papier
+      R(Math.round(x) - 1, Math.round(y), 3, 2, "#1a1020"); R(Math.round(x) - 5, Math.round(y) - wg + 1, 4, 1, "#1a1020"); R(Math.round(x) + 2, Math.round(y) - wg + 1, 4, 1, "#1a1020"); }
+  } else if (s === "neige" || s === "anniversaire") {
+    // guirlande lumineuse (Noël) ou fanions (anniversaire) en haut de la pièce
+    const cols = s === "neige" ? ["#ff4f4f", "#7dffb0", "#ffd23c", "#5ef0ff"] : ["#ff4f8a", "#fccc28", "#5ef0ff", "#7dffb0", "#c86eff"];
+    for (let x = 20; x < hubRoom().w - 20; x += 14) {
+      const y = 22 + Math.round(Math.sin(x / 40) * 4), c = cols[(x / 14 | 0) % cols.length];
+      if (s === "neige") { ctx.globalAlpha = 0.6 + 0.4 * Math.sin(time * 4 + x); R(x, y, 2, 3, c); ctx.globalAlpha = 1; }
+      else { R(x - 3, y, 7, 1, "#e8dcff"); R(x - 2, y + 1, 5, 2, c); R(x - 1, y + 3, 3, 2, c); R(x, y + 5, 1, 1, c); }
+    }
+    if (s === "anniversaire") text("Joyeux anniversaire !", 408, 44, 10, "#ff4f8a", "center", "#ff4f8a");
+  }
+}
+// Bruit de pluie (si le son existe) : choisi par hubAmbience()
+const seasonAmbience = () => season() === "pluie" && hasSound("sfx/laverie/pluie") ? "sfx/laverie/pluie" : null;
+
 /* ---------------- Niveau secret : la course du Dahaka ---------------- */
 // Débloqué en tapant DAHAKA sur l'écran des mondes (SAVE.flags.dahaka). Deux parcours au choix (DK_LEVELS) : le temple et la grotte.
 // Niveau sans fin vers la droite, fabriqué par morceaux de 480 px (sol, trous, plateformes et pièges annoncés). Le Dahaka,
@@ -7804,7 +8031,7 @@ function cardTime(r, th, label, md) {
   if (md) drawMedal(md, x + 7, y + 5, 0.6);
 }
 function updateCampWorlds() {
-  if (dkPickUpdate() || dahakaType()) return;
+  if (dkPickUpdate() || dahakaType() || miroirType()) return;
   egliseCheat();
   const prog = campProgress(), n = campCardCount();
   const open = i => i >= CWORLDS.length || i <= prog;
@@ -7876,6 +8103,7 @@ function drawCampWorlds() {
   drawDkPick();
 }
 function updateMenu() {
+  if (konamiUpdate()) return;   // code secret : grosses têtes (secrets.js)
   if (hit(...K.up, ...K.left)) { diffIdx = Math.max(0, diffIdx - 1); audio.sfx("select"); }
   if (hit(...K.down, ...K.right)) { diffIdx = Math.min(2, diffIdx + 1); audio.sfx("select"); }
   if (hit("KeyO", "GY") || (hit("Mouse0") && inside(UI.opts))) { openOptions("menu"); return; }
@@ -8054,10 +8282,15 @@ const OPT_ROWS = [
   { k: "rumble", label: "Vibration de la manette", info: "La manette vibre quand on est touché ou qu'un boss tombe." },
   { k: "kb", label: "Touches du clavier", info: "Choisis les touches pour jouer au clavier." },
   { k: "pad", label: "Boutons de la manette", info: "Choisis les boutons pour jouer à la manette." },
+  { k: "bigHead", label: "Grosses têtes", info: "Tout le monde a une énorme tête ! (un secret trouvé)", secret: "bigHeads" },
+  { k: "mirror", label: "Mode miroir", info: "Les salles de la campagne sont retournées (un secret trouvé).", secret: "miroir" },
   { k: "reset", label: "Effacer la partie", info: "Efface mondes, chaussettes, cartes et quêtes (les réglages restent)." },
   { k: "back", label: "Retour", info: "" },
 ];
-const rowRect = (i, step) => ({ x: 110, y: 44 + i * step, w: 260, h: 17 });
+const rowRect = (i, step) => ({ x: 110, y: 44 + i * step, w: 260, h: step > 17 ? 17 : step - 2 });
+// Lignes des options : les réglages des secrets n'apparaissent qu'une fois le secret trouvé
+const optRows = () => OPT_ROWS.filter(r => !r.secret || SAVE.flags[r.secret]);
+const optStep = () => optRows().length > 9 ? 16 : 19;
 let optFrom = "menu", optSel = 0, lastMouse = "", resetAsk = 0;
 // survol à la souris : la ligne sous le pointeur devient la ligne choisie
 function hoverRow(n, step, cur) {
@@ -8068,7 +8301,7 @@ function hoverRow(n, step, cur) {
 function openOptions(from) { optFrom = from; optSel = 0; lastMouse = mouse.x + "," + mouse.y; state = "options"; audio.sfx("select"); }
 function closeOptions() { saveOptions(); state = optFrom === "pause" ? "pause" : optFrom === "hub" ? "hub" : "menu"; audio.sfx("back"); }
 function optActivate(i) {
-  const r = OPT_ROWS[i]; optSel = i;
+  const r = optRows()[i]; optSel = i;
   if (r.k === "back") { closeOptions(); return; }
   if (r.k === "kb" || r.k === "pad") { openKeys(r.k); return; }
   if (r.k === "reset") {
@@ -8083,14 +8316,14 @@ function optActivate(i) {
   if (r.k === "rumble" && OPT.rumble) rumble(250, 0.6, 0.6);
 }
 function updateOptions() {
-  const n = OPT_ROWS.length;
+  const n = optRows().length, st = optStep();
   if (resetAsk > 0) resetAsk = Math.max(0, resetAsk - 1 / 60);
   if (hit("Escape", "GB", "Backspace")) { closeOptions(); return; }
-  optSel = hoverRow(n, 19, optSel);
+  optSel = hoverRow(n, st, Math.min(optSel, n - 1));
   if (hit(...K.up)) { optSel = (optSel + n - 1) % n; audio.sfx("select"); }
   if (hit(...K.down)) { optSel = (optSel + 1) % n; audio.sfx("select"); }
-  if (hit(...K.ok) || (hit("ArrowLeft", "ArrowRight", "GLeft", "GRight") && OPT_ROWS[optSel].k in OPT_DEFAULT)) { optActivate(optSel); return; }
-  if (hit("Mouse0")) for (let i = 0; i < n; i++) if (inside(rowRect(i, 19))) { optActivate(i); return; }
+  if (hit(...K.ok) || (hit("ArrowLeft", "ArrowRight", "GLeft", "GRight") && optRows()[optSel].k in OPT_DEFAULT)) { optActivate(optSel); return; }
+  if (hit("Mouse0")) for (let i = 0; i < n; i++) if (inside(rowRect(i, st))) { optActivate(i); return; }
 }
 function drawOptBg() {
   if (optFrom === "hub") { drawHub(); R(0, 0, VW, VH, "rgba(10,6,24,0.82)"); }
@@ -8108,14 +8341,15 @@ function drawRow(b, sel, label, value, valueCol) {
 function drawOptions() {
   const C = ch(); drawOptBg();
   text("Options", VW / 2, 22, 18, C.ui, "center", C.ui);
-  OPT_ROWS.forEach((r, i) => {
+  const st = optStep();
+  optRows().forEach((r, i) => {
     let v = "", col = "#b9a6e0";
     if (r.k in OPT_DEFAULT) { v = OPT[r.k] ? "Oui" : "Non"; col = OPT[r.k] ? "#7dffb0" : "#ff8ab0"; }
     else if (r.k === "reset") { v = resetAsk > 0 ? "Encore une fois pour confirmer" : "›"; col = resetAsk > 0 ? "#ff8ab0" : col; }
     else if (r.k !== "back") v = "›";
-    drawRow(rowRect(i, 19), i === optSel, r.label, v, col);
+    drawRow(rowRect(i, st), i === optSel, r.label, v, col);
   });
-  const r = OPT_ROWS[optSel];
+  const r = optRows()[optSel] || optRows()[0];
   let info = r.info;
   if (r.k === "voice" && !voice.ok()) info = "Ce navigateur ne sait pas lire à voix haute.";
   if (r.k === "buddy" && df().id === "doom") info = "Le mode copain ne marche pas en mode Doom.";

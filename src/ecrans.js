@@ -33,7 +33,7 @@ const hoverable = () => !TOUCH && !PAD;
 
 /* ---------------- Collections : cartes, badges, chaussettes ---------------- */
 const ALB = { tab: 0, cat: 0, world: 0, sel: 0, focus: "list", page: 0 };
-const ALB_TABS = ["Cartes", "Badges", "Chaussettes", "Trésors", "Famille"];
+const ALB_TABS = ["Cartes", "Badges", "Chaussettes", "Trésors", "Famille", "Secrets"];
 const WORLD_FILTERS = [["all", "Tous les lieux"], ["laverie", "Laverie"], ...CWORLDS.map(W => [W.id, W.name]), ["bonus", "Ancienne aventure"]];
 function openAlbum() { state = "album"; ALB.sel = 0; ALB.focus = "list"; audio.sfx("page"); }
 function albumCards() {
@@ -49,7 +49,8 @@ SCREENS.album = {
     if (uiBack()) { backToHub(); return; }
     const t = clickTab(ALB_TABS.length, 72, VW - 80); if (t >= 0) { ALB.tab = t; ALB.sel = 0; audio.sfx("page"); if (t === 4) openFamily(); }
     if (ALB.tab === 4 && (hit("KeyC", "GX") || (hit("Mouse0") && inside({ x: 150, y: 25, w: 96, h: 14 })))) { const i = DIFFS.findIndex(d => d.id === FAM.diff); FAM.diff = DIFFS[(i + 1) % DIFFS.length].id; audio.sfx("page"); }
-    const n = ALB.tab === 0 ? Math.min(ALB_PAGE, albumCards().length - ALB.page * ALB_PAGE) : ALB.tab === 1 ? BADGES.length : ALB.tab === 3 ? TREASURES.length : 0;
+    const n = ALB.tab === 0 ? Math.min(ALB_PAGE, albumCards().length - ALB.page * ALB_PAGE) : ALB.tab === 1 ? BADGES.length : ALB.tab === 3 ? TREASURES.length : ALB.tab === 5 ? SECRETS.length : 0;
+    if (ALB.tab === 5 && hit("Mouse0")) SECRETS.forEach((s, i) => { if (inside(secRect(i))) { ALB.sel = i; ALB.focus = "list"; audio.sfx("select"); } });
     if (ALB.tab === 0) {
       // filtres : catégorie (4 boutons) et lieu (bouton qui change à chaque clic)
       if (hit("Mouse0")) {
@@ -69,7 +70,7 @@ SCREENS.album = {
   draw() {
     drawHub(); R(0, 0, VW, VH, "rgba(10,6,24,0.86)");
     drawTabs(ALB_TABS, ALB.tab, ALB.focus === "tabs", 72, VW - 80); drawBack();
-    if (ALB.tab === 0) drawAlbumCards(); else if (ALB.tab === 1) drawAlbumBadges(); else if (ALB.tab === 2) drawAlbumSocks(); else if (ALB.tab === 3) drawAlbumTreasures(); else drawAlbumFamily();
+    if (ALB.tab === 0) drawAlbumCards(); else if (ALB.tab === 1) drawAlbumBadges(); else if (ALB.tab === 2) drawAlbumSocks(); else if (ALB.tab === 3) drawAlbumTreasures(); else if (ALB.tab === 4) drawAlbumFamily(); else drawAlbumSecrets();
   },
 };
 function drawAlbumCards() {

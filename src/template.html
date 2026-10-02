@@ -243,7 +243,7 @@ const KB_DEFAULT = { left: ["ArrowLeft", "KeyA"], right: ["ArrowRight", "KeyD"],
 const PAD_DEFAULT = { jump: [0], attack: [2, 3], special: [1], power: [7, 6, 5, 4] };
 const KB_RESERVED = ["Escape", "KeyP", "KeyR", "KeyM", "Semicolon", "KeyO", "Tab", "MetaLeft", "MetaRight", "ContextMenu"];   // pause, recommencer, son, options…
 const PAD_BINDABLE = [0, 1, 2, 3, 4, 5, 6, 7, 10, 11];   // pas Select/Start (8, 9) ni la croix (12-15)
-const OPT_DEFAULT = { music: true, sfx: true, voice: false, buddy: false, rumble: true };
+const OPT_DEFAULT = { music: true, sfx: true, voice: false, buddy: false, rumble: true, bigHead: false, mirror: false };   // bigHead, mirror : secrets (secrets.js)
 const OPT = { ...OPT_DEFAULT, kb: {}, pad: {}, labels: {} };
 function loadOptions() {
   let o = null;
@@ -2184,7 +2184,7 @@ function cardTime(r, th, label, md) {
   if (md) drawMedal(md, x + 7, y + 5, 0.6);
 }
 function updateCampWorlds() {
-  if (dkPickUpdate() || dahakaType()) return;
+  if (dkPickUpdate() || dahakaType() || miroirType()) return;
   egliseCheat();
   const prog = campProgress(), n = campCardCount();
   const open = i => i >= CWORLDS.length || i <= prog;
@@ -2256,6 +2256,7 @@ function drawCampWorlds() {
   drawDkPick();
 }
 function updateMenu() {
+  if (konamiUpdate()) return;   // code secret : grosses têtes (secrets.js)
   if (hit(...K.up, ...K.left)) { diffIdx = Math.max(0, diffIdx - 1); audio.sfx("select"); }
   if (hit(...K.down, ...K.right)) { diffIdx = Math.min(2, diffIdx + 1); audio.sfx("select"); }
   if (hit("KeyO", "GY") || (hit("Mouse0") && inside(UI.opts))) { openOptions("menu"); return; }
@@ -2434,10 +2435,15 @@ const OPT_ROWS = [
   { k: "rumble", label: "Vibration de la manette", info: "La manette vibre quand on est touché ou qu'un boss tombe." },
   { k: "kb", label: "Touches du clavier", info: "Choisis les touches pour jouer au clavier." },
   { k: "pad", label: "Boutons de la manette", info: "Choisis les boutons pour jouer à la manette." },
+  { k: "bigHead", label: "Grosses têtes", info: "Tout le monde a une énorme tête ! (un secret trouvé)", secret: "bigHeads" },
+  { k: "mirror", label: "Mode miroir", info: "Les salles de la campagne sont retournées (un secret trouvé).", secret: "miroir" },
   { k: "reset", label: "Effacer la partie", info: "Efface mondes, chaussettes, cartes et quêtes (les réglages restent)." },
   { k: "back", label: "Retour", info: "" },
 ];
-const rowRect = (i, step) => ({ x: 110, y: 44 + i * step, w: 260, h: 17 });
+const rowRect = (i, step) => ({ x: 110, y: 44 + i * step, w: 260, h: step > 17 ? 17 : step - 2 });
+// Lignes des options : les réglages des secrets n'apparaissent qu'une fois le secret trouvé
+const optRows = () => OPT_ROWS.filter(r => !r.secret || SAVE.flags[r.secret]);
+const optStep = () => optRows().length > 9 ? 16 : 19;
 let optFrom = "menu", optSel = 0, lastMouse = "", resetAsk = 0;
 // survol à la souris : la ligne sous le pointeur devient la ligne choisie
 function hoverRow(n, step, cur) {
@@ -2448,7 +2454,7 @@ function hoverRow(n, step, cur) {
 function openOptions(from) { optFrom = from; optSel = 0; lastMouse = mouse.x + "," + mouse.y; state = "options"; audio.sfx("select"); }
 function closeOptions() { saveOptions(); state = optFrom === "pause" ? "pause" : optFrom === "hub" ? "hub" : "menu"; audio.sfx("back"); }
 function optActivate(i) {
-  const r = OPT_ROWS[i]; optSel = i;
+  const r = optRows()[i]; optSel = i;
   if (r.k === "back") { closeOptions(); return; }
   if (r.k === "kb" || r.k === "pad") { openKeys(r.k); return; }
   if (r.k === "reset") {
@@ -2463,14 +2469,14 @@ function optActivate(i) {
   if (r.k === "rumble" && OPT.rumble) rumble(250, 0.6, 0.6);
 }
 function updateOptions() {
-  const n = OPT_ROWS.length;
+  const n = optRows().length, st = optStep();
   if (resetAsk > 0) resetAsk = Math.max(0, resetAsk - 1 / 60);
   if (hit("Escape", "GB", "Backspace")) { closeOptions(); return; }
-  optSel = hoverRow(n, 19, optSel);
+  optSel = hoverRow(n, st, Math.min(optSel, n - 1));
   if (hit(...K.up)) { optSel = (optSel + n - 1) % n; audio.sfx("select"); }
   if (hit(...K.down)) { optSel = (optSel + 1) % n; audio.sfx("select"); }
-  if (hit(...K.ok) || (hit("ArrowLeft", "ArrowRight", "GLeft", "GRight") && OPT_ROWS[optSel].k in OPT_DEFAULT)) { optActivate(optSel); return; }
-  if (hit("Mouse0")) for (let i = 0; i < n; i++) if (inside(rowRect(i, 19))) { optActivate(i); return; }
+  if (hit(...K.ok) || (hit("ArrowLeft", "ArrowRight", "GLeft", "GRight") && optRows()[optSel].k in OPT_DEFAULT)) { optActivate(optSel); return; }
+  if (hit("Mouse0")) for (let i = 0; i < n; i++) if (inside(rowRect(i, st))) { optActivate(i); return; }
 }
 function drawOptBg() {
   if (optFrom === "hub") { drawHub(); R(0, 0, VW, VH, "rgba(10,6,24,0.82)"); }
@@ -2488,14 +2494,15 @@ function drawRow(b, sel, label, value, valueCol) {
 function drawOptions() {
   const C = ch(); drawOptBg();
   text("Options", VW / 2, 22, 18, C.ui, "center", C.ui);
-  OPT_ROWS.forEach((r, i) => {
+  const st = optStep();
+  optRows().forEach((r, i) => {
     let v = "", col = "#b9a6e0";
     if (r.k in OPT_DEFAULT) { v = OPT[r.k] ? "Oui" : "Non"; col = OPT[r.k] ? "#7dffb0" : "#ff8ab0"; }
     else if (r.k === "reset") { v = resetAsk > 0 ? "Encore une fois pour confirmer" : "›"; col = resetAsk > 0 ? "#ff8ab0" : col; }
     else if (r.k !== "back") v = "›";
-    drawRow(rowRect(i, 19), i === optSel, r.label, v, col);
+    drawRow(rowRect(i, st), i === optSel, r.label, v, col);
   });
-  const r = OPT_ROWS[optSel];
+  const r = optRows()[optSel] || optRows()[0];
   let info = r.info;
   if (r.k === "voice" && !voice.ok()) info = "Ce navigateur ne sait pas lire à voix haute.";
   if (r.k === "buddy" && df().id === "doom") info = "Le mode copain ne marche pas en mode Doom.";

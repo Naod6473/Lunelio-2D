@@ -191,6 +191,7 @@ audio/
     │   ├── voix_bobine.mp3        bip robotique
     │   ├── voix_kage.mp3          syllabe soufflée
     │   ├── album_page.mp3         page qui tourne
+    │   ├── pluie.mp3              facultatif : bruit de pluie, les jours de pluie (surprises du calendrier), en boucle douce
     │   ├── livre_deco.mp3         livre de décoration qui s'ouvre quand on s'approche (fourni : décorationbook)
     │   ├── armoire.mp3            porte de casier
     │   ├── equiper.mp3            accessoire équipé

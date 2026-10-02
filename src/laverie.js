@@ -171,7 +171,8 @@ function hubInteract(it) {
 }
 function talkTo(it) {
   const q = it.quest, id = it.npc;
-  if (!q) {   // Mme Bulle : une phrase selon l'avancée, plus un conseil
+  if (!q) {   // Mme Bulle : une phrase selon l'avancée, plus un conseil (et une devinette si on lui parle cinq fois de suite)
+    const sec = bulleSecret(); if (sec) { startDialog(sec.lines, sec.end); return; }
     const lines = [...(STORY.bulle.filter(b => testCond(b.cond)).pop() || STORY.bulle[0]).lines];
     const waiting = QUESTS.find(q2 => testCond(q2.appear) && !SAVE.quests[q2.id]);
     if (waiting) lines.push(["bulle", `${NPCS[waiting.npc].name} a besoin d'aide. Va lui parler !`]);
@@ -192,6 +193,7 @@ function talkTo(it) {
 }
 function updateHub(rdt) {
   hub.t += rdt; if (hub.msg && hub.msg.t > 0) hub.msg.t -= rdt;
+  updateSeason(rdt);
   hub.machShake = Math.max(0, hub.machShake - rdt);
   if (hub.repairFx) { hub.repairFx.t += rdt; if (hub.repairFx.t > 2.5) hub.repairFx = null; }
   const p = players[0], H = hubRoom();
@@ -251,7 +253,7 @@ function drawButton(r, label, hov, col = "#e8dcff", size = 9) {
   ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
   text(label, r.x + r.w / 2, r.y + r.h / 2 + 1, size, hov ? "#120828" : col, "center");
 }
-SCREENS.hub = { update: updateHub, draw: () => { drawHub(); drawHubHUD(); drawDialog(); } };
+SCREENS.hub = { update: updateHub, draw: () => { drawHub(); drawSeasonScreen(); drawHubHUD(); drawDialog(); } };
 
 /* ---- Dessin de la laverie ---- */
 const hubDeco = () => SAVE.cos.hub;
@@ -303,6 +305,7 @@ function drawHub() {
   drawShowcase();
   for (const d of hubDoors()) drawHubDoor(d);
   for (const s of STATIONS) if (s.room === hub.room) drawStation(s);
+  drawSeasonWorld();   // surprises du calendrier (secrets.js)
   for (const n of hubNpcs()) if (n.room === hub.room) drawNpc(n.npc, n.x, H.floor, n.x > players[0].x ? -1 : 1, hub.dlg && hub.dlg.lines[hub.dlg.i][0] === n.npc, n.quest);
   drawFxList(true);
   drawGhosts(); for (const p of players) drawCampPlayer(p);
@@ -564,7 +567,11 @@ function screenMusic() {
   if (state === "worlds" && mode === "camp") return hubMusic();
   return undefined;
 }
-function hubAmbience() { if (state === "eglise") return; audio.setAmbience(HUB_STATES.includes(state) && hasSound("sfx/laverie/ambiance") ? "sfx/laverie/ambiance" : null); }
+function hubAmbience() {
+  if (state === "eglise") return;
+  const inHub = HUB_STATES.includes(state);
+  audio.setAmbience(inHub && seasonAmbience() ? seasonAmbience() : inHub && hasSound("sfx/laverie/ambiance") ? "sfx/laverie/ambiance" : null);   // jour de pluie : bruit de pluie
+}
 
 /* ---------------- Cosmétiques : rendu ---------------- */
 // Les cosmétiques changent l'apparence seulement. Couleurs : la planche est recolorée une fois (teinte, saturation,
@@ -645,7 +652,8 @@ function drawAccessory(id, hx, hy, face, s = 1, alpha = 1) {
 function drawCharCos(C, frame, x, y, face = 1, scale = 1, alpha = 1, opts = {}) {
   const aid = charAtlas(C), pal = opts.pal !== undefined ? opts.pal : cosOn(C, "pal"), acc = opts.acc !== undefined ? opts.acc : cosOn(C, "acc");
   drawFrame(aid, frame, x, y, face, alpha, scale, pal);
-  if (acc) { const h = headOf(aid, frame); drawAccessory(acc, x + face * h.dx * scale, y + h.dy * scale, face, scale, alpha); }
+  const big = bigHeads() && !opts.noBig ? drawBigHead(aid, pal ? atlasImgCos(aid, pal) : atlasImg(aid), frame, x, y, face, scale, alpha) : null;   // secret (secrets.js)
+  if (acc) { const h = big || headOf(aid, frame); drawAccessory(acc, x + face * h.dx * scale, y + h.dy * scale, face, scale * (big ? big.k : 1), alpha); }
   if (pal && COS_BY_ID[pal].shiny && Math.floor(time * 3 + x) % 4 === 0) { const h = headOf(aid, frame); R(Math.round(x + (Math.sin(time * 7) * 8) * scale), Math.round(y + (h.dy + 10 + Math.cos(time * 5) * 8) * scale), 2, 2, "#ffffff"); }
 }
 // Couleur du sabre et des effets du joueur (cosmétique « fx », sinon la couleur du héros)

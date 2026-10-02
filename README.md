@@ -90,6 +90,10 @@ Après l'écran titre, **« Qui joue ? »** : chacun choisit son nom, ou crée s
 
 Pour l'instant, chaque appareil garde ses propres parties et le tableau de la famille montre les joueurs de l'appareil. Le partage entre appareils est prêt mais désactivé (`SYNC_ON` dans `src/profils.js`) ; une fois activé, avec le service de la maison (voir `docs/cloudflare_api.md`), les parties sont partagées entre tous les appareils : on retrouve sa partie sur la tablette comme sur le PC, et ce qui a été gagné sur l'un et sur l'autre s'additionne. Sur internet, il faut se connecter une fois (bouton « Connexion famille », code reçu par e-mail) ; sans connexion ou sans service, la partie reste simplement sur l'appareil. Le **tableau des scores de la famille** est dans les collections, onglet « Famille » : le meilleur temps de chaque monde et son détenteur, le boss rush (seul et à deux), la course du Dahaka, et la progression de chacun. En coop, le joueur 2 choisit son nom avec ▲ ▼ sur l'écran des héros.
 
+## Secrets
+
+Le jeu cache plusieurs secrets (une course sans fin, un mini-jeu, des modes rigolos, des devinettes…). Le **carnet des secrets**, dans les collections, liste ceux qui ont été trouvés et donne un indice pour les autres. La laverie se décore aussi toute seule à certaines dates.
+
 ## Boss rush et médailles
 
 Une fois les 6 mondes terminés, la carte **Boss rush** apparaît sur l'écran des mondes : les 6 boss d'affilée, dans leurs arènes, puis les combats de l'église (Brie, Jules, Laurène, puis Laurène et Jules ensemble), sans les dialogues : 10 combats en tout. Les cœurs sont gardés d'un boss à l'autre (+1 cœur après chaque victoire) ; perdre fait recommencer le boss en cours avec les cœurs du début de ce combat, sans arrêter le chrono. Le record est gardé par difficulté, en solo et à deux.

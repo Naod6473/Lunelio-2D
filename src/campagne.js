@@ -201,6 +201,7 @@ function buildRoom(wi, ri) {
   // salle normale : porte verrouillée tant qu'il reste des ennemis (foeLock : ouverte par updateDoorLocks) ; pas dans les programmes de lavage, qui ont leurs propres règles
   else if (L.foeSpawns.length && !chal) for (const e of L.exits) if (e.kind === "door") { e.locked = true; e.foeLock = true; }
   if (L.bossSpawn && L.hazards.some(h => h.arena)) L.arena = { t: 1.5, cur: null, side: 0 };
+  if (mirrorOn() && !L.bossSpawn) mirrorRoom(L);   // mode miroir (secrets.js) : pas les arènes de boss
   return L;
 }
 // Ajouts de campagne_ajouts.json : plateformes et caisses en plus, chaussette de la salle, chaussettes dorées, objets de quête.
@@ -1287,7 +1288,8 @@ function drawCampPlayer(p) {
 }
 function drawCampWorld() {
   const bg = getImg(lvl.R.bg);
-  if (bg.ok) ctx.drawImage(bg.img, 0, 0, VW, VH); else R(0, 0, VW, VH, "#120a22");
+  if (bg.ok && lvl.mirror) { ctx.save(); ctx.translate(VW, 0); ctx.scale(-1, 1); ctx.drawImage(bg.img, 0, 0, VW, VH); ctx.restore(); }
+  else if (bg.ok) ctx.drawImage(bg.img, 0, 0, VW, VH); else R(0, 0, VW, VH, "#120a22");
   R(0, 0, VW, VH, "rgba(8,4,20,0.16)");   // le décor reste plus sombre que les éléments jouables
   if (terrainFor !== lvl) { terrainCanvas = makeTerrain(lvl); if (terrainCanvas) terrainFor = lvl; }
   if (terrainCanvas) ctx.drawImage(terrainCanvas, 0, 0);

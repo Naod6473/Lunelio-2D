@@ -148,6 +148,10 @@ function drawTreasure(t, x, y, s = 1, own = true) {
   else { ctx.save(); ctx.filter = "brightness(0)"; drawFrame(t.atlas, fr, x, y, 1, 0.35, s); ctx.restore(); }   // silhouette (simplement pâle si le navigateur ignore filter)
 }
 
+/* ---- Surprises du calendrier (secrets.js) ---- */
+// birthdays : anniversaires des enfants, « JJ-MM » (jour et mois seulement), par exemple ["14-03", "02-11"]
+const CALENDAR = { birthdays: [] };
+
 /* ---- Cartes ---- */
 // cat : pnj, heros, monstres, boss. world : filtre (id de monde, "laverie" ou "bonus").
 // art : { atlas, frame } (portrait du pack) ou { npc } (portrait dessiné) ou { foe } / { old } (sprite du jeu).
@@ -155,6 +159,8 @@ const CARD_CATS = [["pnj", "Clients"], ["heros", "Héros"], ["monstres", "Monstr
 const CARDS = [
   { id: "pnj_bulle", cat: "pnj", world: "laverie", name: "Mme Bulle", art: { npc: "bulle" }, cond: { met: "bulle" }, how: "Entre dans la laverie",
     desc: "La gérante de la laverie. Elle connaît tous les programmes.", tip: "Ses bigoudis ne sont pas des pièces de la machine. Promis." },
+  { id: "pnj_bulle_secret", cat: "pnj", world: "laverie", name: "Mme Bulle (en secret)", art: { npc: "bulle" }, cond: { flag: "bulleSecret" }, how: "Un secret de la laverie",
+    desc: "Elle connaît des devinettes, des blagues… et elle danse avec le balai.", tip: "Plus on lui parle, plus elle en raconte." },
   { id: "pnj_capitaine", cat: "pnj", world: "05_port", name: "Capitaine Barbe-Mouillée", art: { npc: "capitaine" }, cond: { quest: "capitaine" }, how: "Termine la quête du capitaine",
     desc: "Un pirate perdu dans la laverie, avec un seul pied chaussé.", tip: "Sa barbe goutte toujours. Même au soleil." },
   { id: "pnj_bobine", cat: "pnj", world: "02_usine", name: "Bobine", art: { npc: "bobine" }, cond: { quest: "bobine" }, how: "Termine la quête de Bobine",
