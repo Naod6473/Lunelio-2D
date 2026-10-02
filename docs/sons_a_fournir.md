@@ -37,7 +37,7 @@ Tes fichiers ont été renommés et rangés ainsi (les noms d'origine sont entre
 | `sfx/machine/hublot.mp3` | `machineporte` | Le héros entre dans la machine (hublot qui s'ouvre) |
 | `sfx/machine/depart.mp3` | `machinedepart` | Aspiration dans le hublot |
 | `sfx/machine/arrivee.mp3` | `machinearrive` | Sortie du hublot dans la laverie |
-| `musique/mondes/usine.mp3`, `temple`, `volcan`, `port`, `grotte` | mêmes noms | Salles de ce monde (hors boss ; en Doom, la musique Doom reste) — `centrale.mp3` manque encore : la Centrale garde la musique du héros |
+| `musique/mondes/usine.mp3`, `temple`, `volcan`, `port`, `grotte` | mêmes noms | Salles de ce monde (hors boss ; en Doom, la musique Doom reste) — sans `centrale.mp3`, chaque salle de la Centrale tire au hasard une musique des autres mondes |
 
 Si une musique de boss ne va pas avec son boss, il suffit d'échanger les deux fichiers dans `audio/musique/boss/`.
 

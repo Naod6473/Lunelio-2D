@@ -792,6 +792,10 @@ function campMusic() {
   }
   const wm = audio.list("world:" + W.id, "musique/mondes/" + W.short);
   if (!doom && wm.length) return pickList(wm, camp.ri);
+  if (!doom) {   // monde sans musique (Centrale) : une musique des autres mondes, tirée au hasard pour chaque salle
+    const all = CWORLDS.flatMap(w => audio.list("world:" + w.id, "musique/mondes/" + w.short));
+    if (all.length) { if (lvl.mus === undefined) lvl.mus = Math.floor(Math.random() * all.length); return pickList(all, lvl.mus); }
+  }
   if (doom && L("doom").length) return pickList(L("doom"), camp.wi);
   return charMusic(ch(), camp.wi);
 }
