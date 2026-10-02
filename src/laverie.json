@@ -618,6 +618,25 @@
    },
    "note": "laverie : objets_quete.png"
   },
+  "ratelier": {
+   "src": "assets/laverie/ratelier.png",
+   "cw": 48,
+   "ch": 56,
+   "ax": 24,
+   "ay": 56,
+   "cols": 4,
+   "anims": {
+    "fermee": [
+     0,
+     1
+    ],
+    "ouverture": [
+     1,
+     3
+    ]
+   },
+   "note": "laverie : ratelier.png"
+  },
   "armes_icones": {
    "src": "assets/laverie/armes_icones.png",
    "cw": 32,
