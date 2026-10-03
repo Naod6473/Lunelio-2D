@@ -756,7 +756,8 @@ function headOf(aid, frame) {
   const A = ATL[aid], img = atlasImg(aid); if (!A || !img) return { dx: 0, dy: -38 };
   let res = { dx: 0, dy: -(A.ay - 6) };
   try {
-    const [c, x] = mkCanvas(A.cw, A.ch); x.drawImage(img, (frame % A.cols) * A.cw, Math.floor(frame / A.cols) * A.ch, A.cw, A.ch, 0, 0, A.cw, A.ch);
+    const k = atlasRes(A), [c, x] = mkCanvas(A.cw, A.ch);   // mesuré en pixels du jeu (planche plus fine : réduite d'abord)
+    x.drawImage(img, (frame % A.cols) * A.cw * k, Math.floor(frame / A.cols) * A.ch * k, A.cw * k, A.ch * k, 0, 0, A.cw, A.ch);
     const d = x.getImageData(0, 0, A.cw, A.ch).data;
     // haut de la tête : première ligne avec au moins 9 pixels pleins d'affilée (une lame de sabre levée est plus fine), 2 pixels plus haut
     outer: for (let y = 0; y < A.ch; y++) { let run = 0, best = 0, end = 0;

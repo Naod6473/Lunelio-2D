@@ -32,14 +32,17 @@ function preloadAtlases(timeout = 8000, onEach = () => {}) {
 }
 // Dessine l'image i d'un atlas, son point d'ancrage (pieds, centre ou base selon l'atlas) en (x, y). face < 0 : retournée.
 // cos : identifiant d'un cosmétique de couleurs (planche recolorée, laverie.js)
+// A.res (facultatif) : la planche est res fois plus fine que le jeu (cw, ch, ax, ay restent en pixels du jeu) ; dessinée réduite
+// sur le canvas 3× (SC), elle garde ses détails (héros Simon et Claire : res 3, un pixel de la planche = un pixel de l'écran)
+const atlasRes = A => A.res || 1;
 function drawFrame(aid, i, x, y, face = 1, alpha = 1, scale = 1, cos = null) {
   const A = ATL[aid]; if (!A) return;
   const img = cos ? atlasImgCos(aid, cos) : atlasImg(aid); if (!img) return;
-  const sx = (i % A.cols) * A.cw, sy = Math.floor(i / A.cols) * A.ch, w = A.cw * scale, h = A.ch * scale;
+  const k = atlasRes(A), sx = (i % A.cols) * A.cw * k, sy = Math.floor(i / A.cols) * A.ch * k, w = A.cw * scale, h = A.ch * scale;
   if (alpha <= 0) return;
   ctx.globalAlpha = alpha;
-  if (face >= 0) ctx.drawImage(img, sx, sy, A.cw, A.ch, Math.round(x - A.ax * scale), Math.round(y - A.ay * scale), w, h);
-  else { ctx.save(); ctx.translate(Math.round(x + A.ax * scale), Math.round(y - A.ay * scale)); ctx.scale(-1, 1); ctx.drawImage(img, sx, sy, A.cw, A.ch, 0, 0, w, h); ctx.restore(); }
+  if (face >= 0) ctx.drawImage(img, sx, sy, A.cw * k, A.ch * k, Math.round(x - A.ax * scale), Math.round(y - A.ay * scale), w, h);
+  else { ctx.save(); ctx.translate(Math.round(x + A.ax * scale), Math.round(y - A.ay * scale)); ctx.scale(-1, 1); ctx.drawImage(img, sx, sy, A.cw * k, A.ch * k, 0, 0, w, h); ctx.restore(); }
   ctx.globalAlpha = 1;
 }
 // Image d'une animation à l'instant t (fps images par seconde ; loop : en boucle, sinon s'arrête sur la dernière)

@@ -155,7 +155,7 @@ function drawTinted(aid, i, col, x, y, scale = 1) {
   let c = tintCache[key];
   if (!c) {
     const [cv2, x2] = mkCanvas(A.cw, A.ch);
-    x2.drawImage(img, (i % A.cols) * A.cw, Math.floor(i / A.cols) * A.ch, A.cw, A.ch, 0, 0, A.cw, A.ch);
+    const k = atlasRes(A); x2.drawImage(img, (i % A.cols) * A.cw * k, Math.floor(i / A.cols) * A.ch * k, A.cw * k, A.ch * k, 0, 0, A.cw, A.ch);
     try {
       const d = x2.getImageData(0, 0, A.cw, A.ch), a = d.data, tr = parseInt(col.slice(1, 3), 16), tg = parseInt(col.slice(3, 5), 16), tb = parseInt(col.slice(5, 7), 16);
       for (let k = 0; k < a.length; k += 4) {

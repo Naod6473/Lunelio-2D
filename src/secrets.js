@@ -28,11 +28,11 @@ const BIG_K = 1.55;
 function drawBigHead(aid, img, frame, x, y, face, scale, alpha) {
   const A = ATL[aid]; if (!A || !img) return null;
   const h = headOf(aid, frame), hh = Math.max(6, Math.round(-h.dy * 0.42)), top = Math.max(0, A.ay + h.dy - 1);
-  const sx = (frame % A.cols) * A.cw, sy = Math.floor(frame / A.cols) * A.ch + top, k = BIG_K;
+  const r = atlasRes(A), sx = (frame % A.cols) * A.cw * r, sy = (Math.floor(frame / A.cols) * A.ch + top) * r, k = BIG_K;
   const dw = A.cw * scale * k, dh = (hh + 1) * scale * k, neck = y + (h.dy + hh) * scale, piv = (A.ax + h.dx) * scale * k;
   ctx.globalAlpha = alpha;
-  if (face >= 0) ctx.drawImage(img, sx, sy, A.cw, hh + 1, Math.round(x + h.dx * scale - piv), Math.round(neck - dh), dw, dh);
-  else { ctx.save(); ctx.translate(Math.round(x - h.dx * scale + piv), Math.round(neck - dh)); ctx.scale(-1, 1); ctx.drawImage(img, sx, sy, A.cw, hh + 1, 0, 0, dw, dh); ctx.restore(); }
+  if (face >= 0) ctx.drawImage(img, sx, sy, A.cw * r, (hh + 1) * r, Math.round(x + h.dx * scale - piv), Math.round(neck - dh), dw, dh);
+  else { ctx.save(); ctx.translate(Math.round(x - h.dx * scale + piv), Math.round(neck - dh)); ctx.scale(-1, 1); ctx.drawImage(img, sx, sy, A.cw * r, (hh + 1) * r, 0, 0, dw, dh); ctx.restore(); }
   ctx.globalAlpha = 1;
   return { dx: h.dx, dy: (neck - dh - y) / scale, k };   // haut de la grosse tête (pour l'accessoire)
 }

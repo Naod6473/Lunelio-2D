@@ -2006,10 +2006,10 @@
   },
   "perso_simon": {
    "src": "assets/laverie/perso_simon.png",
-   "cw": 72,
-   "ch": 56,
-   "ax": 36,
-   "ay": 53,
+   "cw": 84,
+   "ch": 64,
+   "ax": 42,
+   "ay": 60,
    "cols": 6,
    "anims": {
     "idle": [
@@ -2085,7 +2085,8 @@
      1
     ]
    },
-   "note": "héros : heros/simon.png"
+   "note": "héros : heros/simon.png",
+   "res": 3
   },
   "portrait_perso_simon": {
    "src": "assets/laverie/portrait_perso_simon.png",
@@ -2104,10 +2105,10 @@
   },
   "perso_claire": {
    "src": "assets/laverie/perso_claire.png",
-   "cw": 72,
-   "ch": 56,
-   "ax": 36,
-   "ay": 53,
+   "cw": 84,
+   "ch": 64,
+   "ax": 42,
+   "ay": 60,
    "cols": 6,
    "anims": {
     "idle": [
@@ -2183,7 +2184,8 @@
      3
     ]
    },
-   "note": "héros : heros/claire.png"
+   "note": "héros : heros/claire.png",
+   "res": 3
   },
   "portrait_perso_claire": {
    "src": "assets/laverie/portrait_perso_claire.png",

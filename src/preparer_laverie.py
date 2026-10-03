@@ -480,22 +480,26 @@ def body_mass(cell, fx=fx_dino):
             sx += x; n += 1; bottom = max(bottom, y)
     return (sx / n if n else w / 2), (bottom if n else h - 1)
 
-def hero_sheet(name, im, rows, colw, scale, cell, anchor, layout, xr, anims, fx, note, rscale=None):
+def hero_sheet(name, im, rows, colw, scale, cell, anchor, layout, xr, anims, fx, note, rscale=None, res=1):
     """Planche d'un héros aux indices du jeu (layout : (ligne, colonne) de la source pour chaque case), poses recalées sur le
-    centre de masse du corps et le bas des pieds."""
+    centre de masse du corps et le bas des pieds. scale : échelle à l'écran (pixels du jeu) ; res : finesse de la planche (res
+    fois plus de pixels que le jeu : cell et anchor restent en pixels du jeu, le moteur la dessine réduite, champ « res »)."""
     cw, ch = cell; ax, ay = anchor; cols = 6
-    sheet = Image.new("RGBA", (cw * cols, ch * ((len(layout) + cols - 1) // cols)))
+    sheet = Image.new("RGBA", (cw * res * cols, ch * res * ((len(layout) + cols - 1) // cols)))
     for i, rc in enumerate(layout):
         if not rc: continue
         r, c = rc; y0, y1 = rows[r]
         x0, x1 = xr.get((r, c), (c * colw, min(im.width, (c + 1) * colw)))
         part = drop_edge_bits(im.crop((x0, y0, x1, y1)))
-        mx, by = body_mass(part, fx); s = scale * (rscale or {}).get(r, 1)   # rscale : lignes dessinées plus petites dans la source
+        mx, by = body_mass(part, fx); s = scale * res * (rscale or {}).get(r, 1)   # rscale : lignes dessinées plus petites dans la source
         small = part.resize((max(1, round(part.width * s)), max(1, round(part.height * s))), Image.BOX)
         small.putalpha(small.split()[3].point(lambda v: 255 if v > 110 else 0))
-        sheet.paste(small, ((i % cols) * cw + round(ax - mx * s), (i // cols) * ch + round(ay - (by + 1) * s)), small)
+        sheet.paste(small, ((i % cols) * cw * res + round(ax * res - mx * s), (i // cols) * ch * res + round(ay * res - (by + 1) * s)), small)
+    if res != 1: sheet = sheet.quantize(colors=255, method=Image.Quantize.FASTOCTREE)   # planche fine : 256 couleurs, 4 × plus légère
     sheet.save(os.path.join(OUT, name + ".png"), optimize=True)
-    return {name: {"src": f"assets/laverie/{name}.png", "cw": cw, "ch": ch, "ax": ax, "ay": ay, "cols": cols, "anims": anims, "note": note}}
+    out = {"src": f"assets/laverie/{name}.png", "cw": cw, "ch": ch, "ax": ax, "ay": ay, "cols": cols, "anims": anims, "note": note}
+    if res != 1: out["res"] = res
+    return {name: out}
 
 def hero_portrait(name, im, box, note):
     im.crop(box).resize((40, 40), Image.BOX).save(os.path.join(OUT, name + ".png"), optimize=True)
@@ -763,6 +767,12 @@ def fx_simon(r, g, b):
 CLAIRE_ROWS_N = {"idle": (0, 4), "marche": (1, 6), "course": (2, 6), "saut": (3, 3), "reception": (4, 2), "legere": (5, 4), "forte": (6, 5),
                  "haut": (7, 3), "lancer": (8, 5), "roulade": (9, 4), "degats": (10, 2), "etourdi": (11, 3), "ko": (12, 4), "victoire": (13, 4),
                  "ramasse": (14, 3), "manger": (15, 3)}
+# Simon et Claire (adultes, dessinés presque à la taille de leur case de 192 px) : un peu plus grands que les enfants
+# (≈ 43 px au repos au lieu de 36 ; Hélio 37, Jules 41) et planche 3 fois plus fine que le jeu (res 3 : un pixel de la
+# planche = un pixel de l'écran, car le canvas est dessiné à 3×), pour garder les détails du pack. Cases plus grandes
+# (84 × 64, pieds en (42, 60)) pour que les coups et la roulade ne débordent pas.
+ADULT_SCALE, ADULT_RES, ADULT_CELL, ADULT_ANCHOR = 0.24, 3, (84, 64), (42, 60)
+CLAIRE_RSCALE = {2: 1.15, 6: 1.2, 8: 1.1}   # course, coup fort et lancer dessinés plus petits dans la source
 CHIPS_SPANS = [(29, 370), (439, 799), (878, 1253), (1306, 1749), (1786, 2125)]
 
 def prepare_claire():
@@ -773,7 +783,7 @@ def prepare_claire():
     for name in ("lancer", "manger"):
         anims[name] = [len(lay), CLAIRE_ROWS_N[name][1]]; lay += [(CLAIRE_ROWS_N[name][0], c) for c in range(CLAIRE_ROWS_N[name][1])]
     rows = [(r * 192, (r + 1) * 192) for r in range(im.height // 192)]
-    out = hero_sheet("perso_claire", im, rows, 192, 0.2, DINO_CELL, DINO_ANCHOR, lay, {}, anims, fx_simon, "héros : heros/claire.png")
+    out = hero_sheet("perso_claire", im, rows, 192, ADULT_SCALE, ADULT_CELL, ADULT_ANCHOR, lay, {}, anims, fx_simon, "héros : heros/claire.png", CLAIRE_RSCALE, ADULT_RES)
     p = os.path.join(SRC, "heros/claire_portrait.png")
     if os.path.exists(p):
         pim = Image.open(p).convert("RGBA"); out.update(hero_portrait("portrait_perso_claire", pim, (0, 0, pim.width, pim.height), "portrait de Claire"))
@@ -792,7 +802,7 @@ def prepare_simon():
     if not os.path.exists(f): return {}
     im = Image.open(f).convert("RGBA"); lay, anims = simon_layout()
     rows = [(r * 192, (r + 1) * 192) for r in range(im.height // 192)]
-    out = hero_sheet("perso_simon", im, rows, 192, 0.2, DINO_CELL, DINO_ANCHOR, lay, {}, anims, fx_simon, "héros : heros/simon.png", {2: 1.33, 6: 1.5})   # course et coup fort dessinés plus petits
+    out = hero_sheet("perso_simon", im, rows, 192, ADULT_SCALE, ADULT_CELL, ADULT_ANCHOR, lay, {}, anims, fx_simon, "héros : heros/simon.png", {2: 1.33, 6: 1.5}, ADULT_RES)   # course et coup fort dessinés plus petits
     p = os.path.join(SRC, SIMON_PORTRAIT)
     if os.path.exists(p):
         pim = Image.open(p).convert("RGBA"); out.update(hero_portrait("portrait_perso_simon", pim, (0, 0, pim.width, pim.height), "portrait de Simon"))
