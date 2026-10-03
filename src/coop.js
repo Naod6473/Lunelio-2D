@@ -114,11 +114,11 @@ function coopKeepNear(q, H) {
 }
 
 /* ---- Écran du choix du héros : le joueur 2 rejoint et choisit son héros ---- */
-const COOP_BOX = { x: 12, y: 166, w: 222, h: 42 };
+const COOP_BOX = CHARS.length > 10 ? { x: 12, y: 172, w: 222, h: 38 } : { x: 12, y: 166, w: 222, h: 42 };
 function coopCharsUpdate() {
   if (hit("Digit2")) { if (!COOP.on) coopJoin("kb"); else if (COOP.dev === "kb") coopLeave(); return; }
   if (!COOP.on) return;
-  const n = CHARS.length, mv = i => { COOP.ci = (COOP.ci + i + n) % n; audio.sfx("select"); };
+  const n = CHARS.length, mv = i => { do COOP.ci = (COOP.ci + i + n) % n; while (charLocked(CHARS[COOP.ci])); audio.sfx("select"); };   // pas les héros secrets pas encore trouvés
   if (hit(...K2.left)) mv(-1);
   if (hit(...K2.right)) mv(1);
   // haut / bas : le nom du joueur 2 (un profil, ou « Invité »), pour les records à deux

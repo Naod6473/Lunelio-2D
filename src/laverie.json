@@ -1889,6 +1889,72 @@
     ]
    },
    "note": "bulles du vaporisateur de Mme Bulle"
+  },
+  "perso_guillie": {
+   "src": "assets/laverie/perso_guillie.png",
+   "cw": 72,
+   "ch": 56,
+   "ax": 36,
+   "ay": 53,
+   "cols": 6,
+   "anims": {
+    "idle": [
+     0,
+     4
+    ],
+    "run": [
+     6,
+     6
+    ],
+    "attack": [
+     12,
+     5
+    ],
+    "jump": [
+     18,
+     2
+    ],
+    "land": [
+     21,
+     2
+    ],
+    "etourdi": [
+     24,
+     3
+    ],
+    "hurt": [
+     27,
+     1
+    ],
+    "walk": [
+     30,
+     6
+    ],
+    "ko": [
+     36,
+     4
+    ],
+    "dead": [
+     39,
+     1
+    ]
+   },
+   "note": "héros secret : heros/guillie.png"
+  },
+  "portrait_perso_guillie": {
+   "src": "assets/laverie/portrait_perso_guillie.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 40,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "portrait de Guillie"
   }
  }
 }

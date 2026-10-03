@@ -603,6 +603,38 @@ def prepare_bulle():
                              "anims": {"play": [0, 1], "visages": [1, 6]}, "note": "portrait de Mme Bulle : grand dessin et 6 visages"}
     return out
 
+# Guillie, la chienne noire (héroïne secrète) : heros/guillie.png (9 bandes de cases de 192 px assemblées depuis le pack :
+# repos, marche, course, saut, réception, coup de patte, dégâts, étourdissement, KO) et heros/guillie_portrait.png.
+GUILLIE_SRC, GUILLIE_PORTRAIT = "heros/guillie.png", "heros/guillie_portrait.png"
+GUILLIE_SCALE = 0.2
+GUILLIE_LAYOUT = ([(0, c) for c in range(4)] + [None, None] + [(2, c) for c in range(6)] + [(5, c) for c in range(4)] + [(5, 3), None]
+                  + [(3, 1), (3, 2), (3, 0), (4, 0), (4, 1), None] + [(7, 0), (7, 1), (7, 2), (6, 0), (6, 1), None]
+                  + [(1, c) for c in range(6)] + [(8, c) for c in range(4)])
+GUILLIE_ANIMS = {"idle": [0, 4], "run": [6, 6], "attack": [12, 5], "jump": [18, 2], "land": [21, 2], "etourdi": [24, 3],
+                 "hurt": [27, 1], "walk": [30, 6], "ko": [36, 4], "dead": [39, 1]}
+
+def fx_guillie(r, g, b):
+    """Effets de la planche de Guillie : étoiles jaunes de l'étourdissement."""
+    return r > 200 and g > 150 and b < 120
+
+def prepare_guillie():
+    f = os.path.join(SRC, GUILLIE_SRC)
+    if not os.path.exists(f): return {}
+    im = Image.open(f).convert("RGBA")
+    rows = [(r * 192, (r + 1) * 192) for r in range(im.height // 192)]
+    out = hero_sheet("perso_guillie", im, rows, 192, GUILLIE_SCALE, DINO_CELL, DINO_ANCHOR, GUILLIE_LAYOUT, {}, GUILLIE_ANIMS, fx_guillie, "héros secret : heros/guillie.png")
+    # pelage noir : un peu éclairci, et un fin liseré lilas autour de la silhouette pour qu'elle reste lisible sur les fonds de nuit
+    from PIL import ImageEnhance, ImageFilter
+    f2 = os.path.join(OUT, "perso_guillie.png"); sh = Image.open(f2).convert("RGBA"); a = sh.split()[3]
+    rgb = ImageEnhance.Brightness(sh.convert("RGB")).enhance(1.45); lit = rgb.convert("RGBA"); lit.putalpha(a)
+    ring = Image.eval(a.filter(ImageFilter.MaxFilter(3)), lambda v: 255 if v > 0 else 0)
+    rim = Image.new("RGBA", sh.size, (150, 130, 190, 0)); rim.putalpha(Image.eval(ring, lambda v: 170 if v else 0))
+    rim.alpha_composite(lit); rim.save(f2, optimize=True)
+    p = os.path.join(SRC, GUILLIE_PORTRAIT)
+    if os.path.exists(p):
+        pim = Image.open(p).convert("RGBA"); out.update(hero_portrait("portrait_perso_guillie", pim, (0, 0, pim.width, pim.height), "portrait de Guillie"))
+    return out
+
 def fade_foreground():
     """Cadres de premier plan de la grotte : en bas (sous y = 150), seuls les bords gauche et droit restent, fondus vers le milieu."""
     for i in range(1, 5):
@@ -659,7 +691,7 @@ def main():
     if f: atlas["eg_laurene_furie"] = f
     b, c = prepare_brie()
     if b: atlas["eg_brie"], atlas["eg_crotte"] = b, c
-    atlas.update(prepare_eg_proj()); atlas.update(prepare_eg_portraits()); atlas.update(prepare_mamie()); atlas.update(prepare_dino()); atlas.update(prepare_marylou()); atlas.update(prepare_souvenirs())
+    atlas.update(prepare_eg_proj()); atlas.update(prepare_eg_portraits()); atlas.update(prepare_mamie()); atlas.update(prepare_dino()); atlas.update(prepare_marylou()); atlas.update(prepare_guillie()); atlas.update(prepare_souvenirs())
     for name, (base, anims) in HEROES.items():
         a = prepare_hero(name, base, anims)
         if a: atlas[name] = a

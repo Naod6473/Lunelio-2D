@@ -190,7 +190,7 @@ function testCond(c) {
   if (c.cardCat) return catComplete(c.cardCat);
   if (c.cardCatComplete !== undefined) return CARD_CATS.filter(([k]) => catComplete(k)).length >= c.cardCatComplete;
   if (c.cardsAll) return CARDS.every(k => has("card:" + k.id));
-  if (c.charsAll) return CHARS.every(C => SAVE.seen.char[C.id]);
+  if (c.charsAll) return CHARS.every(C => C.secret || SAVE.seen.char[C.id]);   // les héros secrets ne comptent pas
   if (c.oldFoe) return !!SAVE.seen.oldFoe[c.oldFoe];
   if (c.oldBoss) return !!SAVE.seen.oldBoss[c.oldBoss];
   if (c.bonusWorld !== undefined) return SAVE.bonus.done >= c.bonusWorld;

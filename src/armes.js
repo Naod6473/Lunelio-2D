@@ -155,6 +155,12 @@ function updateWeapon(p, dt, boost) {
 // Tirs des armes (dans lasers)
 function updateWProj(l, dt) {
   l.t += dt; if (l.t > l.life) { l.alive = false; return; }
+  if (l.kind === "aboi") {   // super aboiement : un cercle de son qui grandit ; il renverse tout ce qu'il touche et efface les tirs
+    l.r = 10 + 280 * l.t; l.x = l.cx - l.r; l.y = l.cy - l.r * 0.6; l.w = l.h = 0; l.w = l.r * 2; l.h = l.r * 1.2;
+    for (const e of enemies) if (e.alive && !l.hits.has(e) && Math.hypot(e.x + e.w / 2 - l.cx, (e.y + e.h / 2 - l.cy) / 0.6) < l.r) { l.hits.add(e); hitEnemy(e, "proj", l.p, e.type === "bigboss" || e.type === "boss" || e.type === "egboss" ? 2 : l.dmg); }
+    for (const q of lasers) if (q.alive && q.owner === "enemy" && Math.hypot(q.x + (q.w || 0) / 2 - l.cx, (q.y + (q.h || 0) / 2 - l.cy) / 0.6) < l.r) { q.alive = false; burst(q.x, q.y, 4, ["#c8b8ff", "#ffffff"], 60, 0.25, 0, 1); }
+    return;
+  }
   const cx = () => l.x + l.w / 2, cy = () => l.y + l.h / 2;
   if (l.kind === "boom" && l.target) {
     if (!l.target.alive) l.target = nearestFoe(cx(), cy(), Math.sign(l.vx) || 1);
@@ -239,6 +245,11 @@ function drawWProj(l) {
       if (hasAtlas("magie_coeur")) { const A = ATL.magie_coeur.anims; drawFrame("magie_coeur", left < 0.12 ? A.fin[0] : l.t < 0.06 ? A.depart[0] : A.vol[0] + Math.floor(l.t * 14) % A.vol[1], Math.round(cx - f * 8), Math.round(cy), f); }
       else R(Math.round(l.x), Math.round(l.y), l.w, l.h, "#ff8ad8");
       break;
+    }
+    case "aboi": {   // vagues de son : trois anneaux qui s'écartent et s'effacent
+      const k = l.t / l.life;
+      for (let i = 0; i < 3; i++) { const r = l.r - i * 14; if (r <= 4) continue; ctx.globalAlpha = Math.max(0, (1 - k) * (0.8 - i * 0.22)); ctx.strokeStyle = i ? "#c8b8ff" : "#ffffff"; ctx.lineWidth = 3 - i; ctx.beginPath(); ctx.ellipse(l.cx, l.cy, r, r * 0.6, 0, 0, Math.PI * 2); ctx.stroke(); }
+      ctx.globalAlpha = 1; break;
     }
     case "pebble": R(Math.round(l.x), Math.round(l.y), 6, 6, "#8a7a6a"); R(Math.round(l.x), Math.round(l.y), 2, 2, "#c8b8a0"); break;
     case "swave": ctx.globalAlpha = 0.7 * (1 - l.t / l.life); for (let i = 0; i < l.w; i += 2) R(Math.round(l.x + i), Math.round(l.y + l.h - 2 - Math.abs(Math.sin(time * 30 + i)) * 8), 2, 3, i % 4 ? "#fccc28" : "#ffffff"); ctx.globalAlpha = 1; break;

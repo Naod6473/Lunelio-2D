@@ -170,7 +170,7 @@ const CARDS = [
     desc: "Un jeune ninja qui a perdu sa ceinture dans les ombres.", tip: "Il est si discret qu'on oublie parfois qu'il est là." },
   { id: "pnj_firmin", cat: "pnj", world: "laverie", name: "Grand-père Firmin", art: { npc: "firmin" }, cond: { memory: "souvenir_1" }, how: "Débloque le premier souvenir",
     desc: "L'inventeur de la Lavotron 3000, et le grand-père de Mme Bulle.", tip: "Il voulait juste laver le linge plus vite que l'éclair." },
-  ...["helio", "lune", "robot", "singe", "ninja", "rumi", "steve", "homme", "dino", "marylou"].map(id => ({ id: "heros_" + id, cat: "heros", world: "laverie", heroId: id,
+  ...["helio", "lune", "robot", "singe", "ninja", "rumi", "steve", "homme", "dino", "marylou", "guillie"].map(id => ({ id: "heros_" + id, cat: "heros", world: "laverie", heroId: id,
     art: ATL["portrait_perso_" + id] ? { atlas: "portrait_perso_" + id, anim: "play" } : { atlas: "portraits", anim: id }, cond: { char: id }, how: "Termine une salle de la campagne avec ce héros" })),
   { id: "monstre_slime", cat: "monstres", world: "01_centrale", foe: "slime", name: "Slime électrique", art: { foe: "slime" }, cond: { foe: "slime" }, how: "Bats un slime électrique",
     desc: "Il glisse lentement et pique au contact.", tip: "Faiblesse : un seul coup de sabre. Ne le touche pas avec les mains !" },

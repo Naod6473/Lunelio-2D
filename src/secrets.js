@@ -106,6 +106,8 @@ const SECRETS = [
     hint: "Mme Bulle a beaucoup à raconter, si on lui parle encore et encore…" },
   { id: "dorees", name: "Les chaussettes dorées", found: () => SAVE.flags.secret, what: "Des chemins cachés, pour les héros qui ont la bonne capacité.",
     hint: "Certaines chaussettes brillent là où seul un super saut, un dash ou un double saut peut aller." },
+  { id: "guillie", name: "Guillie, la chienne", found: () => SAVE.flags.guillie, what: "Une héroïne secrète : elle saute très haut et son super aboiement renverse les ennemis.",
+    hint: "Sur l'écran des héros, une carte « ? » attend… Frappe à sa porte encore et encore !" },
   { id: "eglise", name: "L'église", found: () => SAVE.flags.egliseWon, what: "Le mariage de Laurène et Jules, dans une autre réalité.",
     hint: "Une cloche sonne quand les six mondes sont finis…" },
 ];
