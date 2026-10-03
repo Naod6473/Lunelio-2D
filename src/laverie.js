@@ -141,6 +141,18 @@ function wrapText(s, w, size) {
   for (const word of s.split(" ")) { const t = cur ? cur + " " + word : word; if (ctx.measureText(t).width > w && cur) { out.push(cur); cur = word; } else cur = t; }
   if (cur) out.push(cur); return out;
 }
+// Visage de Mme Bulle selon sa réplique (portrait_bulle : 0 grand dessin, 1 rire, 2 rire les yeux fermés, 3 sourire,
+// 4 clin d'œil malin, 5 surprise, 6 grand rire) ; L[2].face l'impose. Pendant que le texte s'écrit, la bouche bouge.
+function bulleFace(L, typing) {
+  const t = lineText(L);
+  let f = L[2] && L[2].face != null ? L[2].face
+    : /attention|oh non|aïe|ouille|vite|oh là|hein/i.test(t) ? 5
+    : /\?/.test(t) ? 4
+    : /!/.test(t) ? (t.length % 2 ? 2 : 6)
+    : /…/.test(t) ? 3 : 0;
+  if (typing && f && f !== 3 && Math.floor(time * 6) % 2) f = 3;   // bouche fermée une image sur deux
+  return f;
+}
 function drawDialog() {
   const d = hub.dlg; if (!d) return;
   const L = d.lines[d.i], who = L[0], s = lineText(L).slice(0, Math.floor(d.t * 40));
@@ -152,6 +164,7 @@ function drawDialog() {
   ctx.save(); ctx.beginPath(); ctx.rect(14, y + 6, 52, 54); ctx.clip();
   if (who === "hero") drawHeroPortrait(ch(), 40, y + 58, 1, 1.2);
   else if (who === "machine") drawMachineIcon(40, y + 33, 1.6);
+  else if (who === "bulle" && ATL.portrait_bulle && ATL.portrait_bulle.anims.visages) drawFrame("portrait_bulle", bulleFace(L, d.t * 40 < lineText(L).length), 40, y + 58, 1, 1, 1.25);
   else drawNpcPortrait(who, 40, y + 33, 1.25, Math.floor(d.t * 10) % 2 && d.t * 40 < lineText(L).length);
   ctx.restore();
   text(lineWho(L), 74, y + 12, 9, col);
@@ -404,7 +417,8 @@ function updateBulle(rdt, p) {
   const talk = hub.dlg && hub.dlg.lines[hub.dlg.i] && hub.dlg.lines[hub.dlg.i][0] === "bulle", near = hub.near === s;
   if (talk) BUL.talked = true; else if (BUL.talked && !hub.dlg) { BUL.talked = false; bulleDo("coeurs"); }
   BUL.t += rdt;
-  if (BUL.act === "dort") { if (busy || hub.dlg) bulleDo("etoiles"); }
+  if (hub.repairFx) { if (BUL.act !== "joie") bulleDo("joie"); BUL.t = 0; BUL.face = -1; }   // une pièce réparée : elle lève les bras
+  else if (BUL.act === "dort") { if (busy || hub.dlg) bulleDo("etoiles"); }
   else if (talk || (near && BUL.act !== "coeurs")) { BUL.act = null; BUL.face = p.x + 5 > BUL.x ? 1 : -1; }
   else if (BUL.idle > 25 && !hub.dlg) bulleDo("dort");
   else if (BUL.act === "promenade") {

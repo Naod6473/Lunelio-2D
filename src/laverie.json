@@ -1074,14 +1074,18 @@
    "ch": 40,
    "ax": 20,
    "ay": 40,
-   "cols": 1,
+   "cols": 7,
    "anims": {
     "play": [
      0,
      1
+    ],
+    "visages": [
+     1,
+     6
     ]
    },
-   "note": "portrait de Mme Bulle (grand portrait)"
+   "note": "portrait de Mme Bulle : grand dessin et 6 visages"
   },
   "portrait_capitaine": {
    "src": "assets/laverie/portrait_capitaine.png",

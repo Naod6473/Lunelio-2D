@@ -564,6 +564,8 @@ BULLE_ROWS = {"marche": (190, 368, [(530, 680), (680, 835), (835, 990), (990, 11
               "divers": (782, 978, [(20, 200), (230, 440), (480, 670), (730, 935), (935, 1215), (1215, 1495)])}
 BULLE_BUBBLES = (990, 552, 1495, 722)
 BULLE_PORTRAIT = (140, 18, 420, 298)
+# visages (1 à 6 du portrait) : rire, rire les yeux fermés, sourire, clin d'œil malin, surprise, grand rire
+BULLE_FACES = [(522, 677), (675, 830), (830, 985), (975, 1130), (1146, 1310), (1318, 1473)]
 
 def fx_bulle(r, g, b):
     """Effets de Mme Bulle : bulles et coup de balai bleu clair, étoiles et traits jaunes, cœurs roses."""
@@ -592,7 +594,13 @@ def prepare_bulle():
     bub = bub.resize((round(bub.width * 0.255), round(bub.height * 0.255)), Image.BOX); bub.putalpha(bub.split()[3].point(lambda v: 255 if v > 90 else 0))
     bub.save(os.path.join(OUT, "bulle_bulles.png"), optimize=True)
     out["bulle_bulles"] = {"src": "assets/laverie/bulle_bulles.png", "cw": bub.width, "ch": bub.height, "ax": 0, "ay": bub.height // 2, "cols": 1, "anims": {"play": [0, 1]}, "note": "bulles du vaporisateur de Mme Bulle"}
-    out.update(hero_portrait("portrait_bulle", sheet_src, BULLE_PORTRAIT, "portrait de Mme Bulle (grand portrait)"))
+    # portrait : le grand dessin (image 0), puis ses 6 visages (images 1 à 6), choisis selon ce qu'elle dit
+    ps = Image.new("RGBA", (40 * 7, 40)); ps.paste(sheet_src.crop(BULLE_PORTRAIT).resize((40, 40), Image.BOX), (0, 0))
+    for k, (x0, x1) in enumerate(BULLE_FACES):
+        w = x1 - x0; ps.paste(sheet_src.crop((x0, 172 - w, x1, 172)).resize((40, 40), Image.BOX), (40 * (k + 1), 0))
+    ps.save(os.path.join(OUT, "portrait_bulle.png"), optimize=True)
+    out["portrait_bulle"] = {"src": "assets/laverie/portrait_bulle.png", "cw": 40, "ch": 40, "ax": 20, "ay": 40, "cols": 7,
+                             "anims": {"play": [0, 1], "visages": [1, 6]}, "note": "portrait de Mme Bulle : grand dessin et 6 visages"}
     return out
 
 def fade_foreground():
