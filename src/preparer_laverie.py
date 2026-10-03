@@ -250,6 +250,36 @@ BRIE_ROWS = [((21, 198), [(26, 300), (310, 560), (565, 810), (815, 1045), (1050,
 BRIE_ANIMS = {"repos": [0, 6], "course": [6, 6], "aboie": [12, 5], "saut": [17, 5], "crotte": [22, 4], "morte": [26, 1]}
 BRIE_SCALE, BRIE_CELL = 0.17, (84, 40)
 
+# Laurène en furie (après la transformation du duo) : planche aux images de largeurs inégales, découpée à la main.
+# (y début, y fin) de chaque ligne, puis les fenêtres (x début, x fin) ; les pieds sont en bas de la ligne, au milieu du bas
+# du corps de chaque image. Le laser et la boule de feu restent dans l'image (cases larges : ax laisse la place à droite).
+FURIE_ROWS = [((31, 177), [(18, 156), (196, 342), (384, 545), (577, 733), (770, 940), (965, 1099)]),     # course
+              ((206, 358), [(19, 155), (204, 363), (390, 539), (567, 757), (757, 966), (973, 1100)]),    # boule de feu
+              ((378, 552), [(19, 159), (197, 355), (393, 537), (583, 727), (776, 917), (964, 1108)]),    # saut
+              ((575, 728), [(22, 154), (181, 328), (349, 540), (563, 737), (756, 940), (973, 1104)])]    # laser des yeux
+FURIE_ANIMS = {"course": [0, 6], "orbe": [6, 6], "saut": [12, 6], "laser": [18, 6]}
+FURIE_SCALE, FURIE_CELL, FURIE_ANCHOR = 0.46, (150, 90), (50, 86)
+
+def prepare_laurene_furie():
+    png = os.path.join(SRC, "eglise/laurene_furie.png")
+    if not os.path.exists(png): return None
+    im = Image.open(png).convert("RGBA"); s = FURIE_SCALE; cw, ch = FURIE_CELL; ax, ay = FURIE_ANCHOR
+    frames = []
+    for (y0, y1), wins in FURIE_ROWS:
+        for (x0, x1) in wins:
+            cell = im.crop((x0, y0, x1, y1)); al = cell.split()[3]
+            # milieu du bas du corps : colonnes opaques des 30 dernières lignes non vides
+            bb = al.getbbox(); low = al.crop((0, max(0, bb[3] - 30), cell.width, bb[3])).getbbox() or bb
+            fx = (low[0] + low[2]) / 2
+            sm = cell.resize((max(1, round(cell.width * s)), max(1, round(cell.height * s))), Image.BOX)
+            sm.putalpha(sm.split()[3].point(lambda v: 255 if v > 110 else 0))
+            out = Image.new("RGBA", (cw, ch)); out.paste(sm, (round(ax - fx * s), round(ay - (y1 - y0) * s)), sm)
+            frames.append(out)
+    cols = 6; sheet = Image.new("RGBA", (cw * cols, ch * ((len(frames) + cols - 1) // cols)))
+    for i, f in enumerate(frames): sheet.paste(f, ((i % cols) * cw, (i // cols) * ch))
+    os.makedirs(OUT, exist_ok=True); sheet.save(os.path.join(OUT, "eg_laurene_furie.png"), optimize=True)
+    return {"src": "assets/laverie/eg_laurene_furie.png", "cw": cw, "ch": ch, "ax": ax, "ay": ay, "cols": cols, "anims": FURIE_ANIMS, "note": "Laurène en furie (église)"}
+
 def prepare_brie():
     png = os.path.join(SRC, "eglise/brie_sprite.png")
     if not os.path.exists(png): return None, None
@@ -380,6 +410,8 @@ def main():
     for name, rel, anims in (("eg_jules", "eglise/jules.png", JULES_ANIMS), ("eg_laurene", "eglise/laurene.png", LAURENE_ANIMS)):
         a = prepare_grid(name, rel, 192, (96, 160), EG_SCALE, anims, name[3:].capitalize() + " (église)")
         if a: atlas[name] = a
+    f = prepare_laurene_furie()
+    if f: atlas["eg_laurene_furie"] = f
     b, c = prepare_brie()
     if b: atlas["eg_brie"], atlas["eg_crotte"] = b, c
     atlas.update(prepare_eg_proj()); atlas.update(prepare_eg_portraits()); atlas.update(prepare_souvenirs())

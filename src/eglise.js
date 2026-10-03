@@ -112,9 +112,20 @@ const egCx = e => e.x + e.w / 2;
 function egSay(e, text) { EG.bubbles = EG.bubbles.filter(b => b.e !== e); EG.bubbles.push({ e, text, t: 1.6 }); }
 function egTaunt(e, chance = 0.5) { if (e.sayCd <= 0 && Math.random() < chance) { egSay(e, e.B.say[Math.floor(Math.random() * e.B.say.length)]); e.sayCd = 3 + Math.random() * 2; } }
 function egAnim(e, an) { if (e.an !== an) { e.an = an; e.anT = 0; } }
+// Laurène en furie : sa planche à elle (course, boule de feu, saut, laser des yeux) une fois transformée ; la transformation
+// et la défaite restent sur la planche de la mariée
+const FURIE_AN = { course: "course", marche: "course", glissade: "course", saut: "saut", orbe: "orbe", laser: "laser" };
+const egAtlas = e => e.furie && e.an !== "furie" && !e.down && hasAtlas("eg_laurene_furie") ? "eg_laurene_furie" : e.B.atlas;
 function egFrame(e) {
   const A = ATL[e.B.atlas]; if (!A) return 0;
-  if (e.furie) return A.anims.furie[0] + (e.an === "furie" ? Math.min(5, Math.floor(e.anT * 7)) : 5);   // Laurène en furie : la transformation, puis sa dernière pose
+  if (egAtlas(e) === "eg_laurene_furie") {
+    const F = ATL.eg_laurene_furie, an = FURIE_AN[e.an] || "orbe", [s0, n] = F.anims[an];
+    if (an === "laser") return s0 + (e.mt < 0.25 ? 0 : e.mt < 0.6 ? 1 : e.mt < 1.4 ? 2 + Math.floor(e.mt * 12) % 3 : 5);   // les yeux s'allument, puis le rayon
+    if (an === "saut") return s0 + Math.min(n - 1, Math.floor(e.anT * 7));
+    if (an === "orbe") return e.mv === "orbe_furie" ? s0 + Math.min(n - 1, Math.floor(e.anT * 10)) : s0;
+    return s0 + (e.vx ? Math.floor(e.anT * 12) % n : 0);
+  }
+  if (e.furie) return A.anims.furie[0] + (e.an === "furie" ? Math.min(5, Math.floor(e.anT * 7)) : 5);   // la transformation, puis sa dernière pose
   if (e.down) return e.id === "brie" ? A.anims.morte[0] : A.anims.glissade[0] + 5;   // à terre
   const [s, n] = A.anims[e.an] || A.anims[Object.keys(A.anims)[0]], f = Math.floor(e.anT * (EG_FPS[e.an] || 8));
   return s + (["repos", "course", "marche"].includes(e.an) ? f % n : Math.min(n - 1, f));
@@ -137,7 +148,7 @@ function egProj(l, dt) {
       return;
     }
     if (l.kind === "chevre" && !l.run) { l.run = true; l.y = EG_FLOOR - l.h; l.vy = 0; l.g = 0; l.vx = Math.sign(l.vx || 1) * 190; l.life = l.t + 2.2; audio.sfx("land"); }
-    else if (l.kind === "orb" || l.kind === "bouquet") { l.alive = false; burst(l.x + l.w / 2, EG_FLOOR - 3, 10, [l.kind === "orb" ? "#c86eff" : "#ff8ab0", "#ffffff"], 110, 0.4, 200, 2); return; }
+    else if (l.kind === "orb" || l.kind === "bouquet") { l.alive = false; burst(l.x + l.w / 2, EG_FLOOR - 3, 10, [l.kind === "orb" ? (l.red ? "#ff2d6a" : "#c86eff") : "#ff8ab0", "#ffffff"], 110, 0.4, 200, 2); return; }
     else if (l.vy > 0) { l.y = EG_FLOOR - l.h; l.vy = 0; }
   }
   if (l.x < -30 || l.x > VW + 30) { l.alive = false; return; }
@@ -157,7 +168,7 @@ function egDamage(e, n) {
   } else egTaunt(e, 0.25);
 }
 function egDown(e) {
-  e.down = true; e.mv = null; e.vx = 0; e.inv = 99; e.alive = false;
+  e.down = true; e.mv = null; e.beam = null; e.vx = 0; e.inv = 99; e.alive = false;
   audio.sfx(e.id === "brie" ? "eg_aboie" : "boom"); shake = 6; rumble(300, 0.6, 0.5);
   burst(egCx(e), e.y + e.h / 2, 24, [e.B.color, "#ffffff", "#ff4f8a"], 200, 0.7, 250, 2);
   lasers = lasers.filter(l => !l.eg);
@@ -212,18 +223,36 @@ const EG_MOVES = {
     update(e, p, dt) { if (!e.n && e.mt > (e.furie ? 0.55 : 0.35)) { e.n = 1; egShot("chevre", egCx(e) + e.face * 16, e.y + 14, e.face * 120 * e.spd, -260, { g: 500, life: 6 }); audio.sfx("dash"); } return e.mt > 0.8; } },
   bouteille: { start(e, p) { e.face = towards(e, p); egAnim(e, "lancer_bouteille"); e.n = 0; if (Math.random() < 0.5) egSay(e, "Santé !"); },
     update(e, p, dt) { if (!e.n && e.mt > (e.furie ? 0.5 : 0.3)) { e.n = 1; const dx = p.x + 5 - egCx(e); egShot("bouteille", egCx(e) + e.face * 14, e.y + 12, clamp(dx / 0.9, -260, 260) * e.spd, -260, { g: 520 }); audio.sfx("dash"); } return e.mt > 0.7; } },
+  // Laurène en furie : boule de feu rouge visée (renvoyable au sabre), course, laser des yeux (rester au sol !)
+  orbe_furie: { start(e, p) { e.face = towards(e, p); egAnim(e, "orbe"); e.n = 0; if (Math.random() < 0.5) egSay(e, "Brûle, petit invité !"); },
+    update(e, p, dt) {
+      const times = e.rage ? [0.32, 0.5] : [0.32];
+      if (e.n < times.length && e.mt > times[e.n]) {
+        const x = egCx(e) + e.face * 36, y = EG_FLOOR - 48, dx = p.x + 5 - x, dy = p.y + 16 - y, d = Math.hypot(dx, dy) || 1, v = 175 * e.spd;
+        egShot("orb", x, y, dx / d * v, dy / d * v, { color: "#ff2d6a", red: true }); e.n++; audio.sfx("laser");
+      }
+      return e.mt > 0.7; } },
+  course: { start(e, p) { e.face = towards(e, p); egAnim(e, "course"); egTaunt(e, 0.4); },
+    update(e, p, dt) { e.vx = e.mt > 0.15 && e.mt < 0.95 ? e.face * 250 * e.spd : 0; if (Math.random() < 0.4) parts.push({ x: egCx(e) - e.face * 10, y: EG_FLOOR - 4 - Math.random() * 30, vx: -e.face * 40, vy: -10, life: 0.4, max: 0.4, color: "#ff2d6a", size: 2, grav: 0 }); return e.mt > 1.05; } },
+  laser: { start(e, p) { e.face = towards(e, p); egAnim(e, "laser"); e.beam = null; egSay(e, "Mes yeux te voient !"); audio.sfx("aim"); },
+    update(e, p, dt) {
+      const on = e.mt > 0.6 && e.mt < 1.4;
+      if (on && !e.beam) { audio.sfx("laser"); shake = Math.max(shake, 2); }
+      e.beam = on ? { x1: egCx(e) + e.face * 15, x2: e.face > 0 ? VW + 10 : -10, y: EG_FLOOR - 52 } : null;
+      if (e.beam) for (const q of players) if (!q.dead && q.inv <= 0 && q.y < e.beam.y + 4 && q.y + q.h > e.beam.y - 4 && (e.face > 0 ? q.x + q.w > e.beam.x1 : q.x < e.beam.x1)) hurtPlayer(q, egCx(e));
+      if (e.mt > 1.6) { e.beam = null; return true; } return false; } },
   glisse: { start(e, p) { e.face = towards(e, p); egAnim(e, "glissade"); },
     update(e, p, dt) { e.vx = e.mt > 0.1 && e.mt < 0.5 ? e.face * 290 * e.spd : 0; return e.mt > 0.65; } },
   bascule: { start(e, p) { e.face = egCx(e) < VW / 2 ? 1 : -1; egAnim(e, "saut"); e.vy = -400; e.vx = e.face * 230 * e.spd; e.ground = false; },   // saute de l'autre côté
     update(e, p, dt) { if (e.ground && e.mt > 0.2) { e.vx = 0; shake = Math.max(shake, 2); return true; } return false; } },
 };
-const EG_CONTACT = { charge: e => e.mt > 0.45, bond: e => !e.ground, glissade: e => e.mt > 0.1 && e.mt < 0.5, glisse: e => e.mt > 0.1 && e.mt < 0.5, saut: e => !e.ground, bascule: e => !e.ground };
+const EG_CONTACT = { course: e => e.mt > 0.15 && e.mt < 0.95, charge: e => e.mt > 0.45, bond: e => !e.ground, glissade: e => e.mt > 0.1 && e.mt < 0.5, glisse: e => e.mt > 0.1 && e.mt < 0.5, saut: e => !e.ground, bascule: e => !e.ground };
 const EG_SETS = {
   brie: e => [["charge", 3], ["aboie", 3], ["bond", 2], ["crotte", e.rage ? 2 : 1]],
   jules: e => [["orbe", 3], ["glissade", 2], ["pieds", 2], ["saut", 2]],
-  laurene: e => e.furie ? [["bouquet", 3], ["chevre", 2], ["bouteille", 3], ["bascule", 1]] : [["bouquet", 3], ["chevre", 2], ["bouteille", 2], ["glisse", 2], ["bascule", 1]],
+  laurene: e => e.furie ? (hasAtlas("eg_laurene_furie") ? [["orbe_furie", 3], ["laser", 2], ["course", 2], ["bascule", 1]] : [["bouquet", 3], ["chevre", 2], ["bouteille", 3], ["bascule", 1]]) : [["bouquet", 3], ["chevre", 2], ["bouteille", 2], ["glisse", 2], ["bascule", 1]],
 };
-function egStartMove(e, name) { e.mv = name; e.mt = 0; e.done = false; e.atkBox = false; EG_MOVES[name].start(e, targetOf(e)); }
+function egStartMove(e, name) { e.beam = null; e.mv = name; e.mt = 0; e.done = false; e.atkBox = false; EG_MOVES[name].start(e, targetOf(e)); }
 function egPick(e) {
   const set = EG_SETS[e.id](e), tot = set.reduce((a, [, w]) => a + w, 0); let r = Math.random() * tot;
   for (const [n, w] of set) { r -= w; if (r <= 0) { if (n === e.lastMv && Math.random() < 0.6) continue; e.lastMv = n; return n; } }
@@ -435,15 +464,21 @@ SCREENS.eglise = {
       if (e.furie) glow(ctx, egCx(e), e.y + e.h / 2, 40, "255,40,80", 0.3 + 0.1 * Math.sin(time * 8));
       else if (e.rage) glow(ctx, egCx(e), e.y + e.h / 2, 32, e.id === "jules" ? "160,80,255" : "255,90,120", 0.2);
       const a = e.inv > 0 && !e.down && Math.floor(time * 30) % 2 ? 0.5 : 1;
-      if (hasAtlas(e.B.atlas)) drawFrame(e.B.atlas, egFrame(e), Math.round(egCx(e)), EG_FLOOR + (e.ground ? 0 : Math.round(e.y + e.h - EG_FLOOR)), e.face, a);
+      if (hasAtlas(e.B.atlas)) drawFrame(egAtlas(e), egFrame(e), Math.round(egCx(e)), EG_FLOOR + (e.ground ? 0 : Math.round(e.y + e.h - EG_FLOOR)), e.face, a);
       else R(e.x, e.y, e.w, e.h, e.B.color);
+      if (e.beam && !e.down) {   // le laser des yeux, prolongé jusqu'au bord de l'écran
+        const b = e.beam, x0 = Math.min(b.x1, b.x2), w = Math.abs(b.x2 - b.x1), fl = Math.sin(time * 40) > 0;
+        glow(ctx, b.x1, b.y, 14, "255,45,106", 0.7);
+        R(Math.round(x0), b.y - 3, Math.round(w), 6, "rgba(255,45,106,0.55)"); R(Math.round(x0), b.y - (fl ? 1 : 2), Math.round(w), fl ? 2 : 4, "#ffd0dc");
+      }
     }
     // projectiles
     for (const l of lasers) {
       if (l.wpn) { drawWProj(l); continue; }
       if (!l.eg) continue;
       const cx = l.x + l.w / 2, cy = l.y + l.h / 2, spin = Math.floor(l.t * 10) % 3;
-      if (l.kind === "orb") { glow(ctx, cx, cy, 10, l.owner === "player" ? "255,255,255" : "200,110,255", 0.6); if (hasAtlas("eg_orbe")) drawFrame("eg_orbe", 0, cx, cy); }
+      if (l.kind === "orb" && l.red) { glow(ctx, cx, cy, 12, l.owner === "player" ? "255,255,255" : "255,45,106", 0.7); if (hasAtlas("eg_orbe")) drawTinted("eg_orbe", 0, l.owner === "player" ? "#ffffff" : "#ff2d6a", cx, cy); else R(cx - 4, cy - 4, 8, 8, "#ff2d6a"); if (Math.random() < 0.5) parts.push({ x: cx, y: cy, vx: -l.vx * 0.2, vy: -10, life: 0.3, max: 0.3, color: "#ff8aa0", size: 1, grav: 0 }); }
+      else if (l.kind === "orb") { glow(ctx, cx, cy, 10, l.owner === "player" ? "255,255,255" : "200,110,255", 0.6); if (hasAtlas("eg_orbe")) drawFrame("eg_orbe", 0, cx, cy); }
       else if (l.kind === "bouquet" || l.kind === "bouteille") drawFrame("eg_proj", ATL.eg_proj.anims[l.kind][0] + spin, cx, cy, l.vx < 0 ? -1 : 1);
       else if (l.kind === "chevre") drawFrame("eg_proj", ATL.eg_proj.anims.chevre[0] + (l.run ? 0 : 1 + spin % 2), cx, cy - 2, l.vx < 0 ? -1 : 1, 1, 0.8);
       else if (l.kind === "bark") { ctx.strokeStyle = "#fccc28"; ctx.lineWidth = 2; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(cx - Math.sign(l.vx) * k * 5, cy, 4 + k * 3, Math.sign(l.vx) > 0 ? -0.9 : Math.PI - 0.9, Math.sign(l.vx) > 0 ? 0.9 : Math.PI + 0.9); ctx.stroke(); } }

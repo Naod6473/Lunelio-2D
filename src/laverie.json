@@ -121,6 +121,33 @@
    },
    "note": "Laurene (église)"
   },
+  "eg_laurene_furie": {
+   "src": "assets/laverie/eg_laurene_furie.png",
+   "cw": 150,
+   "ch": 90,
+   "ax": 50,
+   "ay": 86,
+   "cols": 6,
+   "anims": {
+    "course": [
+     0,
+     6
+    ],
+    "orbe": [
+     6,
+     6
+    ],
+    "saut": [
+     12,
+     6
+    ],
+    "laser": [
+     18,
+     6
+    ]
+   },
+   "note": "Laurène en furie (église)"
+  },
   "eg_brie": {
    "src": "assets/laverie/eg_brie.png",
    "cw": 84,
