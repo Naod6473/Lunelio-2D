@@ -443,16 +443,16 @@ bindBtn("bJump", "TJump"); bindBtn("bAtk", "TAtk"); bindBtn("bSpec", "TSpec"); b
 let uiShown = "";
 function syncTouchUI() {
   const C = state === "versus" ? CHARS[VS.cfg.c1] : ch();   // versus : le héros du joueur 1
-  const key = state + C.id + df().id + PAD + (state === "dahaka" ? DK.st : "") + (state === "versus" ? VS.st : "");
+  const key = state + C.id + df().id + PAD + (state === "dahaka" ? DK.st : "") + (state === "tour" ? TW.st : "") + (state === "versus" ? VS.st : "");
   if (key === uiShown) return; uiShown = key;
-  const moving = state === "play" || state === "hub" || state === "eglise" || (state === "versus" && VS.st !== "end") || (state === "dahaka" && DK.st !== "result");
+  const moving = state === "play" || state === "hub" || state === "eglise" || (state === "versus" && VS.st !== "end") || (state === "dahaka" && DK.st !== "result") || (state === "tour" && TW.st !== "result");
   document.body.classList.toggle("playing", moving);
   const sp = specialOf(C), pw = powerOf(C);
   const bs = document.getElementById("bSpec");
   bs.style.display = moving && sp && sp.button ? "" : "none";
   if (sp && sp.button) bs.innerHTML = `${sp.icon}<small>${sp.label}</small>`;
   const pow = document.getElementById("bPow");
-  pow.style.display = (state === "play" || state === "dahaka" || state === "eglise" || state === "versus") && (df().power || state === "versus") && pw ? "" : "none";
+  pow.style.display = (state === "play" || state === "dahaka" || state === "tour" || state === "eglise" || state === "versus") && (df().power || state === "versus") && pw ? "" : "none";
   if (pw) { document.getElementById("powIcon").textContent = pw.icon; document.getElementById("powLbl").textContent = pw.label; }
   if (!moving) for (const k of ["TLeft", "TRight", "TDown", "TJump", "TAtk", "TSpec", "TPow"]) keys[k] = false;
 }
@@ -886,6 +886,7 @@ function musicKey() {
   if (state === "chars") return charMusic(CHARS[charSel]);
   if (state === "eglise") return egliseMusic();
   if (state === "versus" || state === "vssetup") return versusMusic();
+  if (state === "tour") return pickList(audio.list("tour", "musique/bonus/tour"), 0) || pickList(audio.list("dahaka", "musique/bonus/dahaka"), 0) || "synth:boss";
   if (state === "dahaka") return DK.lv === "grotte"
     ? pickList(audio.list("dahaka_grotte", "musique/bonus/dahaka_grotte"), 0) || pickList(audio.list("dahaka", "musique/bonus/dahaka"), 0) || pickList(audio.list("boss:reine_chauve_souris", "musique/boss/reine_chauve_souris"), 0) || "synth:boss"
     : pickList(audio.list("dahaka", "musique/bonus/dahaka"), 0) || pickList(audio.list("boss:maitre_ombres", "musique/boss/maitre_ombres"), 0) || "synth:boss";
@@ -1396,7 +1397,8 @@ function damageBoss(e, dmg) {
 }
 // src : "atk" (sabre), "dash", "laser" (tir renvoyé) ou "proj" (arme du râtelier, dégâts dmg)
 function hitEnemy(e, src, p, dmg) {
-  if (e.type === "vsp") { vsHit(e.pl, src, p, dmg); return; }   // versus (versus.js) : l'autre joueur
+  if (e.type === "vsp") { vsHit(e.pl, src, p, dmg); return; }
+  if (e.type === "tour") { tourHit(e, src, p, dmg); return; }   // tonneaux et robots de la tour (tour.js)   // versus (versus.js) : l'autre joueur
   if (e.type === "egcar") { egCarHit(e, p); return; }   // voiture de Mamie géante (eglise.js) : frappée au bon moment, elle repart
   if (e.type === "egboss") {   // boss de l'église (eglise.js) : un coup de sabre ou un dash ne touche qu'une fois
     if (src === "atk") { if (p.hitList.has(e)) return; p.hitList.add(e); audio.sfx("sword_hit"); }
@@ -2279,11 +2281,24 @@ function drawWorlds() {
 }
 // Nouvelle campagne : 6 mondes, puis la carte du monde bonus (ancienne aventure, toujours ouverte)
 let bonusThumb = null, bonusThumbFor = null;
-const SECRET_CARD = () => SAVE.flags.dahaka ? CWORLDS.length + 1 : -1;   // carte du niveau secret, une fois le mot de passe trouvé
-const EGLISE_CARD = () => egliseOpen() ? CWORLDS.length + (SAVE.flags.dahaka ? 2 : 1) : -1;   // l'église, après les 6 mondes (eglise.js)
-const RUSH_CARD = () => rushOpen() ? CWORLDS.length + 1 + (SAVE.flags.dahaka ? 1 : 0) + (egliseOpen() ? 1 : 0) : -1;   // boss rush (rush.js)
-const PLUIE_CARD = () => pluieOpen() ? CWORLDS.length + 1 + (SAVE.flags.dahaka ? 1 : 0) + (egliseOpen() ? 1 : 0) + (rushOpen() ? 1 : 0) : -1;   // pluie de chaussettes (pluie.js)
-const campCardCount = () => CWORLDS.length + 2 + (SAVE.flags.dahaka ? 1 : 0) + (egliseOpen() ? 1 : 0) + (rushOpen() ? 1 : 0) + (pluieOpen() ? 1 : 0);   // + la carte Versus, toujours la dernière (VS_CARD, versus.js)
+// Cartes de l'écran des mondes, dans l'ordre : les 6 mondes, le monde bonus, puis celles qui s'ouvrent (niveaux secrets, église,
+// boss rush, pluie de chaussettes) et le versus, toujours le dernier (VS_CARD, versus.js)
+function campCards() {
+  const L = CWORLDS.map((W, i) => i); L.push("bonus");
+  if (SAVE.flags.dahaka) L.push("dahaka");
+  if (SAVE.flags.tour) L.push("tour");
+  if (egliseOpen()) L.push("eglise");
+  if (rushOpen()) L.push("rush");
+  if (pluieOpen()) L.push("pluie");
+  L.push("versus"); return L;
+}
+const campCardIdx = id => campCards().indexOf(id);
+const SECRET_CARD = () => campCardIdx("dahaka");   // niveau secret du Dahaka, une fois le mot de passe trouvé
+const TOUR_CARD = () => campCardIdx("tour");       // la tour qui tourne (tour.js)
+const EGLISE_CARD = () => campCardIdx("eglise");   // l'église, après les 6 mondes (eglise.js)
+const RUSH_CARD = () => campCardIdx("rush");       // boss rush (rush.js)
+const PLUIE_CARD = () => campCardIdx("pluie");     // pluie de chaussettes (pluie.js)
+const campCardCount = () => campCards().length;
 // cartes par pages de 8 (WPAGE) : la carte i est dessinée dans la case WUI[i % WPAGE] de la page de la carte choisie
 const campRect = i => WUI[i % WPAGE], campOnPage = i => Math.floor(i / WPAGE) === Math.floor(worldSel / WPAGE);
 // Meilleur temps (et médaille) d'une carte, dans le coin bas droit de sa vignette
@@ -2294,11 +2309,11 @@ function cardTime(r, th, label, md) {
   if (md) drawMedal(md, x + 7, y + 5, 0.6);
 }
 function updateCampWorlds() {
-  if (dkPickUpdate() || dahakaType() || miroirType()) return;
+  if (dkPickUpdate() || dahakaType() || tourType() || miroirType()) return;
   egliseCheat();
   const prog = campProgress(), n = campCardCount();
   const open = i => i >= CWORLDS.length || i <= prog;
-  const go = i => { if (i === VS_CARD()) openVersus(); else if (i === PLUIE_CARD()) startPluie(); else if (i === RUSH_CARD()) startRush(); else if (i === EGLISE_CARD()) startEglise(); else if (i === SECRET_CARD()) openDkPick(); else if (i === CWORLDS.length) { mode = "bonus"; audio.sfx("select"); openWorlds(); } else startCampWorld(i); };
+  const go = i => { if (i === VS_CARD()) openVersus(); else if (i === PLUIE_CARD()) startPluie(); else if (i === RUSH_CARD()) startRush(); else if (i === EGLISE_CARD()) startEglise(); else if (i === SECRET_CARD()) openDkPick(); else if (i === TOUR_CARD()) startTour(); else if (i === CWORLDS.length) { mode = "bonus"; audio.sfx("select"); openWorlds(); } else startCampWorld(i); };
   if (hit("Escape", "GB") || (hit("Mouse0") && inside({ x: 8, y: 6, w: 50, h: 20 }))) { audio.sfx("back"); enterHub({ x: 380 }); return; }
   if ((keys.ShiftLeft || keys.ShiftRight) && hit("KeyD")) { setCampProgress(CWORLDS.length); msg = { text: "Tous les mondes sont débloqués", t: 2 }; audio.sfx("door"); }
   if (hit(...K.left)) { worldSel = (worldSel + n - 1) % n; audio.sfx("select"); }
@@ -2317,7 +2332,7 @@ function drawCampWorlds() {
   if (pages > 1) text(`Page ${Math.floor(worldSel / WPAGE) + 1}/${pages}`, VW - 10, 30, 7, "#b9a6e0", "right");
   for (let i = 0; i < n; i++) {
     if (!campOnPage(i)) continue;
-    const r = campRect(i), sel = i === worldSel, secret = i === SECRET_CARD(), eglise = i === EGLISE_CARD(), rushC = i === RUSH_CARD(), pluieC = i === PLUIE_CARD(), vsC = i === VS_CARD(), bonus = i === CWORLDS.length, locked = !bonus && !secret && !eglise && !rushC && !pluieC && !vsC && i > prog;
+    const r = campRect(i), sel = i === worldSel, secret = i === SECRET_CARD(), tourC = i === TOUR_CARD(), eglise = i === EGLISE_CARD(), rushC = i === RUSH_CARD(), pluieC = i === PLUIE_CARD(), vsC = i === VS_CARD(), bonus = i === CWORLDS.length, locked = !bonus && !secret && !tourC && !eglise && !rushC && !pluieC && !vsC && i > prog;
     const tw = r.w - 8, th = Math.round(tw * VH / VW);
     R(r.x, r.y, r.w, r.h, "rgba(14,8,30,0.9)");
     ctx.imageSmoothingEnabled = true;
@@ -2326,6 +2341,7 @@ function drawCampWorlds() {
     else if (rushC) drawRushCard(r, tw, th);
     else if (eglise) drawEgliseCard(r, tw, th);
     else if (secret) drawDahakaCard(r, tw, th);
+    else if (tourC) drawTourCard(r, tw, th);
     else if (bonus) { if (bonusThumbFor !== C.id) { bonusThumb = oldThumb(0); bonusThumbFor = C.id; } ctx.drawImage(bonusThumb, r.x + 4, r.y + 4, tw, th); }
     else { const im = getImg(CWORLDS[i].rooms[0].bg); if (im.ok) ctx.drawImage(im.img, r.x + 4, r.y + 4, tw, th); else R(r.x + 4, r.y + 4, tw, th, "#1a1030"); }
     ctx.imageSmoothingEnabled = false;
@@ -2344,6 +2360,10 @@ function drawCampWorlds() {
     } else if (eglise) {
       text("✝ L'église", r.x + 5, r.y + r.h - 22, 8, "#ff5a7a");
       text("Un mariage pas comme les autres…", r.x + 5, r.y + r.h - 10, 6, "#b9a6e0");
+    } else if (tourC) {
+      text("✦ La tour qui tourne", r.x + 5, r.y + r.h - 22, 8, "#ff8ad8");
+      text("Grimpe, la mousse monte !", r.x + 5, r.y + r.h - 10, 6, "#b9a6e0");
+      const b = tourBest(); if (b) cardTime(r, th, `${b} m`, 0);
     } else if (secret) {
       text("✦ Niveau secret", r.x + 5, r.y + r.h - 22, 8, "#c86eff");
       text("La course du Dahaka (2 parcours)", r.x + 5, r.y + r.h - 10, 6, "#b9a6e0");

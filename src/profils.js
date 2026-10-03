@@ -236,7 +236,7 @@ function saveSummary(sv) {
   const best = {}; for (const [k, v] of Object.entries(sv.best || {})) if (k.startsWith("camp|") && v && typeof v.time === "number") best[k] = v.time;
   const chal = {}; for (const [k, c] of Object.entries(sv.chal || {})) if (c && c.best) chal[k] = c.best;
   return { mondes: (sv.camp || {}).done || 0, chaussettes: Object.keys(sv.socks || {}).length, badges: Object.keys(sv.got || {}).filter(k => k.startsWith("badge:")).length,
-    best, rush: (sv.rush || {}).best || {}, rushAvec: (sv.rush || {}).avec || {}, dahaka: (sv.dahaka || {}).best || {}, pluie: (sv.pluie || {}).best || {}, chal };
+    best, rush: (sv.rush || {}).best || {}, rushAvec: (sv.rush || {}).avec || {}, dahaka: (sv.dahaka || {}).best || {}, tour: (sv.tour || {}).best || {}, pluie: (sv.pluie || {}).best || {}, chal };
 }
 // Les profils du tableau : ceux du serveur (si on y a accès), complétés par ceux de cet appareil (le profil en cours est à jour)
 function familyRows() {
@@ -268,6 +268,7 @@ function familyRecords(rows, d) {
   }
   bestOf(r => r.dahaka[d], gt, v => `${Math.floor(v)} m`, "Dahaka : temple", null);
   bestOf(r => r.dahaka[`grotte|${d}`], gt, v => `${Math.floor(v)} m`, "Dahaka : grotte", null);
+  if (rows.some(r => r.tour && r.tour[d])) bestOf(r => (r.tour || {})[d], gt, v => `${Math.floor(v)} m`, "La tour qui tourne", null);
   return recs;
 }
 function openFamily() { FAM.diff = FAM.diff || df().id; syncScores(); }

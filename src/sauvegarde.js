@@ -31,6 +31,7 @@ function newSave() {
     jukebox: null, lastChar: null,
     weapons: { owned: randomWeapons(2), eq: {} },            // armes du râtelier : possédées, et arme choisie par héros
     dahaka: { best: {} },                                    // niveau secret : record (mètres) par difficulté
+    tour: { best: {} },                                      // la tour qui tourne (niveau secret) : record (mètres) par difficulté
     pluie: { best: {} },                                     // pluie de chaussettes (mode secret) : record (secondes) par difficulté, seul ou à deux
     rush: { best: {}, avec: {} },                            // boss rush : record (secondes) par difficulté, en solo ou à deux ; avec : nom du joueur 2
   };

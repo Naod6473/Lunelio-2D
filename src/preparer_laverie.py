@@ -853,6 +853,120 @@ def prepare_loading():
         n += 1
     return n
 
+# La tour qui tourne (niveau secret, tour.js) : sources dans tour/ (docs/prompt_tour.md).
+# Texture du mur enroulée sur un cylindre par le jeu : réduite à TOUR_TEX_W de large (la moitié du tour de la tour, elle se
+# répète deux fois) ; marches et corniches posées sur leur ligne de marche (ay) ; ennemis, décors, nuages et bulles recalés
+# dans des cases régulières ; fonds et vignette en 480 × 272.
+TOUR_TEX_W = 376
+
+def alpha_box(cell, th=150):
+    return cell.split()[3].point(lambda v: 255 if v > th else 0).getbbox()
+
+def sharp(im):
+    im.putalpha(im.split()[3].point(lambda v: 255 if v > 110 else 0)); return im
+
+def tour_cells(im, cols, rows, s, cw, ch, anchor, row_n=None, ys=None):
+    """Planche en cases : chaque image est réduite à l'échelle s et posée dans une case cw × ch, centrée (« center ») ou
+    pieds en bas (« feet » : axe vertical = milieu pondéré du haut du corps, stable quand les jambes bougent)."""
+    sw = im.width / cols; ys = ys or [(round(r * im.height / rows), round((r + 1) * im.height / rows)) for r in range(rows)]
+    frames = []
+    for r, (y0, y1) in enumerate(ys):
+        for c in range((row_n or [cols] * rows)[r]):
+            cell = drop_edge_bits(im.crop((round(c * sw), y0, round((c + 1) * sw), y1)))
+            b = alpha_box(cell); out = Image.new("RGBA", (cw, ch))
+            if b:
+                part = cell.crop(b); small = sharp(part.resize((max(1, round(part.width * s)), max(1, round(part.height * s))), Image.BOX))
+                if anchor == "feet":
+                    top = part.crop((0, 0, part.width, max(1, round(part.height * 0.6)))).split()[3]
+                    cols_w = [sum(1 for y in range(top.height) if top.getpixel((x, y)) > 150) for x in range(top.width)]
+                    mx = sum(x * w for x, w in enumerate(cols_w)) / max(1, sum(cols_w))
+                    ox, oy = round(cw / 2 - mx * s), ch - small.height
+                else: ox, oy = (cw - small.width) // 2, (ch - small.height) // 2
+                out.paste(small, (ox, oy), small)
+            frames.append(out)
+    return frames
+
+def tour_sheet(name, frames, cols, ax, ay, anims, note):
+    cw, ch = frames[0].size; rows = (len(frames) + cols - 1) // cols
+    sheet = Image.new("RGBA", (cw * cols, ch * rows))
+    for i, f in enumerate(frames): sheet.paste(f, ((i % cols) * cw, (i // cols) * ch))
+    sheet.save(os.path.join(OUT, name + ".png"), optimize=True)
+    return {name: {"src": f"assets/laverie/{name}.png", "cw": cw, "ch": ch, "ax": ax, "ay": ay, "cols": cols, "anims": anims, "note": note}}
+
+def tour_slabs(im, n, w_in, cw, ch, line):
+    """Marches ou corniches sur une ligne de n cases : chaque objet réduit à w_in px de large (mesuré sur la première case),
+    le bord gauche et le dessus du premier objet au même endroit dans chaque case ; line : ligne de marche sous le dessus."""
+    sw = im.width / n; cells = [im.crop((round(c * sw), 0, round((c + 1) * sw), im.height)) for c in range(n)]
+    b0 = alpha_box(cells[0]); s = w_in / (b0[2] - b0[0]); frames = []
+    for cell in cells:
+        b = alpha_box(cell); part = cell.crop(b)
+        small = sharp(part.resize((max(1, round(part.width * s)), max(1, round(part.height * s))), Image.BOX))
+        out = Image.new("RGBA", (cw, ch)); out.paste(small, (2, 0), small); frames.append(out)
+    return frames, 2 + w_in // 2, line
+
+def prepare_tour():
+    d = os.path.join(SRC, "tour")
+    if not os.path.isdir(d): return {}
+    f = lambda n: os.path.join(d, n)
+    out = {}; os.makedirs(OUT, exist_ok=True)
+    # texture du mur : elle se répète sans raccord ; un peu assombrie (le décor reste moins contrasté que les marches)
+    if os.path.exists(f("tour_texture.png")):
+        im = Image.open(f("tour_texture.png")).convert("RGB"); th = round(TOUR_TEX_W * im.height / im.width)
+        tex = im.resize((TOUR_TEX_W, th), Image.BOX).point(lambda v: round(v * 0.85))
+        tex.save(os.path.join(OUT, "tour_texture.png"), optimize=True)
+        out["tour_texture"] = {"src": "assets/laverie/tour_texture.png", "cw": TOUR_TEX_W, "ch": th, "ax": 0, "ay": 0, "cols": 1, "anims": {"play": [0, 1]}, "note": "tour : texture du mur"}
+    if os.path.exists(f("marches.png")):   # 3 marches (fissurée, moussue, neuve), 42 px de large, ligne de marche à 3 px sous le dessus
+        fr, ax, ay = tour_slabs(Image.open(f("marches.png")).convert("RGBA"), 3, 42, 46, 18, 3)
+        out.update(tour_sheet("tour_marches", fr, 3, ax, ay, {"play": [0, 3]}, "tour : marches"))
+    if os.path.exists(f("plateformes.png")):   # corniche, plateforme mobile, corniche fissurée, effondrement
+        fr, ax, ay = tour_slabs(Image.open(f("plateformes.png")).convert("RGBA"), 4, 56, 84, 64, 4)
+        out.update(tour_sheet("tour_plateformes", fr, 4, ax, ay, {"corniche": [0, 1], "mobile": [1, 1], "fissure": [2, 1], "chute": [3, 1]}, "tour : plateformes"))
+    for n in ("fond_ciel", "fond_loin", "vignette"):
+        if os.path.exists(f(n + ".png")):
+            im = Image.open(f(n + ".png")).convert("RGBA").resize((480, 272), Image.BOX)
+            if n == "fond_loin": sharp(im)
+            im.save(os.path.join(OUT, "tour_" + n + ".webp"), lossless=True, quality=100, method=6)
+            out["tour_" + n] = {"src": f"assets/laverie/tour_{n}.webp", "cw": 480, "ch": 272, "ax": 240, "ay": 272, "cols": 1, "anims": {"play": [0, 1]}, "note": f"tour : {n}"}
+    if os.path.exists(f("fond_nuages.png")):   # 6 nuages séparés (3 × 2)
+        fr = tour_cells(Image.open(f("fond_nuages.png")).convert("RGBA"), 3, 2, 0.2, 116, 64, "center")
+        out.update(tour_sheet("tour_nuages", fr, 6, 58, 32, {"play": [0, 6]}, "tour : nuages"))
+    if os.path.exists(f("ennemi_tonneau.png")):   # roule (6), rebond (3), éclate en bulles (4)
+        fr = tour_cells(Image.open(f("ennemi_tonneau.png")).convert("RGBA"), 6, 3, 0.115, 36, 36, "center", [6, 3, 4])
+        out.update(tour_sheet("tour_tonneau", fr, 6, 18, 18, {"roule": [0, 6], "rebond": [6, 3], "eclate": [9, 4]}, "tour : tonneau de lessive"))
+    if os.path.exists(f("ennemi_robot.png")):   # marche (6), saut de marche (4), étourdi (2), étincelles et boulons (4)
+        fr = tour_cells(Image.open(f("ennemi_robot.png")).convert("RGBA"), 6, 4, 0.135, 40, 40, "feet", [6, 4, 2, 4])
+        out.update(tour_sheet("tour_robot", fr, 6, 20, 40, {"marche": [0, 6], "saut": [6, 4], "etourdi": [10, 2], "explose": [12, 4]}, "tour : petit robot"))
+    if os.path.exists(f("decors.png")):   # torche, fenêtre, drapeau, cristal (4 images chacun)
+        fr = tour_cells(Image.open(f("decors.png")).convert("RGBA"), 4, 4, 0.085, 30, 30, "center")
+        out.update(tour_sheet("tour_decors", fr, 4, 15, 15, {"torche": [0, 4], "fenetre": [4, 4], "drapeau": [8, 4], "cristal": [12, 4]}, "tour : décors du mur"))
+    if os.path.exists(f("mousse.png")):
+        im = Image.open(f("mousse.png")).convert("RGBA")
+        # bande de mousse : 4 images côte à côte (chacune se répète sans raccord), 160 px de large en jeu
+        band = [sharp(im.crop((round(k * im.width / 4), 120, round((k + 1) * im.width / 4), 290)).resize((160, 50), Image.BOX)) for k in range(4)]
+        out.update(tour_sheet("tour_mousse", band, 4, 0, 0, {"play": [0, 4]}, "tour : bande de mousse"))
+        # bulles : 6 tailles puis 3 images d'éclatement, séparées par les colonnes vides de la 2e ligne
+        row = im.crop((0, 360, im.width, im.height)); a = row.split()[3].point(lambda v: 255 if v > 150 else 0)
+        used = [a.crop((x, 0, x + 1, a.height)).getbbox() is not None for x in range(a.width)]
+        spans, x = [], 0
+        while x < len(used):
+            if used[x]:
+                x0 = x
+                while x < len(used) and (used[x] or any(used[x:x + 12])): x += 1
+                if x - x0 > 20: spans.append((x0, x))
+            x += 1
+        bub = []
+        for x0, x1 in spans[:9]:
+            part = drop_edge_bits(row.crop((x0, 0, x1, row.height))); b = alpha_box(part); part = part.crop(b)
+            small = sharp(part.resize((max(1, round(part.width * 0.12)), max(1, round(part.height * 0.12))), Image.BOX))
+            c = Image.new("RGBA", (32, 32)); c.paste(small, ((32 - small.width) // 2, (32 - small.height) // 2), small); bub.append(c)
+        out.update(tour_sheet("tour_bulles", bub, len(bub), 16, 16, {"bulle": [0, 6], "eclate": [6, max(0, len(bub) - 6)]}, "tour : bulles de savon"))
+    if os.path.exists(f("base_sommet.png")):   # la base (porte et lanternes), à gauche de l'image
+        im = Image.open(f("base_sommet.png")).convert("RGBA"); half = im.crop((0, 0, im.width // 2, im.height)); b = alpha_box(half)
+        part = half.crop(b); s = 170 / part.width; small = sharp(part.resize((170, round(part.height * s)), Image.BOX))
+        small.save(os.path.join(OUT, "tour_base.png"), optimize=True)
+        out["tour_base"] = {"src": "assets/laverie/tour_base.png", "cw": 170, "ch": small.height, "ax": 85, "ay": small.height, "cols": 1, "anims": {"play": [0, 1]}, "note": "tour : la base"}
+    return out
+
 def main():
     atlas, missing = {}, []
     d = prepare_dahaka()
@@ -875,6 +989,7 @@ def main():
         else: missing.append(spec[0])
     atlas.update(prepare_bulle())   # après les planches génériques : remplace l'ancienne Mme Bulle
     atlas.update(prepare_bobine())  # de même pour Bobine
+    atlas.update(prepare_tour())    # la tour qui tourne (niveau secret)
     fade_foreground()
     prepare_loading()
     json.dump({"atlas": atlas}, open(os.path.join(HERE, "laverie.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)

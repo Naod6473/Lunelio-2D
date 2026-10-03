@@ -91,6 +91,7 @@ def resume(sv):
         "rush": {k: t for k, t in (rush.get("best") or {}).items() if isinstance(t, (int, float))},
         "rushAvec": {k: n for k, n in (rush.get("avec") or {}).items() if isinstance(n, str)},
         "dahaka": {k: m for k, m in ((sv.get("dahaka") or {}).get("best") or {}).items() if isinstance(m, (int, float))},
+        "tour": {k: m for k, m in ((sv.get("tour") or {}).get("best") or {}).items() if isinstance(m, (int, float))},
         "pluie": {k: t for k, t in ((sv.get("pluie") or {}).get("best") or {}).items() if isinstance(t, (int, float))},
         "chal": chal,
     }

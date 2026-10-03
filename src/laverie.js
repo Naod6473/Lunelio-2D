@@ -220,6 +220,7 @@ function updateHub(rdt) {
     for (const q of players) if (a.t > 0.9 + q.idx * 0.2 && q.hidden) { q.hidden = false; q.inv = 0.4; q.vy = -200; q.vx = -60; addFx("fx_teleport", q.x + 5, q.y + q.h); burst(408, H.floor - 40, 24, ["#7dffb0", "#ffffff", "#c86eff"], 160, 0.6, 100, 1); if (!q.idx) audio.sfx("arrive"); }
     if (a.t > 1.6) hub.arrive = null;
   }
+  if (tourIntroUpdate(rdt)) return;   // la mousse de Mme Bulle envahit la laverie (tour.js)
   if (updateHubTrans(rdt)) { updateParts(rdt); updateFx(rdt); return; }
   if (updateDialog(rdt)) { updateBulle(rdt, players[0]); updateBobine(rdt, players[0]); updateParts(rdt); updateFx(rdt); return; }
   if (!hub.arrive && hub.queue.length) { hub.queue.shift()(); if (state !== "hub") return; }
@@ -243,6 +244,7 @@ function updateHub(rdt) {
   }
   if (!hub.arrive) for (const q of players) { updatePlayer(q, rdt); if (q.idx) coopKeepNear(q, H); }
   if (!hub.arrive) pluieTasUpdate(rdt, p);   // le secret du tas de chaussettes (pluie.js)
+  if (!hub.arrive) tourBulleUpdate(rdt, p);  // Mme Bulle tapée dix fois : la tour (tour.js)
   updateBulle(rdt, p); updateBobine(rdt, p);
   for (const s of STATIONS) if (s.id === "carnet") s.op = clamp((s.op || 0) + (hub.near === s ? 2.5 : -2.5) * rdt, 0, 1);   // le livre des secrets s'ouvre peu à peu
   updateParts(rdt); updateFx(rdt);
@@ -335,7 +337,9 @@ function drawHub() {
   // invite au-dessus du poste le plus proche
   const n = hub.near;
   if (n && !hub.dlg && !hub.trans && state === "hub") drawPrompt(clamp(n.x, hub.cam + 60, hub.cam + VW - 60), thingFloor(n) - (n.h || 40) - 10, stationOn(n) || n.npc || n.door ? n.label : n.label + " (bientôt)");
+  tourBulleDraw();
   ctx.restore();
+  tourIntroDraw();
   if (hub.trans) { ctx.globalAlpha = Math.min(1, hub.trans.t < 0.25 ? hub.trans.t / 0.25 : (0.5 - hub.trans.t) / 0.25); R(0, 0, VW, VH, "#0d0820"); ctx.globalAlpha = 1; }
 }
 // Portes entre les pièces : image fournie (fermée, ouverte quand on est devant), sinon dessin provisoire
@@ -711,7 +715,7 @@ function screenMusic() {
   return undefined;
 }
 function hubAmbience() {
-  if (state === "eglise") return;
+  if (state === "eglise" || state === "tour") return;
   const inHub = HUB_STATES.includes(state);
   audio.setAmbience(inHub && seasonAmbience() ? seasonAmbience() : inHub && hasSound("sfx/laverie/ambiance") ? "sfx/laverie/ambiance" : null);   // jour de pluie : bruit de pluie
 }

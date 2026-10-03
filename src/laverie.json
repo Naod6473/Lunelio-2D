@@ -2456,6 +2456,249 @@
     ]
    },
    "note": "portrait de brie (église)"
+  },
+  "tour_texture": {
+   "src": "assets/laverie/tour_texture.png",
+   "cw": 376,
+   "ch": 188,
+   "ax": 0,
+   "ay": 0,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "tour : texture du mur"
+  },
+  "tour_marches": {
+   "src": "assets/laverie/tour_marches.png",
+   "cw": 46,
+   "ch": 18,
+   "ax": 23,
+   "ay": 3,
+   "cols": 3,
+   "anims": {
+    "play": [
+     0,
+     3
+    ]
+   },
+   "note": "tour : marches"
+  },
+  "tour_plateformes": {
+   "src": "assets/laverie/tour_plateformes.png",
+   "cw": 84,
+   "ch": 64,
+   "ax": 30,
+   "ay": 4,
+   "cols": 4,
+   "anims": {
+    "corniche": [
+     0,
+     1
+    ],
+    "mobile": [
+     1,
+     1
+    ],
+    "fissure": [
+     2,
+     1
+    ],
+    "chute": [
+     3,
+     1
+    ]
+   },
+   "note": "tour : plateformes"
+  },
+  "tour_fond_ciel": {
+   "src": "assets/laverie/tour_fond_ciel.webp",
+   "cw": 480,
+   "ch": 272,
+   "ax": 240,
+   "ay": 272,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "tour : fond_ciel"
+  },
+  "tour_fond_loin": {
+   "src": "assets/laverie/tour_fond_loin.webp",
+   "cw": 480,
+   "ch": 272,
+   "ax": 240,
+   "ay": 272,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "tour : fond_loin"
+  },
+  "tour_vignette": {
+   "src": "assets/laverie/tour_vignette.webp",
+   "cw": 480,
+   "ch": 272,
+   "ax": 240,
+   "ay": 272,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "tour : vignette"
+  },
+  "tour_nuages": {
+   "src": "assets/laverie/tour_nuages.png",
+   "cw": 116,
+   "ch": 64,
+   "ax": 58,
+   "ay": 32,
+   "cols": 6,
+   "anims": {
+    "play": [
+     0,
+     6
+    ]
+   },
+   "note": "tour : nuages"
+  },
+  "tour_tonneau": {
+   "src": "assets/laverie/tour_tonneau.png",
+   "cw": 36,
+   "ch": 36,
+   "ax": 18,
+   "ay": 18,
+   "cols": 6,
+   "anims": {
+    "roule": [
+     0,
+     6
+    ],
+    "rebond": [
+     6,
+     3
+    ],
+    "eclate": [
+     9,
+     4
+    ]
+   },
+   "note": "tour : tonneau de lessive"
+  },
+  "tour_robot": {
+   "src": "assets/laverie/tour_robot.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 40,
+   "cols": 6,
+   "anims": {
+    "marche": [
+     0,
+     6
+    ],
+    "saut": [
+     6,
+     4
+    ],
+    "etourdi": [
+     10,
+     2
+    ],
+    "explose": [
+     12,
+     4
+    ]
+   },
+   "note": "tour : petit robot"
+  },
+  "tour_decors": {
+   "src": "assets/laverie/tour_decors.png",
+   "cw": 30,
+   "ch": 30,
+   "ax": 15,
+   "ay": 15,
+   "cols": 4,
+   "anims": {
+    "torche": [
+     0,
+     4
+    ],
+    "fenetre": [
+     4,
+     4
+    ],
+    "drapeau": [
+     8,
+     4
+    ],
+    "cristal": [
+     12,
+     4
+    ]
+   },
+   "note": "tour : décors du mur"
+  },
+  "tour_mousse": {
+   "src": "assets/laverie/tour_mousse.png",
+   "cw": 160,
+   "ch": 50,
+   "ax": 0,
+   "ay": 0,
+   "cols": 4,
+   "anims": {
+    "play": [
+     0,
+     4
+    ]
+   },
+   "note": "tour : bande de mousse"
+  },
+  "tour_bulles": {
+   "src": "assets/laverie/tour_bulles.png",
+   "cw": 32,
+   "ch": 32,
+   "ax": 16,
+   "ay": 16,
+   "cols": 9,
+   "anims": {
+    "bulle": [
+     0,
+     6
+    ],
+    "eclate": [
+     6,
+     3
+    ]
+   },
+   "note": "tour : bulles de savon"
+  },
+  "tour_base": {
+   "src": "assets/laverie/tour_base.png",
+   "cw": 170,
+   "ch": 110,
+   "ax": 85,
+   "ay": 110,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "tour : la base"
   }
  }
 }

@@ -96,6 +96,8 @@ function bulleSecret() {
 const SECRETS = [
   { id: "dahaka", name: "La course du Dahaka", found: () => SAVE.flags.dahaka, what: "Un niveau sans fin : cours, le démon du temps te poursuit !",
     hint: "Devant les mondes, tape le nom du démon qui poursuit le prince (six lettres, il commence par D)." },
+  { id: "tour", name: "La tour qui tourne", found: () => SAVE.flags.tour, what: "Grimpe la tour en spirale le plus haut possible : la mousse monte !",
+    hint: "Mme Bulle n'aime pas qu'on la tape… dix fois de suite, elle se fâche ! (Ou devant les mondes, tape ce qu'on fait dans une laverie.)" },
   { id: "pluie", name: "La pluie de chaussettes", found: () => SAVE.flags.pluie, what: "Attrape 50 chaussettes qui tombent du ciel.",
     hint: "Le tas de chaussettes de la laverie n'aime pas qu'on le chatouille… au sabre, plusieurs fois de suite." },
   { id: "grosses_tetes", name: "Les grosses têtes", found: () => SAVE.flags.bigHeads, what: "Tout le monde a une énorme tête ! (dans les options)",
