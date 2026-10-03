@@ -218,6 +218,11 @@ const CHARS = [
     desc: "Elle lance des cœurs magiques !",
     color: "#ff8ad8", glow: "255,138,216", ui: "#ff8ad8", ui2: "#c86eff", atkW: 30,
     sky: ["#1a0820", "#4a1240", "#8a2a6a"], moon: ["#fff0fa", "#ff9ad8"], stripe: "#4a1240", stars: "255,220,245", city: ["#22091e", "#180616"] },
+  // grunt : bruitage de la voix (sfx/joueur/<grunt>/grunt.mp3 et ses variantes) aux coups, sauts, dash et dégâts, hauteur au hasard
+  { id: "simon", name: "Simon", special: "dash", power: null, grunt: "simon", atkLabel: "coups de poing", atkVerb: "frapper", music: "backgroundhelio", logo: "helio", theme: null, unlock: null,
+    desc: "Il cogne fort avec ses gros gants !",
+    color: "#ffb46a", glow: "255,180,106", ui: "#ffb46a", ui2: "#4a6aa8", atkW: 28,
+    sky: ["#100a08", "#2a1a14", "#5a3020"], moon: ["#fff0e0", "#ffb46a"], stripe: "#2a1a14", stars: "255,230,210", city: ["#1a120e", "#100a08"] },
   // secret: héroïne cachée (carte « ? » sur l'écran du choix tant que SAVE.flags[secret] n'est pas posé) ; jumpV : saut plus haut
   { id: "guillie", name: "Guillie", special: null, power: "aboi", secret: "guillie", jumpV: 540, music: "backgroundhelio", logo: "helio", theme: null, unlock: null,
     desc: "Une chienne qui saute plus haut que tout le monde !", atkLabel: "coup de patte", atkVerb: "bousculer",
@@ -521,11 +526,11 @@ for (const W of WORLDS) {
 // Bruitages : nom utilisé par audio.sfx() → fichier ; sans fichier, le son synthétisé de audio.sfx() est joué.
 // jingle : courte musique qui baisse la musique de fond le temps de se jouer.
 // écart de hauteur des bruitages joués depuis un fichier (± 6 % d'habitude) : l'aboiement de Guillie change bien plus
-const SFX_PITCH = { aboi: 0.2 };
+const SFX_PITCH = { aboi: 0.2, "voix:simon": 0.15 };
 const SFX_FILES = {
   slash: "sfx/joueur/coup", sword_hit: "sfx/joueur/coup_touche", hit_foe: "sfx/ennemis/touche", hit_robot: "sfx/ennemis/touche_robot", jump: "sfx/joueur/saut", dj: "sfx/joueur/double_saut", dash: "sfx/joueur/dash", land: "sfx/joueur/atterrissage",
   deflect: "sfx/joueur/renvoi", hurt: "sfx/joueur/touche", heal: "sfx/joueur/soin",
-  aboi: "sfx/pouvoirs/aboiement", pw_fast: "sfx/pouvoirs/rapide", pw_slow: "sfx/pouvoirs/ralenti", pw_shield: "sfx/pouvoirs/bouclier", pw_superjump: "sfx/pouvoirs/super_saut",
+  aboi: "sfx/pouvoirs/aboiement", "voix:simon": "sfx/joueur/simon/grunt", pw_fast: "sfx/pouvoirs/rapide", pw_slow: "sfx/pouvoirs/ralenti", pw_shield: "sfx/pouvoirs/bouclier", pw_superjump: "sfx/pouvoirs/super_saut",
   pw_invisible: "sfx/pouvoirs/invisible", stun: "sfx/pouvoirs/etourdir", block: "sfx/pouvoirs/bloc", pw_heal: "sfx/pouvoirs/soin_groupe",
   gauge_full: "sfx/pouvoirs/jauge_pleine", pw_end: "sfx/pouvoirs/fin_pouvoir",
   sock: "sfx/collecte/chaussette", sock_bonus: "sfx/collecte/chaussette_bonus", heart: "sfx/collecte/coeur", energy: "sfx/collecte/energie",
@@ -1382,7 +1387,7 @@ function hurtPlayer(p, srcX) {
     // bouclier : le coup est absorbé
     p.inv = 0.35; audio.sfx("deflect"); burst(p.x + 5, p.y + 16, 12, ["#5ef0ff", "#ffffff"], 140, 0.3, 0, 1); return;
   }
-  p.hp--; p.hurtT = 0.4; if (lvl) lvl.hurt = true;
+  p.hp--; p.hurtT = 0.4; if (lvl) lvl.hurt = true; if (p.C.grunt) audio.sfx("voix:" + p.C.grunt);
   if (chal) chalHurt();
   shake = 6; hitstop = 0.08; audio.sfx("hurt");
   burst(p.x + 5, p.y + 14, 14, ["#ff3b5c", "#ffffff", p.C.color], 180, 0.5, 300, 2);
@@ -1442,7 +1447,7 @@ function updatePlayer(p, dt) {
     if (lvl.json && campTryInteract(p)) p.jumpBuf = 0;
     if (p.jumpBuf > 0) {
       const sj = p.powerOn && powerOf(C) && powerOf(C).superjump;
-      if (p.coyote > 0) { p.vy = sj ? -570 : -(C.jumpV || 450); p.coyote = 0; p.jumpBuf = 0; audio.sfx(sj ? "dj" : "jump"); if (sj) burst(p.x + 5, p.y + 30, 10, [C.color, "#ffffff"], 100, 0.4, 0, 1); }
+      if (p.coyote > 0) { p.vy = sj ? -570 : -(C.jumpV || 450); p.coyote = 0; p.jumpBuf = 0; audio.sfx(sj ? "dj" : "jump"); if (C.grunt && Math.random() < 0.35) audio.sfx("voix:" + C.grunt); if (sj) burst(p.x + 5, p.y + 30, 10, [C.color, "#ffffff"], 100, 0.4, 0, 1); }
       else if (C.special === "doublejump" && p.airJumps > 0) {
         p.vy = -400; p.airJumps--; p.jumpBuf = 0; p.djT = 0.32; audio.sfx("dj");
         burst(p.x + 5, p.y + 30, 12, [C.color, "#ffffff"], 120, 0.4, 0, 1);
@@ -1455,13 +1460,14 @@ function updatePlayer(p, dt) {
     if (C.special === "dash" && hit(...I.special) && p.dashCd <= 0 && (p.onGround || p.dashAir)) {
       if (dir) p.face = dir;
       p.dashT = 0.17; p.dashCd = 0.65; p.dashHits = new Set(); if (!p.onGround) p.dashAir = false; p.atkT = -1;
-      audio.sfx("dash"); shake = Math.max(shake, 2);
+      audio.sfx("dash"); shake = Math.max(shake, 2); if (C.grunt) audio.sfx("voix:" + C.grunt);
     }
   }
   const wpn = curWeapon(p);   // arme du râtelier (armes.js) : elle remplace le coup de sabre
   const magic = C.attack === "magie";
   if (wpn.id === "sabre" && hit(...I.attack) && p.atkCd <= 0 && p.dashT <= 0) {
-    p.atkT = 0; p.atkCd = magic ? 0.42 : 0.34; p.hitList = new Set(); p.cast = false; audio.sfx(magic ? "laser" : "slash");
+    p.atkT = 0; p.atkCd = magic ? 0.42 : 0.34; p.hitList = new Set(); p.cast = false; p.combo = (p.combo || 0) + 1; p.atkAir = !p.onGround; audio.sfx(magic ? "laser" : "slash");
+    if (C.grunt && Math.random() < 0.7) audio.sfx("voix:" + C.grunt);
     if (dir) p.face = dir;
     if (p.onGround) p.vx += p.face * 90;
   }
@@ -1850,7 +1856,11 @@ function basePlayerFrame(p) {
     const sp = (ATL[charAtlas(C)] || { anims: {} }).anims.special;
     return sp && sp[1] >= 4 ? sp[0] + Math.min(3, Math.floor((0.32 - p.djT) / 0.08)) : 18;
   }
-  if (p.atkT >= 0) return 12 + Math.min(4, Math.floor(p.atkT / 0.06));
+  if (p.atkT >= 0) {   // coup de pied en l'air, ou coups léger et fort en alternance, si la planche les a
+    const a = p.atkAir && An.attack_air ? An.attack_air : An.attack2 && p.combo % 2 === 0 ? An.attack2 : null;
+    if (a) return a[0] + Math.min(a[1] - 1, Math.floor(p.atkT / 0.3 * a[1]));
+    return 12 + Math.min(4, Math.floor(p.atkT / 0.06));
+  }
   if (!p.onGround) return 18 + (p.vy < 0 ? 0 : 1);
   if (Math.abs(p.vx) > 20) return 6 + Math.floor(p.runT * 12) % 6;
   return Math.floor(time * 5) % 4;

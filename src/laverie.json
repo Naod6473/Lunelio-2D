@@ -1955,6 +1955,104 @@
     ]
    },
    "note": "portrait de Guillie"
+  },
+  "perso_simon": {
+   "src": "assets/laverie/perso_simon.png",
+   "cw": 72,
+   "ch": 56,
+   "ax": 36,
+   "ay": 53,
+   "cols": 6,
+   "anims": {
+    "idle": [
+     0,
+     4
+    ],
+    "run": [
+     6,
+     6
+    ],
+    "attack": [
+     12,
+     5
+    ],
+    "jump": [
+     18,
+     2
+    ],
+    "land": [
+     21,
+     2
+    ],
+    "dash": [
+     24,
+     4
+    ],
+    "special": [
+     24,
+     4
+    ],
+    "hurt": [
+     28,
+     1
+    ],
+    "walk": [
+     30,
+     6
+    ],
+    "attack2": [
+     36,
+     4
+    ],
+    "attack_up": [
+     40,
+     3
+    ],
+    "attack_air": [
+     43,
+     3
+    ],
+    "etourdi": [
+     46,
+     3
+    ],
+    "ko": [
+     49,
+     4
+    ],
+    "victoire": [
+     53,
+     4
+    ],
+    "ramasse": [
+     57,
+     3
+    ],
+    "levier": [
+     60,
+     3
+    ],
+    "dead": [
+     52,
+     1
+    ]
+   },
+   "note": "héros : heros/simon.png"
+  },
+  "portrait_perso_simon": {
+   "src": "assets/laverie/portrait_perso_simon.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 40,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "portrait de Simon"
   }
  }
 }

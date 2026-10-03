@@ -18,6 +18,7 @@ Chaque héros a un dash ou un double saut, et un pouvoir qui utilise la jauge.
 - **Randonneur** : dash et pique-nique qui rend un cœur.
 - **Dino** (nom provisoire) : sa magie fait surgir un dinosaure qui fonce sur les ennemis ; dash et rugissement qui étourdit.
 - **Marylou** : elle lance des cœurs magiques ; double saut et bulle d'amour qui la protège.
+- **Simon** : il cogne fort avec ses gros gants (coups léger et fort en alternance, coup de pied en l'air) ; dash en roulade, pas encore de pouvoir. Il pousse des petits cris d'effort.
 - **Guillie** (héroïne secrète) : une chienne qui saute plus haut que tout le monde ; son super aboiement fait une vague de son qui renverse les ennemis. Pour la trouver : sur l'écran des héros, frapper plusieurs fois à la carte « ? ».
 
 Les pouvoirs des six nouveaux héros sont une première proposition. Le dernier héros choisi est retenu. La progression, les collections et les quêtes sont **communes à tous les héros** : on peut changer de héros au vestiaire de la laverie sans rien perdre. Le logo animé du titre suit le héros : celui d'Hélio pour la plupart, celui de Lune pour Lune et Rumi.

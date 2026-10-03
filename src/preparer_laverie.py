@@ -480,7 +480,7 @@ def body_mass(cell, fx=fx_dino):
             sx += x; n += 1; bottom = max(bottom, y)
     return (sx / n if n else w / 2), (bottom if n else h - 1)
 
-def hero_sheet(name, im, rows, colw, scale, cell, anchor, layout, xr, anims, fx, note):
+def hero_sheet(name, im, rows, colw, scale, cell, anchor, layout, xr, anims, fx, note, rscale=None):
     """Planche d'un héros aux indices du jeu (layout : (ligne, colonne) de la source pour chaque case), poses recalées sur le
     centre de masse du corps et le bas des pieds."""
     cw, ch = cell; ax, ay = anchor; cols = 6
@@ -490,10 +490,10 @@ def hero_sheet(name, im, rows, colw, scale, cell, anchor, layout, xr, anims, fx,
         r, c = rc; y0, y1 = rows[r]
         x0, x1 = xr.get((r, c), (c * colw, min(im.width, (c + 1) * colw)))
         part = drop_edge_bits(im.crop((x0, y0, x1, y1)))
-        mx, by = body_mass(part, fx)
-        small = part.resize((max(1, round(part.width * scale)), max(1, round(part.height * scale))), Image.BOX)
+        mx, by = body_mass(part, fx); s = scale * (rscale or {}).get(r, 1)   # rscale : lignes dessinées plus petites dans la source
+        small = part.resize((max(1, round(part.width * s)), max(1, round(part.height * s))), Image.BOX)
         small.putalpha(small.split()[3].point(lambda v: 255 if v > 110 else 0))
-        sheet.paste(small, ((i % cols) * cw + round(ax - mx * scale), (i // cols) * ch + round(ay - (by + 1) * scale)), small)
+        sheet.paste(small, ((i % cols) * cw + round(ax - mx * s), (i // cols) * ch + round(ay - (by + 1) * s)), small)
     sheet.save(os.path.join(OUT, name + ".png"), optimize=True)
     return {name: {"src": f"assets/laverie/{name}.png", "cw": cw, "ch": ch, "ax": ax, "ay": ay, "cols": cols, "anims": anims, "note": note}}
 
@@ -635,6 +635,40 @@ def prepare_guillie():
         pim = Image.open(p).convert("RGBA"); out.update(hero_portrait("portrait_perso_guillie", pim, (0, 0, pim.width, pim.height), "portrait de Guillie"))
     return out
 
+# Simon : heros/simon.png (16 bandes de cases de 192 px assemblées depuis le pack : repos, marche, course, saut, réception,
+# coup léger, coup fort, coup vers le haut, coup de pied en saut, roulade, dégâts, étourdissement, KO, victoire, ramassage,
+# interaction) et heros/simon_portrait.png. Les 30 premières cases suivent la disposition des héros (coup fort en 12–16,
+# roulade du dash en 24–27) ; les autres poses suivent.
+SIMON_SRC, SIMON_PORTRAIT = "heros/simon.png", "heros/simon_portrait.png"
+SIMON_ROWS_N = {"idle": (0, 4), "marche": (1, 6), "course": (2, 6), "saut": (3, 3), "reception": (4, 2), "legere": (5, 4), "forte": (6, 5),
+                "haut": (7, 3), "air": (8, 3), "roulade": (9, 4), "degats": (10, 2), "etourdi": (11, 3), "ko": (12, 4), "victoire": (13, 4),
+                "ramasse": (14, 3), "levier": (15, 3)}
+
+def simon_layout():
+    R = lambda n: [(SIMON_ROWS_N[n][0], c) for c in range(SIMON_ROWS_N[n][1])]
+    lay = R("idle") + [None, None] + R("course") + R("forte") + [None] + [(3, 1), (3, 2), (3, 0)] + R("reception") + [None] + R("roulade") + R("degats")
+    anims = {"idle": [0, 4], "run": [6, 6], "attack": [12, 5], "jump": [18, 2], "land": [21, 2], "dash": [24, 4], "special": [24, 4], "hurt": [28, 1]}
+    for name, key in (("walk", "marche"), ("attack2", "legere"), ("attack_up", "haut"), ("attack_air", "air"), ("etourdi", "etourdi"),
+                      ("ko", "ko"), ("victoire", "victoire"), ("ramasse", "ramasse"), ("levier", "levier")):
+        anims[name] = [len(lay), SIMON_ROWS_N[key][1]]; lay += R(key)
+    anims["dead"] = [anims["ko"][0] + 3, 1]
+    return lay, anims
+
+def fx_simon(r, g, b):
+    """Effets de la planche de Simon : éclat doré du coup fort, étoiles jaunes, pièce."""
+    return r > 210 and g > 160 and b < 120
+
+def prepare_simon():
+    f = os.path.join(SRC, SIMON_SRC)
+    if not os.path.exists(f): return {}
+    im = Image.open(f).convert("RGBA"); lay, anims = simon_layout()
+    rows = [(r * 192, (r + 1) * 192) for r in range(im.height // 192)]
+    out = hero_sheet("perso_simon", im, rows, 192, 0.2, DINO_CELL, DINO_ANCHOR, lay, {}, anims, fx_simon, "héros : heros/simon.png", {2: 1.33, 6: 1.5})   # course et coup fort dessinés plus petits
+    p = os.path.join(SRC, SIMON_PORTRAIT)
+    if os.path.exists(p):
+        pim = Image.open(p).convert("RGBA"); out.update(hero_portrait("portrait_perso_simon", pim, (0, 0, pim.width, pim.height), "portrait de Simon"))
+    return out
+
 def fade_foreground():
     """Cadres de premier plan de la grotte : en bas (sous y = 150), seuls les bords gauche et droit restent, fondus vers le milieu."""
     for i in range(1, 5):
@@ -691,7 +725,7 @@ def main():
     if f: atlas["eg_laurene_furie"] = f
     b, c = prepare_brie()
     if b: atlas["eg_brie"], atlas["eg_crotte"] = b, c
-    atlas.update(prepare_eg_proj()); atlas.update(prepare_eg_portraits()); atlas.update(prepare_mamie()); atlas.update(prepare_dino()); atlas.update(prepare_marylou()); atlas.update(prepare_guillie()); atlas.update(prepare_souvenirs())
+    atlas.update(prepare_eg_proj()); atlas.update(prepare_eg_portraits()); atlas.update(prepare_mamie()); atlas.update(prepare_dino()); atlas.update(prepare_marylou()); atlas.update(prepare_guillie()); atlas.update(prepare_simon()); atlas.update(prepare_souvenirs())
     for name, (base, anims) in HEROES.items():
         a = prepare_hero(name, base, anims)
         if a: atlas[name] = a
