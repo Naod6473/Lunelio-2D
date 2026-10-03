@@ -43,7 +43,7 @@ const STATIONS = [
 const STATION_OPEN_SFX = { deco: "deco_book" };
 const stationOn = s => !s.need || testCond(s.need);
 // Clients présents : ceux dont la quête est apparue (dans la grande salle)
-const hubNpcs = () => QUESTS.filter(q => testCond(q.appear)).map(q => ({ id: q.npc, room: q.room || "salle", x: q.x, w: 20, h: 38, label: NPCS[q.npc].name, npc: q.npc, quest: q }));
+const hubNpcs = () => QUESTS.filter(q => testCond(q.appear)).map(q => ({ id: q.npc, room: q.room || "salle", x: q.npc === BOB.id && BOB.x != null ? Math.round(BOB.x) : q.x, w: 20, h: 38, label: NPCS[q.npc].name, npc: q.npc, quest: q }));
 const hubDoors = () => hubRoom().doors.map(d => ({ ...d, id: "porte_" + d.to, room: hub.room, w: 30, h: 56, door: true }));
 function hubThings() { return [...STATIONS, ...hubNpcs(), ...hubDoors()].filter(t => t.room === hub.room); }
 const thingFloor = t => t.fy ?? hubRoom().floor;
@@ -141,16 +141,19 @@ function wrapText(s, w, size) {
   for (const word of s.split(" ")) { const t = cur ? cur + " " + word : word; if (ctx.measureText(t).width > w && cur) { out.push(cur); cur = word; } else cur = t; }
   if (cur) out.push(cur); return out;
 }
-// Visage de Mme Bulle selon sa réplique (portrait_bulle : 0 grand dessin, 1 rire, 2 rire les yeux fermés, 3 sourire,
-// 4 clin d'œil malin, 5 surprise, 6 grand rire) ; L[2].face l'impose. Pendant que le texte s'écrit, la bouche bouge.
-function bulleFace(L, typing) {
-  const t = lineText(L);
+// Visage de Mme Bulle ou de Bobine selon la réplique (portrait_<pnj> : 0 grand dessin, puis 6 visages) ; L[2].face l'impose.
+// Mme Bulle : 1 rire, 2 rire les yeux fermés, 3 sourire, 4 clin d'œil malin, 5 surprise, 6 grand rire ; pendant que le texte
+// s'écrit, la bouche bouge. Bobine : 1 yeux ouverts, 2 content, 3 malin, 4 rire les yeux fermés, 5 surprise, 6 grand rire.
+const NPC_FACES = { bulle: { oh: 5, q: 4, ex: [2, 6], dots: 3, shut: { 1: 3, 2: 3, 4: 3, 5: 3, 6: 3 } },
+  bobine: { oh: 5, q: 3, ex: [2, 6], dots: 4, shut: { 5: 1, 6: 4 } } };
+function npcFace(who, L, typing) {
+  const F = NPC_FACES[who], t = lineText(L);
   let f = L[2] && L[2].face != null ? L[2].face
-    : /attention|oh non|aïe|ouille|vite|oh là|hein/i.test(t) ? 5
-    : /\?/.test(t) ? 4
-    : /!/.test(t) ? (t.length % 2 ? 2 : 6)
-    : /…/.test(t) ? 3 : 0;
-  if (typing && f && f !== 3 && Math.floor(time * 6) % 2) f = 3;   // bouche fermée une image sur deux
+    : /attention|oh non|aïe|ouille|vite|oh là|hein/i.test(t) ? F.oh
+    : /\?/.test(t) ? F.q
+    : /!/.test(t) ? F.ex[t.length % 2 ? 0 : 1]
+    : /…/.test(t) ? F.dots : 0;
+  if (typing && F.shut[f] != null && Math.floor(time * 6) % 2) f = F.shut[f];   // bouche fermée une image sur deux
   return f;
 }
 function drawDialog() {
@@ -164,7 +167,7 @@ function drawDialog() {
   ctx.save(); ctx.beginPath(); ctx.rect(14, y + 6, 52, 54); ctx.clip();
   if (who === "hero") drawHeroPortrait(ch(), 40, y + 58, 1, 1.2);
   else if (who === "machine") drawMachineIcon(40, y + 33, 1.6);
-  else if (who === "bulle" && ATL.portrait_bulle && ATL.portrait_bulle.anims.visages) drawFrame("portrait_bulle", bulleFace(L, d.t * 40 < lineText(L).length), 40, y + 58, 1, 1, 1.25);
+  else if (NPC_FACES[who] && ATL["portrait_" + who] && ATL["portrait_" + who].anims.visages) drawFrame("portrait_" + who, npcFace(who, L, d.t * 40 < lineText(L).length), 40, y + 58, 1, 1, 1.25);
   else drawNpcPortrait(who, 40, y + 33, 1.25, Math.floor(d.t * 10) % 2 && d.t * 40 < lineText(L).length);
   ctx.restore();
   text(lineWho(L), 74, y + 12, 9, col);
@@ -218,7 +221,7 @@ function updateHub(rdt) {
     if (a.t > 1.6) hub.arrive = null;
   }
   if (updateHubTrans(rdt)) { updateParts(rdt); updateFx(rdt); return; }
-  if (updateDialog(rdt)) { updateBulle(rdt, players[0]); updateParts(rdt); updateFx(rdt); return; }
+  if (updateDialog(rdt)) { updateBulle(rdt, players[0]); updateBobine(rdt, players[0]); updateParts(rdt); updateFx(rdt); return; }
   if (!hub.arrive && hub.queue.length) { hub.queue.shift()(); if (state !== "hub") return; }
   if (hit("Escape", "KeyP", "GStart", "TPause", "HStart")) { openHubMenu(); return; }
   if (hit("KeyO", "GY")) { openOptions("hub"); return; }
@@ -240,7 +243,7 @@ function updateHub(rdt) {
   }
   if (!hub.arrive) for (const q of players) { updatePlayer(q, rdt); if (q.idx) coopKeepNear(q, H); }
   if (!hub.arrive) pluieTasUpdate(rdt, p);   // le secret du tas de chaussettes (pluie.js)
-  updateBulle(rdt, p);
+  updateBulle(rdt, p); updateBobine(rdt, p);
   for (const s of STATIONS) if (s.id === "carnet") s.op = clamp((s.op || 0) + (hub.near === s ? 2.5 : -2.5) * rdt, 0, 1);   // le livre des secrets s'ouvre peu à peu
   updateParts(rdt); updateFx(rdt);
 }
@@ -322,7 +325,7 @@ function drawHub() {
   for (const d of hubDoors()) drawHubDoor(d);
   for (const s of STATIONS) if (s.room === hub.room) drawStation(s);
   drawSeasonWorld();   // surprises du calendrier (secrets.js)
-  for (const n of hubNpcs()) if (n.room === hub.room) drawNpc(n.npc, n.x, H.floor, n.x > players[0].x ? -1 : 1, hub.dlg && hub.dlg.lines[hub.dlg.i][0] === n.npc, n.quest);
+  for (const n of hubNpcs()) if (n.room === hub.room) if (n.npc === BOB.id && hasAtlas("pnj_bobine")) drawBobine(n, H.floor); else drawNpc(n.npc, n.x, H.floor, n.x > players[0].x ? -1 : 1, hub.dlg && hub.dlg.lines[hub.dlg.i][0] === n.npc, n.quest);
   drawFxList(true);
   drawGhosts(); for (const p of players) drawCampPlayer(p);
   drawCoopTags();
@@ -453,6 +456,70 @@ function drawBulle(s, by) {
   drawFrame("pnj_bulle", fr, x, by, BUL.face);
   if (act === "dort") for (let i = 0; i < 2; i++) { const k = (time * 0.6 + i * 0.5) % 1; ctx.globalAlpha = 1 - k; text("z", x + 14 + k * 8, by - 26 - k * 14, 7 + i * 2, "#e8dcff", "center"); ctx.globalAlpha = 1; }
   for (const b of BUL.fx) if (hasAtlas("bulle_bulles")) drawFrame("bulle_bulles", 0, Math.round(b.x), Math.round(b.y), b.face, Math.max(0, Math.min(1, (1.8 - b.t) / 0.6)));
+}
+// Bobine, le petit robot client, vit sa vie près de sa place (comme Mme Bulle) : promenade, pile de linge, serviette pliée,
+// lessive, vaporisateur, et parfois une danse (coup de poing, tourbillon, victoire, joie) qui finit de temps en temps par un
+// tournis ; il danse tout le temps quand le jukebox joue sa musique. Il s'arrête et regarde le héros qui s'approche, saute de
+// joie après lui avoir parlé et pendant une réparation, et dort si personne ne joue pendant 25 s. Poses de pnj_bobine (prepare_bobine).
+const BOB = { id: "bobine", x: null, home: 0, act: null, t: 0, next: 3, face: 1, idle: 0, talked: false, to: 0, back: false };
+const BOB_ACTS = { serviette: 1.8, lessive: 1.8, vapo: 1.6, danse: 2.8, etourdi: 1.5, joie: 1.4 };
+const BOB_DANCE = ["coup", "tourne", "victoire", "joie"];
+function bobineDo(act) {
+  BOB.act = act; BOB.t = 0;
+  if (act === "promenade" || act === "linge") { BOB.to = clamp(BOB.home + (Math.random() < 0.5 ? -1 : 1) * (25 + Math.random() * 20), BOB.home - 45, BOB.home + 40); BOB.back = false; }
+  if (act === "joie" || act === "danse") audio.sfx("talk_bobine");
+}
+function updateBobine(rdt, p) {
+  const q = QUESTS.find(k => k.npc === BOB.id);
+  if (!q || !testCond(q.appear) || hub.room !== (q.room || "salle")) return;
+  if (BOB.x == null) { BOB.x = BOB.home = q.x; }
+  const busy = Object.values(keys).some(Boolean) || Object.keys(pressed).length > 0 || down("Mouse0");
+  BOB.idle = busy ? 0 : BOB.idle + rdt;
+  const talk = hub.dlg && hub.dlg.lines[hub.dlg.i] && hub.dlg.lines[hub.dlg.i][0] === BOB.id, near = hub.near && hub.near.npc === BOB.id;
+  const dance = SAVE.jukebox === "danse_bobine";
+  if (talk) BOB.talked = true; else if (BOB.talked && !hub.dlg) { BOB.talked = false; bobineDo("joie"); }
+  BOB.t += rdt;
+  const walking = BOB.act === "promenade" || BOB.act === "linge";
+  if (hub.repairFx) { if (BOB.act !== "joie") bobineDo("joie"); BOB.t = 0; }
+  else if (BOB.act === "dort") { if (busy || hub.dlg) bobineDo("etourdi"); }
+  else if (talk || (near && BOB.act !== "joie" && !dance)) { BOB.act = null; BOB.face = p.x + 5 > BOB.x ? 1 : -1; }
+  else if (BOB.idle > 25 && !hub.dlg) bobineDo("dort");
+  else if (walking) {
+    const goal = BOB.back ? BOB.home : BOB.to, dx = goal - BOB.x;
+    if (Math.abs(dx) > 1) { BOB.face = Math.sign(dx); BOB.x += BOB.face * Math.min(Math.abs(dx), 24 * rdt); BOB.t = 0; }
+    else if (BOB.t > 1) { if (BOB.back) { BOB.act = null; BOB.next = 3 + Math.random() * 4; } else { BOB.back = true; BOB.t = 0; } }
+  } else if (BOB.act) {
+    const fl = thingFloor({ room: hub.room });
+    if ((BOB.act === "serviette" || BOB.act === "lessive") && Math.random() < 0.12) parts.push({ x: BOB.x + BOB.face * 8 + (Math.random() - 0.5) * 16, y: fl - 22 - Math.random() * 16, vx: 0, vy: -14, life: 0.6, max: 0.6, color: Math.random() < 0.5 ? "#fccc28" : "#9fe8ff", size: 1, grav: 0 });
+    if (BOB.act === "vapo" && Math.random() < 0.4) parts.push({ x: BOB.x + BOB.face * (22 + Math.random() * 14), y: fl - 18 - Math.random() * 10, vx: BOB.face * (10 + Math.random() * 20), vy: -6 - Math.random() * 10, life: 0.7, max: 0.7, color: Math.random() < 0.5 ? "#bff4ff" : "#ffffff", size: 1, grav: 0 });
+    if (BOB.act === "danse" && Math.random() < 0.05) parts.push({ x: BOB.x + (Math.random() - 0.5) * 20, y: fl - 44, vx: 0, vy: -16, life: 0.8, max: 0.8, color: "#fccc28", size: 2, grav: 0 });
+    if (BOB.act === "danse" && dance) { if (BOB.t > BOB_ACTS.danse) BOB.t = 0; }
+    else if (BOB.t > (BOB_ACTS[BOB.act] || 1.5)) {
+      if (BOB.act === "danse" && Math.random() < 0.3) bobineDo("etourdi");   // trop tourné : la tête qui tourne
+      else { BOB.act = null; BOB.next = 3 + Math.random() * 4; }
+    }
+  } else {
+    BOB.face = p.x + 5 > BOB.x ? 1 : -1;
+    if (dance && !hub.dlg) bobineDo("danse");
+    else if ((BOB.next -= rdt) <= 0 && !hub.dlg) {
+      const r = Math.random();
+      bobineDo(r < 0.22 ? "promenade" : r < 0.4 ? "linge" : r < 0.55 ? "serviette" : r < 0.68 ? "lessive" : r < 0.8 ? "vapo" : "danse");
+    }
+  }
+}
+function drawBobine(n, by) {
+  const A = ATL.pnj_bobine.anims, act = BOB.act, t = BOB.t, x = n.x;
+  const moving = (act === "promenade" || act === "linge") && Math.abs((BOB.back ? BOB.home : BOB.to) - BOB.x) > 1;
+  let fr = A.repos[0], face = BOB.face, y = by;
+  if (act === "promenade" && moving) fr = A.marche[0] + Math.floor(time * 8) % A.marche[1];
+  else if (act === "linge") { fr = A.linge[0]; if (moving) y -= Math.floor(time * 8) % 2; }
+  else if (act === "danse") { const k = Math.floor(t / 0.35); fr = A[BOB_DANCE[k % 4]][0]; if (k % 8 >= 4) face = -face; if (BOB_DANCE[k % 4] === "joie") y -= 2; }
+  else if (act === "joie") { fr = A.joie[0]; y -= Math.round(Math.abs(Math.sin(t * 9)) * 3); }
+  else if (act && A[act]) fr = A[act][0];
+  else y -= Math.floor(time * 1.6) % 2;   // au repos : il ronronne
+  drawFrame("pnj_bobine", fr, x, y, face);
+  if (act === "danse") for (let i = 0; i < 2; i++) { const k = (time * 0.8 + i * 0.5) % 1; ctx.globalAlpha = 1 - k; text("♪", x - 8 + i * 16, by - 44 - k * 14, 8, "#9fe8ff", "center"); ctx.globalAlpha = 1; }
+  drawNpcBubble(x, by, n.quest);
 }
 // Postes : ceux qui font partie du décor fourni ne sont pas redessinés (seulement un petit signe de vie)
 function drawStation(s) {

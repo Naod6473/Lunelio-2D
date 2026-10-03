@@ -1001,26 +1001,70 @@
   },
   "pnj_bobine": {
    "src": "assets/laverie/pnj_bobine.png",
-   "cw": 48,
-   "ch": 48,
-   "ax": 24,
+   "cw": 80,
+   "ch": 50,
+   "ax": 40,
    "ay": 48,
-   "cols": 4,
+   "cols": 6,
    "anims": {
     "repos": [
      0,
-     4
+     1
     ],
     "parle": [
-     4,
-     2
+     0,
+     1
     ],
     "content": [
+     10,
+     1
+    ],
+    "marche": [
+     1,
+     5
+    ],
+    "coup": [
+     6,
+     1
+    ],
+    "tourne": [
+     7,
+     1
+    ],
+    "vapo": [
      8,
-     2
+     1
+    ],
+    "serviette": [
+     9,
+     1
+    ],
+    "joie": [
+     10,
+     1
+    ],
+    "victoire": [
+     11,
+     1
+    ],
+    "linge": [
+     12,
+     1
+    ],
+    "lessive": [
+     13,
+     1
+    ],
+    "etourdi": [
+     14,
+     1
+    ],
+    "dort": [
+     15,
+     1
     ]
    },
-   "note": "laverie : pnj/pnj_bobine.png"
+   "note": "Bobine (client de la laverie)"
   },
   "pnj_kage": {
    "src": "assets/laverie/pnj_kage.png",
@@ -1108,14 +1152,18 @@
    "ch": 40,
    "ax": 20,
    "ay": 40,
-   "cols": 1,
+   "cols": 7,
    "anims": {
     "play": [
      0,
      1
+    ],
+    "visages": [
+     1,
+     6
     ]
    },
-   "note": "laverie : pnj/portrait_bobine.png"
+   "note": "portrait de Bobine : grand dessin et 6 visages"
   },
   "portrait_kage": {
    "src": "assets/laverie/portrait_kage.png",

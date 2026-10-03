@@ -603,6 +603,55 @@ def prepare_bulle():
                              "anims": {"play": [0, 1], "visages": [1, 6]}, "note": "portrait de Mme Bulle : grand dessin et 6 visages"}
     return out
 
+# Bobine, le petit robot client de la laverie : pnj/bobine_planche.png (grand dessin à gauche, 6 visages, marche, coup de poing,
+# tourbillon, vaporisateur, serviette, joie, victoire, pile de linge, lessive, étourdi, sieste). Boîtes relevées à l'œil.
+BOBINE_PLANCHE = "pnj/bobine_planche.png"
+BOBINE_CELL, BOBINE_ANCHOR, BOBINE_SCALE = (80, 50), (40, 48), 0.22
+BOBINE_POSES = ([(340, 232, 458, 420), (455, 232, 572, 420), (570, 232, 702, 420), (700, 232, 828, 420), (826, 232, 978, 420), (975, 232, 1122, 420)]
+                + [(262, 435, 525, 618), (498, 430, 728, 618), (704, 430, 972, 618), (958, 435, 1118, 618)]
+                + [(18, 628, 182, 840), (192, 645, 358, 840), (376, 645, 538, 840), (542, 640, 704, 840), (732, 640, 914, 832), (916, 676, 1118, 832)])
+BOBINE_ERASE = {6: (262, 430, 336, 488)}   # genou du grand dessin qui dépasse dans la case du coup de poing
+BOBINE_PORTRAIT = (128, 28, 272, 172)
+# visages (1 à 6 du portrait) : yeux ouverts, content, malin, rire les yeux fermés, surprise, grand rire
+BOBINE_FACES = [(322, 438), (444, 566), (572, 698), (700, 822), (830, 952), (962, 1084)]
+
+def fx_bobine(r, g, b):
+    """Effets de Bobine : tourbillon, bulles et éclats bleu clair, étoiles jaunes."""
+    return (b > 220 and g > 170 and r < 170) or (r > 230 and g > 180 and b < 90)
+
+def prepare_bobine():
+    f = os.path.join(SRC, BOBINE_PLANCHE)
+    if not os.path.exists(f): return {}
+    src = Image.open(f).convert("RGBA")
+    for x0, y0, x1, y1 in BOBINE_ERASE.values(): src.paste((0, 0, 0, 0), (x0, y0, x1, y1))
+    cw, ch = BOBINE_CELL; ax, ay = BOBINE_ANCHOR; cols = 6; s = BOBINE_SCALE
+    sheet = Image.new("RGBA", (cw * cols, ch * ((len(BOBINE_POSES) + cols - 1) // cols)))
+    for i, box in enumerate(BOBINE_POSES):
+        part = drop_edge_bits(src.crop(box)); mx, by = body_mass(part, fx_bobine)
+        small = part.resize((max(1, round(part.width * s)), max(1, round(part.height * s))), Image.BOX)
+        small.putalpha(small.split()[3].point(lambda v: 255 if v > 110 else 0))
+        sheet.paste(small, ((i % cols) * cw + round(ax - mx * s), (i // cols) * ch + round(ay - (by + 1) * s)), small)
+    sheet.save(os.path.join(OUT, "pnj_bobine.png"), optimize=True)
+    # indices : repos 0, marche 1–5, coup de poing 6, tourbillon 7, vaporisateur 8, serviette 9, joie 10, victoire 11,
+    # pile de linge 12, lessive 13, étourdi 14, sieste 15
+    anims = {"repos": [0, 1], "parle": [0, 1], "content": [10, 1], "marche": [1, 5], "coup": [6, 1], "tourne": [7, 1], "vapo": [8, 1],
+             "serviette": [9, 1], "joie": [10, 1], "victoire": [11, 1], "linge": [12, 1], "lessive": [13, 1], "etourdi": [14, 1], "dort": [15, 1]}
+    out = {"pnj_bobine": {"src": "assets/laverie/pnj_bobine.png", "cw": cw, "ch": ch, "ax": ax, "ay": ay, "cols": cols, "anims": anims, "note": "Bobine (client de la laverie)"}}
+    ps = Image.new("RGBA", (40 * 7, 40)); ps.paste(src.crop(BOBINE_PORTRAIT).resize((40, 40), Image.BOX), (0, 0))
+    for k, (x0, x1) in enumerate(BOBINE_FACES):   # carré centré sur la tête (sans les étincelles jaunes), un peu d'épaules en bas
+        head = src.crop((x0, 60, x1, 172)); px = head.load(); xs, ys = [], []
+        for y in range(head.height):
+            for x in range(head.width):
+                r, g, b, a = px[x, y]
+                if a > 128 and not (r > 230 and g > 150 and b < 90): xs.append(x); ys.append(y)
+        cx, top = x0 + (min(xs) + max(xs)) / 2, 60 + min(ys); side = round(max(max(xs) - min(xs), 172 - top) * 1.12)
+        box = (round(cx - side / 2), top - round(side * 0.06), round(cx + side / 2), top - round(side * 0.06) + side)
+        face = src.crop(box); ps.paste(drop_edge_bits(face).resize((40, 40), Image.BOX), (40 * (k + 1), 0))
+    ps.save(os.path.join(OUT, "portrait_bobine.png"), optimize=True)
+    out["portrait_bobine"] = {"src": "assets/laverie/portrait_bobine.png", "cw": 40, "ch": 40, "ax": 20, "ay": 40, "cols": 7,
+                              "anims": {"play": [0, 1], "visages": [1, 6]}, "note": "portrait de Bobine : grand dessin et 6 visages"}
+    return out
+
 # Guillie, la chienne noire (héroïne secrète) : heros/guillie.png (9 bandes de cases de 192 px assemblées depuis le pack :
 # repos, marche, course, saut, réception, coup de patte, dégâts, étourdissement, KO) et heros/guillie_portrait.png.
 GUILLIE_SRC, GUILLIE_PORTRAIT = "heros/guillie.png", "heros/guillie_portrait.png"
@@ -767,6 +816,7 @@ def main():
         if a: atlas[name] = a
         else: missing.append(spec[0])
     atlas.update(prepare_bulle())   # après les planches génériques : remplace l'ancienne Mme Bulle
+    atlas.update(prepare_bobine())  # de même pour Bobine
     fade_foreground()
     prepare_loading()
     json.dump({"atlas": atlas}, open(os.path.join(HERE, "laverie.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
