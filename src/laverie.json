@@ -1660,6 +1660,95 @@
     ]
    },
    "note": "laverie : accessoires.png"
+  },
+  "perso_dino": {
+   "src": "assets/laverie/perso_dino.png",
+   "cw": 72,
+   "ch": 56,
+   "ax": 36,
+   "ay": 53,
+   "cols": 6,
+   "anims": {
+    "idle": [
+     0,
+     4
+    ],
+    "run": [
+     6,
+     6
+    ],
+    "attack": [
+     12,
+     5
+    ],
+    "jump": [
+     18,
+     2
+    ],
+    "special": [
+     24,
+     6
+    ],
+    "dash": [
+     25,
+     3
+    ],
+    "walk": [
+     30,
+     6
+    ],
+    "joie": [
+     36,
+     2
+    ],
+    "etourdi": [
+     40,
+     1
+    ],
+    "hurt": [
+     41,
+     1
+    ],
+    "victoire": [
+     42,
+     4
+    ],
+    "dead": [
+     47,
+     1
+    ]
+   },
+   "note": "héros : heros/dino.png"
+  },
+  "magie_dino": {
+   "src": "assets/laverie/magie_dino.png",
+   "cw": 44,
+   "ch": 39,
+   "ax": 22,
+   "ay": 19,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "dinosaure magique (attaque du nouveau héros)"
+  },
+  "portrait_perso_dino": {
+   "src": "assets/laverie/portrait_perso_dino.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 40,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "portrait du nouveau héros"
   }
  }
 }

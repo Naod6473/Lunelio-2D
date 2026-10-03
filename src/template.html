@@ -156,6 +156,9 @@ const POWERS = {
   block: { icon: "■", label: "bloc", name: "Bloc", color: "#7dffb0", burst: 0.34, effect: "block",
     hint: ["Maj ou L : pose un bloc sous tes pieds", "Bouton ■ : pose un bloc sous tes pieds", "Bouton {POW} : pose un bloc sous tes pieds"],
     kbHint: () => `${kbNames("power")} : pose un bloc sous tes pieds` },
+  roar: { icon: "✶", label: "rugissement", name: "Rugissement", color: "#5effc8", burst: 0.5, effect: "stun",
+    hint: ["Maj ou L : un rugissement qui étourdit les ennemis", "Bouton ✶ : un rugissement qui étourdit les ennemis", "Bouton {POW} : un rugissement qui étourdit les ennemis"],
+    kbHint: () => `${kbNames("power")} : un rugissement qui étourdit les ennemis` },
   heal: { icon: "♥", label: "pique-nique", name: "Pique-nique", color: "#ff8ab0", burst: 1, effect: "heal",
     hint: ["Maj ou L, jauge pleine : pique-nique, +1 cœur", "Bouton ♥, jauge pleine : +1 cœur", "Bouton {POW}, jauge pleine : +1 cœur"],
     kbHint: () => `${kbNames("power")}, jauge pleine : pique-nique, +1 cœur` },
@@ -199,6 +202,12 @@ const CHARS = [
     desc: "Toujours prêt : son pique-nique rend un cœur.",
     color: "#cfd8ff", glow: "207,216,255", ui: "#ff8a3c", ui2: "#8a5a3a", atkW: 30,
     sky: ["#100c08", "#3a2412", "#8a4a1e"], moon: ["#fff4e0", "#ffb46a"], stripe: "#4a2a12", stars: "255,236,210", city: ["#1e140c", "#140c06"] },
+  // attack: "magie" : son coup lance un dinosaure magique (projectile magie_dino) au lieu de trancher ; planche perso_dino
+  // préparée par preparer_laverie.py (avec les poses de dégât « hurt » et de mort « dead »)
+  { id: "dino", name: "Dino", special: "dash", power: "roar", attack: "magie", atkLabel: "magie du dinosaure", music: "backgroundhelio", logo: "helio", theme: null, unlock: null,
+    desc: "Sa magie fait surgir un dinosaure !",
+    color: "#5effc8", glow: "94,255,200", ui: "#5effc8", ui2: "#2a8ac8", atkW: 30,
+    sky: ["#061214", "#0e3a3a", "#1e6a5a"], moon: ["#e8fff6", "#7dffd0"], stripe: "#0e3a32", stars: "210,255,240", city: ["#0a1c1c", "#061414"] },
 ];
 const specialOf = C => SPECIALS[C.special] || null, powerOf = C => POWERS[C.power] || null;
 const abilityText = C => [specialOf(C), powerOf(C)].filter(Boolean).map(a => a.name).join(" · ");
@@ -471,7 +480,8 @@ function hintText(tok) {
     const kh = KB_HINTS[tok];
     if (kh && kh[0].some(a => OPT.kb[a].join() !== KB_DEFAULT[a].join())) kb = kh[1]();
   }
-  return say(kb || v[0], v[1], v[2]);
+  const out = say(kb || v[0], v[1], v[2]);
+  return tok === "ATTACK" && ch().attack === "magie" ? out.replace("trancher", "lancer la magie sur") : out;   // héros magicien
 }
 
 /* ---------------- Audio ---------------- */
@@ -1355,7 +1365,7 @@ function hurtPlayer(p, srcX) {
     // bouclier : le coup est absorbé
     p.inv = 0.35; audio.sfx("deflect"); burst(p.x + 5, p.y + 16, 12, ["#5ef0ff", "#ffffff"], 140, 0.3, 0, 1); return;
   }
-  p.hp--; if (lvl) lvl.hurt = true;
+  p.hp--; p.hurtT = 0.4; if (lvl) lvl.hurt = true;
   if (chal) chalHurt();
   shake = 6; hitstop = 0.08; audio.sfx("hurt");
   burst(p.x + 5, p.y + 14, 14, ["#ff3b5c", "#ffffff", p.C.color], 180, 0.5, 300, 2);
@@ -1432,8 +1442,9 @@ function updatePlayer(p, dt) {
     }
   }
   const wpn = curWeapon(p);   // arme du râtelier (armes.js) : elle remplace le coup de sabre
+  const magic = C.attack === "magie";
   if (wpn.id === "sabre" && hit(...I.attack) && p.atkCd <= 0 && p.dashT <= 0) {
-    p.atkT = 0; p.atkCd = 0.34; p.hitList = new Set(); audio.sfx("slash");
+    p.atkT = 0; p.atkCd = magic ? 0.42 : 0.34; p.hitList = new Set(); p.cast = false; audio.sfx(magic ? "laser" : "slash");
     if (dir) p.face = dir;
     if (p.onGround) p.vx += p.face * 90;
   }
@@ -1443,7 +1454,7 @@ function updatePlayer(p, dt) {
     p.atkT += dt * boost;
     if (p.atkT > 0.03 && p.atkT < 0.2) {
       const box = attackBox(p);
-      for (const e of enemies) if (e.alive && ov(box, e)) hitEnemy(e, "atk", p);
+      if (!magic) for (const e of enemies) if (e.alive && ov(box, e)) hitEnemy(e, "atk", p);   // la magie : c'est le dinosaure qui touche
       if (lvl.json) campAttack(p, box, "atk");
       for (const l of lasers) if (l.alive && l.owner === "enemy" && l.kind !== "wave" && !l.noReflect && ov(box, l)) {
         l.owner = "player"; l.color = fxCol(p); l.vx = -l.vx * 1.6; l.vy = -(l.vy || 0) * 1.6; l.g = 0; l.y = Math.round(l.y);
@@ -1451,8 +1462,14 @@ function updatePlayer(p, dt) {
         burst(l.x + 5, l.y, 12, ["#ffffff", fxCol(p)], 160, 0.3, 0, 1);
       }
     }
+    if (magic && !p.cast && p.atkT > 0.18) {   // le dinosaure magique jaillit du poing (5e pose)
+      p.cast = true;
+      wProj(p, { kind: "dino", x: p.x + 5 + p.face * 22, y: p.y + 14, vx: p.face * 300, w: 34, h: 24, life: 0.75, dmg: 1, pierce: 2, face: p.face });
+      burst(p.x + 5 + p.face * 16, p.y + 14, 10, ["#5effc8", "#5ef0ff", "#ffffff"], 120, 0.3, 0, 1);
+    }
     if (p.atkT > 0.3) p.atkT = -1;
   }
+  if (p.hurtT > 0) p.hurtT -= dt;
   if (fast) {
     p.ghostT -= dt;
     if (p.ghostT <= 0) { p.ghostT = 0.045; ghosts.push({ id: C.id, x: p.x, y: p.y, face: p.face, frame: playerFrame(p), life: 0.22 }); }
@@ -1805,8 +1822,9 @@ function drawSprite(id, frame, x, y, face, scale = 1, alpha = 1) {
 // Image du héros ; avec une arme du râtelier, les poses mains libres (weaponFrame, armes.js)
 function playerFrame(p) { const fr = basePlayerFrame(p); return curWeapon(p).id !== "sabre" ? weaponFrame(p, fr) : fr; }
 function basePlayerFrame(p) {
-  const C = ch();
-  if (p.dashT > 0) return 24 + (Math.floor(time * 20) % 2);
+  const C = ch(), An = (ATL[charAtlas(p.C)] || { anims: {} }).anims;
+  if (p.dashT > 0) return An.dash ? An.dash[0] + Math.floor(time * 16) % An.dash[1] : 24 + (Math.floor(time * 20) % 2);
+  if (p.hurtT > 0 && An.hurt && p.atkT < 0) return An.hurt[0];   // pose de dégât si la planche en a une
   if (p.djT > 0) {   // double saut : pirouette de la ligne spéciale si la planche en a une (4 images), sinon la pose de saut
     const sp = (ATL[charAtlas(C)] || { anims: {} }).anims.special;
     return sp && sp[1] >= 4 ? sp[0] + Math.min(3, Math.floor((0.32 - p.djT) / 0.08)) : 18;
@@ -1824,9 +1842,14 @@ function drawGhosts() {
     drawChar(C, g.frame, g.x + 5, g.y + 32, g.face, 1, g.life / 0.22 * 0.45); ctx.restore();
   }
 }
+// Héros tombé (sans bulle de secours) : sa pose de mort si la planche en a une
+function drawDeadPose(p) {
+  const A = ATL[charAtlas(p.C)]; if (!p.dead || p.bubble || !A || !A.anims.dead || p.y > VH) return;
+  drawChar(p.C, A.anims.dead[0], p.x + 5, p.y + p.h, p.face, 1, 1);
+}
 function drawPlayer(p) {
-  if (p.dead) return;
-  if (p.inv > 0 && Math.floor(time * 20) % 2 && p.inv < 1.25) return;
+  if (p.dead) { drawDeadPose(p); return; }
+  if (p.inv > 0 && Math.floor(time * 20) % 2 && p.inv < 1.25 && !(p.hurtT > 0)) return;
   const fr = playerFrame(p), x = p.x + 5, y = p.y + p.h, a = hidden(p) ? 0.35 + 0.1 * Math.sin(time * 12) : 1;
   if (p.dashT > 0) for (let i = 1; i <= 3; i++) drawChar(p.C, fr, x - p.face * i * 9, y, p.face, 1, 0.18 * (4 - i) * a);
   drawChar(p.C, fr, x, y, p.face, 1, a);
@@ -2342,8 +2365,9 @@ function drawMenu() {
 // Grille de portraits (4 × 2), aperçu animé, capacités et commandes du héros mis en avant.
 // Le thème musical suit le héros mis en avant ; le choix est confirmé par Entrée, {A}, un clic sur le héros déjà choisi ou « Choisir ».
 let charSel = 0, charSelT = 0;
+const CHAR_COLS = CHARS.length > 8 ? 5 : 4;
 const CUI = {
-  cards: CHARS.map((C, i) => ({ x: 12 + (i % 4) * 58, y: 34 + Math.floor(i / 4) * 66, w: 52, h: 60 })),
+  cards: CHARS.map((C, i) => CHAR_COLS > 4 ? { x: 12 + (i % 5) * 46, y: 34 + Math.floor(i / 5) * 66, w: 42, h: 60 } : { x: 12 + (i % 4) * 58, y: 34 + Math.floor(i / 4) * 66, w: 52, h: 60 }),
   back: { x: 12, y: 214, w: 74, h: 20 }, ok: { x: 160, y: 214, w: 74, h: 20 },
 };
 (function loadLastChar() {
@@ -2360,7 +2384,7 @@ function confirmChar() {
 function moveCharSel(i) { if (i !== charSel) { charSel = i; charSelT = 0; audio.sfx("select"); } }
 function updateChars(rdt) {
   charSelT += rdt;
-  const n = CHARS.length, cols = 4;
+  const n = CHARS.length, cols = CHAR_COLS;
   if (hit("Escape", "GB", "Backspace") || (hit("Mouse0") && inside(CUI.back))) { if (charsFrom === "hub") enterHub({ x: 100 }); else goMenu(); audio.sfx("back"); return; }
   if (hit(...K.left)) moveCharSel((charSel + n - 1) % n);
   if (hit(...K.right)) moveCharSel((charSel + 1) % n);
@@ -2373,6 +2397,11 @@ function updateChars(rdt) {
   }
   if (hit(...K.ok)) confirmChar();
 }
+// Portrait d'un héros : le sien (portrait_perso_<id>, préparé avec sa planche) ou celui de l'atlas commun des portraits
+function drawHeroPortrait(C, x, y, alpha = 1, scale = 1) {
+  if (hasAtlas("portrait_perso_" + C.id)) drawFrame("portrait_perso_" + C.id, 0, x, y, 1, alpha, scale);
+  else if (ATL.portraits && ATL.portraits.anims[C.id]) drawFrame("portraits", ATL.portraits.anims[C.id][0], x, y, 1, alpha, scale);
+}
 // Ligne de commande d'une capacité pour l'écran de choix
 function abilityLine(icon, label, kb, touch, pad) { return `${icon} ${label} : ${say(kb, touch, pad)}`; }
 function drawChars() {
@@ -2384,7 +2413,7 @@ function drawChars() {
     const r = CUI.cards[i], sel = i === charSel;
     R(r.x, r.y, r.w, r.h, sel ? "rgba(40,20,64,0.92)" : "rgba(20,12,40,0.8)");
     ctx.save(); ctx.beginPath(); ctx.rect(r.x + 2, r.y + 2, r.w - 4, 44); ctx.clip();
-    drawFrame("portraits", ATL.portraits.anims[C2.id] ? ATL.portraits.anims[C2.id][0] : i, r.x + r.w / 2, r.y + 46, 1, sel ? 1 : 0.75);
+    drawHeroPortrait(C2, r.x + r.w / 2, r.y + 46, sel ? 1 : 0.75);
     ctx.restore();
     text(C2.name.split(" ")[0], r.x + r.w / 2, r.y + r.h - 7, 7, sel ? C2.ui : "#b9a6e0", "center");
     ctx.strokeStyle = sel ? C2.ui : inside(r) ? "#6a4f9a" : "#3a2a5c"; ctx.lineWidth = sel ? 2 : 1;
@@ -2409,7 +2438,7 @@ function drawChars() {
   text(C.name, px + pw / 2, 132, 14, C.ui, "center", C.ui);
   text(abilityText(C), px + pw / 2, 146, 8, "#ffffff", "center");
   text(C.desc || "", px + pw / 2, 158, 7, "#d8c8f0", "center");
-  const sp = specialOf(C), pwr = powerOf(C), lines = [abilityLine("⚔", "trancher", kbNames("attack"), "bouton ⚔", padText("bouton {ATK}"))];
+  const sp = specialOf(C), pwr = powerOf(C), lines = [abilityLine("⚔", C.atkLabel || "trancher", kbNames("attack"), "bouton ⚔", padText("bouton {ATK}"))];
   if (sp) lines.push(sp.button ? abilityLine(sp.icon, sp.name.toLowerCase(), kbNames("special"), `bouton ${sp.icon}`, padText("bouton {SPEC}"))
     : abilityLine("▲▲", sp.name.toLowerCase(), `deux fois ${kbNames("jump")}`, "deux fois ▲", padText("deux fois {JUMP}")));
   if (pwr) lines.push(abilityLine(pwr.icon, pwr.name.toLowerCase(), (pwr.burst ? "" : "maintenir ") + kbNames("power"), (pwr.burst ? "" : "maintenir ") + `bouton ${pwr.icon}`, padText((pwr.burst ? "" : "maintenir ") + "bouton {POW}")));

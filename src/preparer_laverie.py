@@ -426,6 +426,71 @@ def prepare_mamie():
     out["eglise_muret"] = {"src": "assets/laverie/eglise_muret.png", "cw": m.width, "ch": m.height, "ax": m.width // 2, "ay": m.height, "cols": 1, "anims": {"play": [0, 1]}, "note": "muret de l'arène 3 de Mamie (premier plan)"}
     return out
 
+# Nouveau héros (heros/dino.png : 8 lignes de 6 poses sur fond noir, lignes aux hauteurs inégales : DINO_ROWS) : planche
+# perso_dino aux mêmes indices que les autres héros (repos 0–3, course 6–11, attaque 12–16, saut 18–19, dash 24–29), plus
+# la marche (30–35), la ligne 7 (36–41 : joie, assis, à quatre pattes, étourdi, dégât en 41) et la ligne 8 (42–47 : victoire,
+# assis, mort en 47). Chaque pose est recalée sur le centre de masse du corps (sans les effets magiques ni les étoiles) et le
+# bas des pieds. Le dinosaure magique de la 5e attaque devient un projectile (magie_dino) ; portrait recadré sur la tête.
+DINO_SRC = "heros/dino.png"
+DINO_ROWS = [(8, 207), (210, 410), (410, 607), (605, 795), (790, 990), (985, 1115), (1112, 1262), (1258, 1402)]
+DINO_COLW, DINO_SCALE, DINO_CELL, DINO_ANCHOR = 187, 0.2, (72, 56), (36, 53)
+# colonnes à part : la 5e attaque (le héros seul, le dinosaure à droite devient le projectile), la pose assise et la pose
+# allongée de la dernière ligne (qui déborde sur la case voisine)
+DINO_XR = {(4, 4): (749, 895), (7, 4): (749, 862), (7, 5): (862, 1122)}
+DINO_BEAST = (880, 795, 1110, 990)  # le dinosaure magique
+# (ligne, colonne) de chaque case de la planche du jeu, dans l'ordre
+DINO_LAYOUT = ([(0, c) for c in range(6)] + [(2, c) for c in range(6)] + [(4, c) for c in range(5)] + [None]
+               + [(3, 2), (3, 3), (3, 0), (3, 1), (3, 4), (3, 5)] + [(5, c) for c in range(6)] + [(1, c) for c in range(6)]
+               + [(6, c) for c in range(6)] + [(7, c) for c in range(6)])
+DINO_ANIMS = {"idle": [0, 4], "run": [6, 6], "attack": [12, 5], "jump": [18, 2], "special": [24, 6], "dash": [25, 3],
+              "walk": [30, 6], "joie": [36, 2], "etourdi": [40, 1], "hurt": [41, 1], "victoire": [42, 4], "dead": [47, 1]}
+
+def unblack(im):
+    """Fond noir uni → transparent : seulement le noir relié au bord (les contours sombres du dessin restent)."""
+    from PIL import ImageDraw
+    im = im.convert("RGB"); w, h = im.size
+    m = Image.eval(im.convert("L"), lambda v: 255 if v > 14 else 0)    # 0 = presque noir
+    for x, y in [(x, 0) for x in range(0, w, 7)] + [(x, h - 1) for x in range(0, w, 7)] + [(0, y) for y in range(0, h, 7)] + [(w - 1, y) for y in range(0, h, 7)]:
+        if m.getpixel((x, y)) == 0: ImageDraw.floodfill(m, (x, y), 128)
+    out = im.convert("RGBA"); out.putalpha(Image.eval(m, lambda v: 0 if v == 128 else 255))
+    return out
+
+def body_mass(cell):
+    """Centre de masse et bas du corps, sans les effets (lueurs bleues et vertes, poussière claire, étoiles jaunes)."""
+    px = cell.load(); w, h = cell.size; sx = n = 0; bottom = 0
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a < 128: continue
+            if (b > 150 and b > r + 60) or (g > 170 and r < 140) or min(r, g, b) > 195 or (r > 200 and g > 170 and b < 110): continue
+            sx += x; n += 1; bottom = max(bottom, y)
+    return (sx / n if n else w / 2), (bottom if n else h - 1)
+
+def prepare_dino():
+    f = os.path.join(SRC, DINO_SRC)
+    if not os.path.exists(f): return {}
+    im = unblack(Image.open(f)); cw, ch = DINO_CELL; ax, ay = DINO_ANCHOR; cols = 6
+    sheet = Image.new("RGBA", (cw * cols, ch * ((len(DINO_LAYOUT) + cols - 1) // cols)))
+    for i, rc in enumerate(DINO_LAYOUT):
+        if not rc: continue
+        r, c = rc; y0, y1 = DINO_ROWS[r]
+        x0, x1 = DINO_XR.get((r, c), (c * DINO_COLW, min(im.width, (c + 1) * DINO_COLW)))
+        cell = drop_edge_bits(im.crop((x0, y0, x1, y1)))
+        mx, by = body_mass(cell)
+        small = cell.resize((max(1, round(cell.width * DINO_SCALE)), max(1, round(cell.height * DINO_SCALE))), Image.BOX)
+        small.putalpha(small.split()[3].point(lambda v: 255 if v > 110 else 0))
+        sheet.paste(small, ((i % cols) * cw + round(ax - mx * DINO_SCALE), (i // cols) * ch + round(ay - (by + 1) * DINO_SCALE)), small)
+    sheet.save(os.path.join(OUT, "perso_dino.png"), optimize=True)
+    out = {"perso_dino": {"src": "assets/laverie/perso_dino.png", "cw": cw, "ch": ch, "ax": ax, "ay": ay, "cols": cols, "anims": DINO_ANIMS, "note": "héros : heros/dino.png"}}
+    beast = im.crop(DINO_BEAST); beast = beast.crop(beast.getbbox())
+    beast = beast.resize((round(beast.width * DINO_SCALE), round(beast.height * DINO_SCALE)), Image.BOX)
+    beast.putalpha(beast.split()[3].point(lambda v: 255 if v > 90 else 0)); beast.save(os.path.join(OUT, "magie_dino.png"), optimize=True)
+    out["magie_dino"] = {"src": "assets/laverie/magie_dino.png", "cw": beast.width, "ch": beast.height, "ax": beast.width // 2, "ay": beast.height // 2, "cols": 1,
+                         "anims": {"play": [0, 1]}, "note": "dinosaure magique (attaque du nouveau héros)"}
+    im.crop((62, 12, 182, 132)).resize((40, 40), Image.BOX).save(os.path.join(OUT, "portrait_perso_dino.png"), optimize=True)
+    out["portrait_perso_dino"] = {"src": "assets/laverie/portrait_perso_dino.png", "cw": 40, "ch": 40, "ax": 20, "ay": 40, "cols": 1, "anims": {"play": [0, 1]}, "note": "portrait du nouveau héros"}
+    return out
+
 def fade_foreground():
     """Cadres de premier plan de la grotte : en bas (sous y = 150), seuls les bords gauche et droit restent, fondus vers le milieu."""
     for i in range(1, 5):
@@ -482,7 +547,7 @@ def main():
     if f: atlas["eg_laurene_furie"] = f
     b, c = prepare_brie()
     if b: atlas["eg_brie"], atlas["eg_crotte"] = b, c
-    atlas.update(prepare_eg_proj()); atlas.update(prepare_eg_portraits()); atlas.update(prepare_mamie()); atlas.update(prepare_souvenirs())
+    atlas.update(prepare_eg_proj()); atlas.update(prepare_eg_portraits()); atlas.update(prepare_mamie()); atlas.update(prepare_dino()); atlas.update(prepare_souvenirs())
     for name, (base, anims) in HEROES.items():
         a = prepare_hero(name, base, anims)
         if a: atlas[name] = a

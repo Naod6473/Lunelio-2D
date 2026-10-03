@@ -225,6 +225,14 @@ function drawWProj(l) {
     case "boom": ctx.save(); ctx.translate(cx, cy); ctx.rotate(l.t * 25); if (hasAtlas("armes_icones")) drawFrame("armes_icones", 5, 0, 0, 1, 1, 0.35); else R(-4, -4, 8, 8, "#ff8a3c"); ctx.restore(); break;
     case "bubble": ctx.globalAlpha = 0.5; ctx.strokeStyle = "#bff4ff"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; R(Math.round(cx - 2), Math.round(cy - 3), 2, 2, "#ffffff"); break;
     case "ball": ctx.fillStyle = "#ff4fd8"; ctx.beginPath(); ctx.arc(cx, cy, 4.5, 0, Math.PI * 2); ctx.fill(); R(Math.round(cx - 1), Math.round(cy - 3), 2, 2, "#fccc28"); R(Math.round(cx + 1), Math.round(cy), 2, 2, "#5ef0ff"); break;
+    case "dino": {   // dinosaure magique : il file en brillant, puis s'efface
+      const a = Math.min(1, (l.life - l.t) / 0.15), f = l.face || Math.sign(l.vx) || 1;
+      glow(ctx, cx, cy, 22, "94,255,200", 0.35 * a);
+      if (hasAtlas("magie_dino")) drawFrame("magie_dino", 0, Math.round(cx), Math.round(cy + Math.sin(l.t * 30) * 1), f, a * (0.85 + 0.15 * Math.sin(l.t * 40)), 0.8);
+      else R(Math.round(l.x), Math.round(l.y), l.w, l.h, "#5effc8");
+      if (Math.random() < 0.5) parts.push({ x: cx - f * 14, y: cy + (Math.random() - 0.5) * 16, vx: -f * 40, vy: -10, life: 0.35, max: 0.35, color: Math.random() < 0.5 ? "#5effc8" : "#5ef0ff", size: 1, grav: 0 });
+      break;
+    }
     case "pebble": R(Math.round(l.x), Math.round(l.y), 6, 6, "#8a7a6a"); R(Math.round(l.x), Math.round(l.y), 2, 2, "#c8b8a0"); break;
     case "swave": ctx.globalAlpha = 0.7 * (1 - l.t / l.life); for (let i = 0; i < l.w; i += 2) R(Math.round(l.x + i), Math.round(l.y + l.h - 2 - Math.abs(Math.sin(time * 30 + i)) * 8), 2, 3, i % 4 ? "#fccc28" : "#ffffff"); ctx.globalAlpha = 1; break;
   }

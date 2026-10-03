@@ -150,7 +150,7 @@ function drawDialog() {
   ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.strokeRect(8.5, y + 0.5, VW - 17, 65);
   R(14, y + 6, 52, 54, "rgba(30,20,56,0.9)");
   ctx.save(); ctx.beginPath(); ctx.rect(14, y + 6, 52, 54); ctx.clip();
-  if (who === "hero") drawFrame("portraits", ATL.portraits.anims[ch().id][0], 40, y + 58, 1, 1, 1.2);
+  if (who === "hero") drawHeroPortrait(ch(), 40, y + 58, 1, 1.2);
   else if (who === "machine") drawMachineIcon(40, y + 33, 1.6);
   else drawNpcPortrait(who, 40, y + 33, 1.25, Math.floor(d.t * 10) % 2 && d.t * 40 < lineText(L).length);
   ctx.restore();
@@ -676,7 +676,7 @@ function fxCol(p, alt) {
 }
 // Traînée du sabre (seulement avec un cosmétique d'effet)
 function drawSlash(p) {
-  if (!cosOn(p.C, "fx") || p.atkT < 0 || p.atkT > 0.2) return;
+  if (!cosOn(p.C, "fx") || p.atkT < 0 || p.atkT > 0.2 || p.C.attack === "magie") return;   // la magie est dessinée sur la planche
   const k = p.atkT / 0.2, cx = p.x + 5 + p.face * 8, cy = p.y + 14, r = p.C.atkW * 0.8;
   ctx.save(); ctx.globalAlpha = 0.75 * (1 - k); ctx.strokeStyle = fxCol(p); ctx.lineWidth = 3;
   ctx.beginPath(); const a0 = p.face > 0 ? -1.3 : Math.PI + 1.3, a1 = p.face > 0 ? -1.3 + 2.6 * Math.min(1, k * 2) : Math.PI + 1.3 - 2.6 * Math.min(1, k * 2);

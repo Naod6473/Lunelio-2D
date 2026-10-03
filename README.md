@@ -16,6 +16,7 @@ Chaque héros a un dash ou un double saut, et un pouvoir qui utilise la jauge.
 - **Rumi des Huntrix** : dash et chant magique qui endort les ennemis.
 - **Steve** : dash et blocs à poser sous ses pieds pour grimper.
 - **Randonneur** : dash et pique-nique qui rend un cœur.
+- **Dino** (nom provisoire) : sa magie fait surgir un dinosaure qui fonce sur les ennemis ; dash et rugissement qui étourdit.
 
 Les pouvoirs des six nouveaux héros sont une première proposition. Le dernier héros choisi est retenu. La progression, les collections et les quêtes sont **communes à tous les héros** : on peut changer de héros au vestiaire de la laverie sans rien perdre. Le logo animé du titre suit le héros : celui d'Hélio pour la plupart, celui de Lune pour Lune et Rumi.
 

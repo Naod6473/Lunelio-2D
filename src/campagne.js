@@ -1274,9 +1274,10 @@ function drawPrompt(x, y, label) {
   text(s, x, by, 8, "#7dffb0", "center");
 }
 function drawCampPlayer(p) {
-  if (p.dead || p.hidden) return;
+  if (p.dead) { drawDeadPose(p); return; }
+  if (p.hidden) return;
   if (mach && mach.st === "entering") { if (p === (mach.who || players[0])) drawEntering(p); return; }
-  if (p.inv > 0 && Math.floor(time * 20) % 2 && p.inv < 1.25 && !(arrival && !arrival.done)) return;
+  if (p.inv > 0 && Math.floor(time * 20) % 2 && p.inv < 1.25 && !(arrival && !arrival.done) && !(p.hurtT > 0)) return;   // la pose de dégât ne clignote pas
   let a = p.fade ?? 1;
   if (hidden(p)) a *= 0.35 + 0.1 * Math.sin(time * 12);
   const fr = playerFrame(p), x = p.x + 5, y = p.y + p.h;

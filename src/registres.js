@@ -9,7 +9,7 @@
 //   { challengesDone: n }           n défis réussis            { programsDone: n } n programmes différents réussis
 //   { memory: id } / { memories: n } souvenir(s) débloqué(s)   { badge: id }       badge obtenu
 //   { cardCat: cat }                catégorie de cartes complète { cardCatComplete: n } n catégories complètes
-//   { cardsAll: true }              album complet              { charsAll: true }  une salle avec chacun des 8 héros
+//   { cardsAll: true }              album complet              { charsAll: true }  une salle avec chacun des héros
 //   { oldFoe: type } / { oldBoss: monde } / { bonusWorld: n }  ancienne aventure
 //   { flag: nom }                   exploit noté (noDamageBoss, doomBoss, secret, doomRoom…)
 //   { visited: wid }                monde visité               { met: pnj }        client rencontré
@@ -170,8 +170,8 @@ const CARDS = [
     desc: "Un jeune ninja qui a perdu sa ceinture dans les ombres.", tip: "Il est si discret qu'on oublie parfois qu'il est là." },
   { id: "pnj_firmin", cat: "pnj", world: "laverie", name: "Grand-père Firmin", art: { npc: "firmin" }, cond: { memory: "souvenir_1" }, how: "Débloque le premier souvenir",
     desc: "L'inventeur de la Lavotron 3000, et le grand-père de Mme Bulle.", tip: "Il voulait juste laver le linge plus vite que l'éclair." },
-  ...["helio", "lune", "robot", "singe", "ninja", "rumi", "steve", "homme"].map(id => ({ id: "heros_" + id, cat: "heros", world: "laverie", heroId: id,
-    art: { atlas: "portraits", anim: id }, cond: { char: id }, how: "Termine une salle de la campagne avec ce héros" })),
+  ...["helio", "lune", "robot", "singe", "ninja", "rumi", "steve", "homme", "dino"].map(id => ({ id: "heros_" + id, cat: "heros", world: "laverie", heroId: id,
+    art: ATL["portrait_perso_" + id] ? { atlas: "portrait_perso_" + id, anim: "play" } : { atlas: "portraits", anim: id }, cond: { char: id }, how: "Termine une salle de la campagne avec ce héros" })),
   { id: "monstre_slime", cat: "monstres", world: "01_centrale", foe: "slime", name: "Slime électrique", art: { foe: "slime" }, cond: { foe: "slime" }, how: "Bats un slime électrique",
     desc: "Il glisse lentement et pique au contact.", tip: "Faiblesse : un seul coup de sabre. Ne le touche pas avec les mains !" },
   { id: "monstre_drone", cat: "monstres", world: "02_usine", foe: "drone", name: "Drone sentinelle", art: { foe: "drone" }, cond: { foe: "drone" }, how: "Bats un drone sentinelle",
@@ -233,7 +233,7 @@ const BADGES = [
   { id: "tous_programmes", name: "Maître lavandier", how: "Réussis les cinq programmes", cond: { programsDone: 5 }, icon: "swirl", col: "#c86eff" },
   { id: "premiere_categorie", name: "Collectionneur", how: "Complète une catégorie de cartes", cond: { cardCatComplete: 1 }, icon: "card", col: "#5ef0ff" },
   { id: "album_complet", name: "Album complet", how: "Trouve toutes les cartes", cond: { cardsAll: true }, icon: "book", col: "#ffd23c" },
-  { id: "tous_heros", name: "Toute la bande", how: "Termine une salle avec chacun des 8 héros", cond: { charsAll: true }, icon: "crown", col: "#ff8a3c" },
+  { id: "tous_heros", name: "Toute la bande", how: "Termine une salle avec chacun des héros", cond: { charsAll: true }, icon: "crown", col: "#ff8a3c" },
   { id: "souvenirs", name: "Mémoire de la machine", how: "Débloque les six souvenirs", cond: { memories: 6 }, icon: "crystal", col: "#ff4fd8" },
   { id: "ancienne_aventure", name: "Vieux souvenirs", how: "Termine l'ancienne aventure", cond: { bonusWorld: 8 }, icon: "trophy", col: "#b6ff5a" },
   { id: "doom_boss", name: "Courage de parent", how: "Bats un boss en mode Doom", cond: { flag: "doomBoss" }, icon: "skull", col: "#ff3b5c" },
