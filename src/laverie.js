@@ -32,6 +32,7 @@ const STATIONS = [
   { id: "jukebox", room: "salle", x: 770, fy: 101, w: 44, h: 56, art: true, label: "Jukebox", open: () => openJukebox() },
   { id: "defis", room: "chaussettes", x: 139, w: 96, h: 120, art: true, label: "Programmes de lavage", need: { world: 1 }, lockText: "Termine la centrale pour allumer ces machines", open: () => openChallenges() },
   { id: "ratelier", room: "chaussettes", x: 540, w: 44, h: 56, label: "Râtelier d'armes", open: () => openArmory() },
+  { id: "carnet", room: "chaussettes", x: 615, w: 56, h: 70, label: "Livre des secrets", open: () => { ALB.tab = 5; ALB.sel = 0; openAlbum(); } },
   { id: "tas", room: "chaussettes", x: 340, w: 110, h: 100, label: "Tas de chaussettes", open: () => { ALB.tab = 2; openAlbum(); } },
   { id: "souvenirs", room: "trophees", x: 45, w: 50, h: 100, art: true, label: "Portail des souvenirs", need: { memories: 1 }, lockText: "Ramène une pièce de la machine pour réveiller ses souvenirs", open: () => openMemories() },
   ...PEDESTALS.map((x, i) => ({ id: "vitrine" + i, room: "trophees", x, w: 40, h: 90, art: true, world: i, label: CWORLDS[i].name,
@@ -226,6 +227,7 @@ function updateHub(rdt) {
   }
   if (!hub.arrive) for (const q of players) { updatePlayer(q, rdt); if (q.idx) coopKeepNear(q, H); }
   if (!hub.arrive) pluieTasUpdate(rdt, p);   // le secret du tas de chaussettes (pluie.js)
+  for (const s of STATIONS) if (s.id === "carnet") s.op = clamp((s.op || 0) + (hub.near === s ? 2.5 : -2.5) * rdt, 0, 1);   // le livre des secrets s'ouvre peu à peu
   updateParts(rdt); updateFx(rdt);
 }
 function openHubMenu() { state = "hubmenu"; hubMenuSel = 0; audio.sfx("pause"); }
@@ -379,6 +381,15 @@ function drawShowcase() {
     }
   }
 }
+// Livre des secrets : il flotte au-dessus du sol (léger va-et-vient, ombre qui suit) et s'ouvre quand on s'approche
+function drawSecretBook(s, by, near) {
+  const op = s.op || 0, bob = Math.round(Math.sin(time * 2.2) * 3), y = by - 16 + bob;
+  ctx.globalAlpha = 0.28 - bob * 0.03; ctx.fillStyle = "#0e0a1a"; ctx.beginPath(); ctx.ellipse(s.x, by - 1, 18 - bob, 3, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+  if (hasAtlas("carnet_secrets")) drawFrame("carnet_secrets", op < 0.3 ? 0 : op < 0.85 ? 1 : 2, s.x, y);
+  else drawCarnet(s.x, y);
+  if (Math.random() < 0.06 + op * 0.2) parts.push({ x: s.x + (Math.random() - 0.5) * 40, y: y - 10 - Math.random() * 30, vx: 0, vy: -12, life: 0.7, max: 0.7, color: "#fccc28", size: 1, grav: 0 });
+  if (near) { ctx.globalAlpha = 0.25 + 0.15 * Math.sin(time * 6); R(s.x - s.w / 2, by - 1, s.w, 2, "#7dffb0"); ctx.globalAlpha = 1; }
+}
 // Postes : ceux qui font partie du décor fourni ne sont pas redessinés (seulement un petit signe de vie)
 function drawStation(s) {
   const on = stationOn(s), x = s.x, by = thingFloor(s), near = hub.near === s;
@@ -389,6 +400,7 @@ function drawStation(s) {
     if (near && on) { ctx.globalAlpha = 0.25 + 0.15 * Math.sin(time * 6); R(x - s.w / 2, by - 1, s.w, 2, "#7dffb0"); ctx.globalAlpha = 1; }
     return;
   }
+  if (s.id === "carnet") { drawSecretBook(s, by, near); return; }
   ctx.save(); if (!on) ctx.globalAlpha = 0.45;
   const A = { armoire: "armoire", album: "album_lutrin", jukebox: "jukebox", defis: "machine_defis", ratelier: "ratelier", deco: "livre_deco" }[s.id];
   if (A && hasAtlas(A)) {

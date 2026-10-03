@@ -1184,6 +1184,29 @@
    },
    "note": "laverie : livre_deco.png"
   },
+  "carnet_secrets": {
+   "src": "assets/laverie/carnet_secrets.png",
+   "cw": 72,
+   "ch": 52,
+   "ax": 36,
+   "ay": 52,
+   "cols": 3,
+   "anims": {
+    "fermee": [
+     0,
+     1
+    ],
+    "ouverture": [
+     1,
+     2
+    ],
+    "ouvert": [
+     2,
+     1
+    ]
+   },
+   "note": "laverie : livre_secrets.png"
+  },
   "grotte_scene_1": {
    "src": "assets/laverie/grotte_scene_1.webp",
    "cw": 480,

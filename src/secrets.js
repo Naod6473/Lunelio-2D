@@ -91,7 +91,7 @@ function bulleSecret() {
 }
 
 /* ---- Le carnet des secrets (onglet « Secrets » des collections) ---- */
-// Les secrets trouvés, et un indice pour les autres. Image : atlas carnet_secrets s'il existe (fourni plus tard), sinon un
+// Les secrets trouvés, et un indice pour les autres. Image : livre des secrets ouvert (atlas carnet_secrets), sinon un
 // carnet dessiné par le code (provisoire).
 const SECRETS = [
   { id: "dahaka", name: "La course du Dahaka", found: () => SAVE.flags.dahaka, what: "Un niveau sans fin : cours, le démon du temps te poursuit !",
@@ -112,7 +112,7 @@ const SECRETS = [
 const SEC = { sel: 0 };
 const secRect = i => ({ x: 10, y: 34 + i * 30, w: 228, h: 27 });
 function drawCarnet(x, y, s = 1) {
-  if (hasAtlas("carnet_secrets")) { const A = ATL.carnet_secrets, an = A.anims.anime || A.anims.play || [0, 1]; drawFrame("carnet_secrets", an[0] + Math.floor(time * 6) % an[1], x, y, 1, 1, s); return; }
+  if (hasAtlas("carnet_secrets")) { const A = ATL.carnet_secrets, an = A.anims.ouvert || A.anims.anime || A.anims.play || [0, 1]; drawFrame("carnet_secrets", an[0] + Math.floor(time * 6) % an[1], x, y + Math.round(Math.sin(time * 2.2) * 2), 1, 1, Math.min(s, 1.1)); return; }   // le livre est plus haut que le carnet provisoire
   // provisoire : un petit carnet violet avec un point d'interrogation
   const X = Math.round(x - 12 * s), Y = Math.round(y - 30 * s), w = Math.round(24 * s), h = Math.round(30 * s);
   R(X - 1, Y - 1, w + 2, h + 2, "#0e0a1a"); R(X, Y, w, h, "#6a2a9a"); R(X, Y, Math.round(4 * s), h, "#3a1260");
