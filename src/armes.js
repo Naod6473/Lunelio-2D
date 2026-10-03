@@ -233,6 +233,13 @@ function drawWProj(l) {
       if (Math.random() < 0.5) parts.push({ x: cx - f * 14, y: cy + (Math.random() - 0.5) * 16, vx: -f * 40, vy: -10, life: 0.35, max: 0.35, color: Math.random() < 0.5 ? "#5effc8" : "#5ef0ff", size: 1, grav: 0 });
       break;
     }
+    case "coeur": {   // cœur magique : départ, vol (4 images), dispersion à la fin
+      const f = l.face || Math.sign(l.vx) || 1, left = l.life - l.t;
+      glow(ctx, cx, cy, 16, "255,138,216", 0.35);
+      if (hasAtlas("magie_coeur")) { const A = ATL.magie_coeur.anims; drawFrame("magie_coeur", left < 0.12 ? A.fin[0] : l.t < 0.06 ? A.depart[0] : A.vol[0] + Math.floor(l.t * 14) % A.vol[1], Math.round(cx - f * 8), Math.round(cy), f); }
+      else R(Math.round(l.x), Math.round(l.y), l.w, l.h, "#ff8ad8");
+      break;
+    }
     case "pebble": R(Math.round(l.x), Math.round(l.y), 6, 6, "#8a7a6a"); R(Math.round(l.x), Math.round(l.y), 2, 2, "#c8b8a0"); break;
     case "swave": ctx.globalAlpha = 0.7 * (1 - l.t / l.life); for (let i = 0; i < l.w; i += 2) R(Math.round(l.x + i), Math.round(l.y + l.h - 2 - Math.abs(Math.sin(time * 30 + i)) * 8), 2, 3, i % 4 ? "#fccc28" : "#ffffff"); ctx.globalAlpha = 1; break;
   }

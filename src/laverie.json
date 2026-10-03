@@ -1749,6 +1749,91 @@
     ]
    },
    "note": "Mamie Florence géante en furie (église, dernier combat)"
+  },
+  "perso_marylou": {
+   "src": "assets/laverie/perso_marylou.png",
+   "cw": 72,
+   "ch": 56,
+   "ax": 36,
+   "ay": 53,
+   "cols": 6,
+   "anims": {
+    "idle": [
+     0,
+     4
+    ],
+    "run": [
+     6,
+     6
+    ],
+    "attack": [
+     12,
+     5
+    ],
+    "jump": [
+     18,
+     2
+    ],
+    "special": [
+     24,
+     4
+    ],
+    "walk": [
+     30,
+     6
+    ],
+    "hurt": [
+     40,
+     1
+    ],
+    "victoire": [
+     42,
+     4
+    ],
+    "dead": [
+     47,
+     1
+    ]
+   },
+   "note": "héros : heros/marylou.png"
+  },
+  "portrait_perso_marylou": {
+   "src": "assets/laverie/portrait_perso_marylou.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 40,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "portrait de Marylou"
+  },
+  "magie_coeur": {
+   "src": "assets/laverie/magie_coeur.png",
+   "cw": 56,
+   "ch": 34,
+   "ax": 28,
+   "ay": 17,
+   "cols": 6,
+   "anims": {
+    "depart": [
+     0,
+     1
+    ],
+    "vol": [
+     1,
+     4
+    ],
+    "fin": [
+     5,
+     1
+    ]
+   },
+   "note": "cœur lancé par Marylou"
   }
  }
 }

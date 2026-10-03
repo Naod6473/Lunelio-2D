@@ -462,40 +462,93 @@ def unblack(im):
     out = im.convert("RGBA"); out.putalpha(Image.eval(m, lambda v: 0 if v == 128 else 255))
     return out
 
-def body_mass(cell):
-    """Centre de masse et bas du corps, sans les effets (lueurs bleues et vertes, poussière claire, étoiles jaunes)."""
+def fx_dino(r, g, b):
+    """Effets de la planche de Dino : lueurs bleues et vertes, poussière claire, étoiles jaunes."""
+    return (b > 150 and b > r + 60) or (g > 170 and r < 140) or min(r, g, b) > 195 or (r > 200 and g > 170 and b < 110)
+
+def fx_marylou(r, g, b):
+    """Effets de la planche de Marylou : croissants de magie rose et lavande, petits cœurs roses, étoiles jaunes."""
+    return (b > 180 and b > g + 40) or (r > 200 and g < 150 and b > 100) or (r > 200 and g > 170 and b < 110)
+
+def body_mass(cell, fx=fx_dino):
+    """Centre de masse et bas du corps, sans les effets (fx : couleurs à ignorer)."""
     px = cell.load(); w, h = cell.size; sx = n = 0; bottom = 0
     for y in range(h):
         for x in range(w):
             r, g, b, a = px[x, y]
-            if a < 128: continue
-            if (b > 150 and b > r + 60) or (g > 170 and r < 140) or min(r, g, b) > 195 or (r > 200 and g > 170 and b < 110): continue
+            if a < 128 or fx(r, g, b): continue
             sx += x; n += 1; bottom = max(bottom, y)
     return (sx / n if n else w / 2), (bottom if n else h - 1)
+
+def hero_sheet(name, im, rows, colw, scale, cell, anchor, layout, xr, anims, fx, note):
+    """Planche d'un héros aux indices du jeu (layout : (ligne, colonne) de la source pour chaque case), poses recalées sur le
+    centre de masse du corps et le bas des pieds."""
+    cw, ch = cell; ax, ay = anchor; cols = 6
+    sheet = Image.new("RGBA", (cw * cols, ch * ((len(layout) + cols - 1) // cols)))
+    for i, rc in enumerate(layout):
+        if not rc: continue
+        r, c = rc; y0, y1 = rows[r]
+        x0, x1 = xr.get((r, c), (c * colw, min(im.width, (c + 1) * colw)))
+        part = drop_edge_bits(im.crop((x0, y0, x1, y1)))
+        mx, by = body_mass(part, fx)
+        small = part.resize((max(1, round(part.width * scale)), max(1, round(part.height * scale))), Image.BOX)
+        small.putalpha(small.split()[3].point(lambda v: 255 if v > 110 else 0))
+        sheet.paste(small, ((i % cols) * cw + round(ax - mx * scale), (i // cols) * ch + round(ay - (by + 1) * scale)), small)
+    sheet.save(os.path.join(OUT, name + ".png"), optimize=True)
+    return {name: {"src": f"assets/laverie/{name}.png", "cw": cw, "ch": ch, "ax": ax, "ay": ay, "cols": cols, "anims": anims, "note": note}}
+
+def hero_portrait(name, im, box, note):
+    im.crop(box).resize((40, 40), Image.BOX).save(os.path.join(OUT, name + ".png"), optimize=True)
+    return {name: {"src": f"assets/laverie/{name}.png", "cw": 40, "ch": 40, "ax": 20, "ay": 40, "cols": 1, "anims": {"play": [0, 1]}, "note": note}}
 
 def prepare_dino():
     f = os.path.join(SRC, DINO_SRC)
     if not os.path.exists(f): return {}
-    im = unblack(Image.open(f)); cw, ch = DINO_CELL; ax, ay = DINO_ANCHOR; cols = 6
-    sheet = Image.new("RGBA", (cw * cols, ch * ((len(DINO_LAYOUT) + cols - 1) // cols)))
-    for i, rc in enumerate(DINO_LAYOUT):
-        if not rc: continue
-        r, c = rc; y0, y1 = DINO_ROWS[r]
-        x0, x1 = DINO_XR.get((r, c), (c * DINO_COLW, min(im.width, (c + 1) * DINO_COLW)))
-        cell = drop_edge_bits(im.crop((x0, y0, x1, y1)))
-        mx, by = body_mass(cell)
-        small = cell.resize((max(1, round(cell.width * DINO_SCALE)), max(1, round(cell.height * DINO_SCALE))), Image.BOX)
-        small.putalpha(small.split()[3].point(lambda v: 255 if v > 110 else 0))
-        sheet.paste(small, ((i % cols) * cw + round(ax - mx * DINO_SCALE), (i // cols) * ch + round(ay - (by + 1) * DINO_SCALE)), small)
-    sheet.save(os.path.join(OUT, "perso_dino.png"), optimize=True)
-    out = {"perso_dino": {"src": "assets/laverie/perso_dino.png", "cw": cw, "ch": ch, "ax": ax, "ay": ay, "cols": cols, "anims": DINO_ANIMS, "note": "héros : heros/dino.png"}}
+    im = unblack(Image.open(f))
+    out = hero_sheet("perso_dino", im, DINO_ROWS, DINO_COLW, DINO_SCALE, DINO_CELL, DINO_ANCHOR, DINO_LAYOUT, DINO_XR, DINO_ANIMS, fx_dino, "héros : heros/dino.png")
     beast = im.crop(DINO_BEAST); beast = beast.crop(beast.getbbox())
     beast = beast.resize((round(beast.width * DINO_SCALE), round(beast.height * DINO_SCALE)), Image.BOX)
     beast.putalpha(beast.split()[3].point(lambda v: 255 if v > 90 else 0)); beast.save(os.path.join(OUT, "magie_dino.png"), optimize=True)
     out["magie_dino"] = {"src": "assets/laverie/magie_dino.png", "cw": beast.width, "ch": beast.height, "ax": beast.width // 2, "ay": beast.height // 2, "cols": 1,
                          "anims": {"play": [0, 1]}, "note": "dinosaure magique (attaque du nouveau héros)"}
-    im.crop((62, 12, 182, 132)).resize((40, 40), Image.BOX).save(os.path.join(OUT, "portrait_perso_dino.png"), optimize=True)
-    out["portrait_perso_dino"] = {"src": "assets/laverie/portrait_perso_dino.png", "cw": 40, "ch": 40, "ax": 20, "ay": 40, "cols": 1, "anims": {"play": [0, 1]}, "note": "portrait du nouveau héros"}
+    out.update(hero_portrait("portrait_perso_dino", im, (62, 12, 182, 132), "portrait du nouveau héros"))
+    return out
+
+# Marylou (heros/marylou.png : 7 lignes de 6 poses sur fond transparent) : repos, marche, course, saut, lancer de cœur, dash et
+# dégâts, joie et mort. Pas de dash : son double saut prend les 4 poses du saut (24–27, « special »). Dégât : l'image étourdie
+# (ligne 6, 5e) ; mort : la dernière image. Le cœur lancé (heros/marylou_coeur.png, 6 images sur une ligne : départ, 4 en vol,
+# dispersion) devient le projectile magie_coeur.
+MARYLOU_SRC, MARYLOU_COEUR = "heros/marylou.png", "heros/marylou_coeur.png"
+MARYLOU_ROWS = [(10, 172), (180, 340), (347, 503), (497, 677), (680, 836), (840, 966), (964, 1120)]
+MARYLOU_COLW, MARYLOU_SCALE = 150, 0.24
+MARYLOU_XR = {(6, 4): (600, 705), (6, 5): (705, 900),   # dernière ligne : la pose allongée déborde
+              (4, 1): (155, 318), (4, 2): (318, 472), (4, 3): (472, 615), (4, 4): (615, 768), (4, 5): (768, 900)}   # croissants de l'attaque
+MARYLOU_LAYOUT = ([(0, c) for c in range(6)] + [(2, c) for c in range(6)] + [(4, c) for c in range(6)]
+                  + [(3, 2), (3, 3), (3, 0), (3, 1), (3, 4), (3, 5)] + [(3, 1), (3, 2), (3, 3), (3, 4), (5, 0), (5, 5)]
+                  + [(1, c) for c in range(6)] + [(5, c) for c in range(6)] + [(6, c) for c in range(6)])
+MARYLOU_ANIMS = {"idle": [0, 4], "run": [6, 6], "attack": [12, 5], "jump": [18, 2], "special": [24, 4], "walk": [30, 6],
+                 "hurt": [40, 1], "victoire": [42, 4], "dead": [47, 1]}
+COEUR_SPANS = [(22, 235), (262, 561), (582, 900), (923, 1288), (1317, 1672), (1694, 1988)]
+COEUR_SCALE, COEUR_CELL = 0.15, (56, 34)
+
+def prepare_marylou():
+    f = os.path.join(SRC, MARYLOU_SRC)
+    if not os.path.exists(f): return {}
+    im = Image.open(f).convert("RGBA")
+    out = hero_sheet("perso_marylou", im, MARYLOU_ROWS, MARYLOU_COLW, MARYLOU_SCALE, DINO_CELL, DINO_ANCHOR, MARYLOU_LAYOUT, MARYLOU_XR, MARYLOU_ANIMS, fx_marylou, "héros : heros/marylou.png")
+    out.update(hero_portrait("portrait_perso_marylou", im, (50, 8, 152, 110), "portrait de Marylou"))
+    c = os.path.join(SRC, MARYLOU_COEUR)
+    if os.path.exists(c):
+        strip = Image.open(c).convert("RGBA"); cw, ch = COEUR_CELL; sheet = Image.new("RGBA", (cw * len(COEUR_SPANS), ch))
+        for k, (x0, x1) in enumerate(COEUR_SPANS):
+            part = strip.crop((x0, 0, x1, strip.height)); part = part.crop(part.getbbox())
+            part = part.resize((max(1, round(part.width * COEUR_SCALE)), max(1, round(part.height * COEUR_SCALE))), Image.BOX)
+            part.putalpha(part.split()[3].point(lambda v: 255 if v > 90 else 0))
+            x = k * cw + (cw - part.width if 1 <= k <= 4 else (cw - part.width) // 2)   # en vol : le cœur devant (à droite de la case)
+            sheet.paste(part, (x, (ch - part.height) // 2), part)
+        sheet.save(os.path.join(OUT, "magie_coeur.png"), optimize=True)
+        out["magie_coeur"] = {"src": "assets/laverie/magie_coeur.png", "cw": cw, "ch": ch, "ax": cw // 2, "ay": ch // 2, "cols": len(COEUR_SPANS),
+                              "anims": {"depart": [0, 1], "vol": [1, 4], "fin": [5, 1]}, "note": "cœur lancé par Marylou"}
     return out
 
 def fade_foreground():
@@ -554,7 +607,7 @@ def main():
     if f: atlas["eg_laurene_furie"] = f
     b, c = prepare_brie()
     if b: atlas["eg_brie"], atlas["eg_crotte"] = b, c
-    atlas.update(prepare_eg_proj()); atlas.update(prepare_eg_portraits()); atlas.update(prepare_mamie()); atlas.update(prepare_dino()); atlas.update(prepare_souvenirs())
+    atlas.update(prepare_eg_proj()); atlas.update(prepare_eg_portraits()); atlas.update(prepare_mamie()); atlas.update(prepare_dino()); atlas.update(prepare_marylou()); atlas.update(prepare_souvenirs())
     for name, (base, anims) in HEROES.items():
         a = prepare_hero(name, base, anims)
         if a: atlas[name] = a

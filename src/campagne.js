@@ -1273,6 +1273,12 @@ function drawPrompt(x, y, label) {
   ctx.strokeStyle = "#7dffb0"; ctx.lineWidth = 1; ctx.strokeRect(Math.round(x - w / 2) + 0.5, Math.round(by - 7) + 0.5, Math.round(w) - 1, 12);
   text(s, x, by, 8, "#7dffb0", "center");
 }
+// Bouclier d'un héros (fx_bouclier), teinté si le pouvoir a sa couleur (fxTint : la bulle d'amour de Marylou est rose)
+function drawShieldFx(p, x) {
+  const pw = powerOf(p.C), fr = animFrame("fx_bouclier", "play", time, 8);
+  if (pw.fxTint && typeof drawTinted === "function") { ctx.globalAlpha = 0.8; drawTinted("fx_bouclier", fr, pw.fxTint, x, p.y + 16, 0.9); ctx.globalAlpha = 1; }
+  else drawFrame("fx_bouclier", fr, x, p.y + 16, 1, 0.8, 0.9);
+}
 function drawCampPlayer(p) {
   if (p.dead) { drawDeadPose(p); return; }
   if (p.hidden) return;
@@ -1285,7 +1291,7 @@ function drawCampPlayer(p) {
   drawChar(p.C, fr, x, y, p.face, 1, a);
   drawHeldWeapon(p, fr, x, y, a);
   drawSlash(p);
-  if (p.powerOn && powerOf(p.C) && powerOf(p.C).shield) drawFrame("fx_bouclier", animFrame("fx_bouclier", "play", time, 8), x, p.y + 16, 1, 0.8, 0.9);
+  if (p.powerOn && powerOf(p.C) && powerOf(p.C).shield) drawShieldFx(p, x);
 }
 function drawCampWorld() {
   const bg = getImg(lvl.R.bg);

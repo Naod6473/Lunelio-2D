@@ -156,6 +156,9 @@ const POWERS = {
   block: { icon: "■", label: "bloc", name: "Bloc", color: "#7dffb0", burst: 0.34, effect: "block",
     hint: ["Maj ou L : pose un bloc sous tes pieds", "Bouton ■ : pose un bloc sous tes pieds", "Bouton {POW} : pose un bloc sous tes pieds"],
     kbHint: () => `${kbNames("power")} : pose un bloc sous tes pieds` },
+  amour: { icon: "♡", label: "bulle", name: "Bulle d'amour", color: "#ff8ad8", shield: true, fxTint: "#ff8ad8",
+    hint: ["Maintiens Maj ou L : une bulle d'amour te protège", "Maintiens ♡ : une bulle d'amour te protège", "Maintiens {POW} : une bulle d'amour te protège"],
+    kbHint: () => `Maintiens ${kbNames("power")} : une bulle d'amour te protège` },
   roar: { icon: "✶", label: "rugissement", name: "Rugissement", color: "#5effc8", burst: 0.5, effect: "stun",
     hint: ["Maj ou L : un rugissement qui étourdit les ennemis", "Bouton ✶ : un rugissement qui étourdit les ennemis", "Bouton {POW} : un rugissement qui étourdit les ennemis"],
     kbHint: () => `${kbNames("power")} : un rugissement qui étourdit les ennemis` },
@@ -202,12 +205,16 @@ const CHARS = [
     desc: "Toujours prêt : son pique-nique rend un cœur.",
     color: "#cfd8ff", glow: "207,216,255", ui: "#ff8a3c", ui2: "#8a5a3a", atkW: 30,
     sky: ["#100c08", "#3a2412", "#8a4a1e"], moon: ["#fff4e0", "#ffb46a"], stripe: "#4a2a12", stars: "255,236,210", city: ["#1e140c", "#140c06"] },
-  // attack: "magie" : son coup lance un dinosaure magique (projectile magie_dino) au lieu de trancher ; planche perso_dino
-  // préparée par preparer_laverie.py (avec les poses de dégât « hurt » et de mort « dead »)
-  { id: "dino", name: "Dino", special: "dash", power: "roar", attack: "magie", atkLabel: "magie du dinosaure", music: "backgroundhelio", logo: "helio", theme: null, unlock: null,
+  // attack: "magie" : son coup lance un projectile (proj : dino ou coeur, atlas magie_<proj>) au lieu de trancher ; planches
+  // perso_dino et perso_marylou préparées par preparer_laverie.py (avec les poses de dégât « hurt » et de mort « dead »)
+  { id: "dino", name: "Dino", special: "dash", power: "roar", attack: "magie", proj: "dino", atkLabel: "magie du dinosaure", music: "backgroundhelio", logo: "helio", theme: null, unlock: null,
     desc: "Sa magie fait surgir un dinosaure !",
     color: "#5effc8", glow: "94,255,200", ui: "#5effc8", ui2: "#2a8ac8", atkW: 30,
     sky: ["#061214", "#0e3a3a", "#1e6a5a"], moon: ["#e8fff6", "#7dffd0"], stripe: "#0e3a32", stars: "210,255,240", city: ["#0a1c1c", "#061414"] },
+  { id: "marylou", name: "Marylou", special: "doublejump", power: "amour", attack: "magie", proj: "coeur", atkLabel: "lancer de cœur", music: "backgroundlune", logo: "lune", theme: null, unlock: null,
+    desc: "Elle lance des cœurs magiques !",
+    color: "#ff8ad8", glow: "255,138,216", ui: "#ff8ad8", ui2: "#c86eff", atkW: 30,
+    sky: ["#1a0820", "#4a1240", "#8a2a6a"], moon: ["#fff0fa", "#ff9ad8"], stripe: "#4a1240", stars: "255,220,245", city: ["#22091e", "#180616"] },
 ];
 const specialOf = C => SPECIALS[C.special] || null, powerOf = C => POWERS[C.power] || null;
 const abilityText = C => [specialOf(C), powerOf(C)].filter(Boolean).map(a => a.name).join(" · ");
@@ -1464,8 +1471,9 @@ function updatePlayer(p, dt) {
     }
     if (magic && !p.cast && p.atkT > 0.18) {   // le dinosaure magique jaillit du poing (5e pose)
       p.cast = true;
-      wProj(p, { kind: "dino", x: p.x + 5 + p.face * 22, y: p.y + 14, vx: p.face * 300, w: 34, h: 24, life: 0.75, dmg: 1, pierce: 2, face: p.face });
-      burst(p.x + 5 + p.face * 16, p.y + 14, 10, ["#5effc8", "#5ef0ff", "#ffffff"], 120, 0.3, 0, 1);
+      const big = C.proj !== "coeur";   // le dinosaure est plus gros que le cœur
+      wProj(p, { kind: C.proj || "dino", x: p.x + 5 + p.face * 22, y: p.y + 14, vx: p.face * 300, w: big ? 34 : 28, h: big ? 24 : 18, life: 0.75, dmg: 1, pierce: 2, face: p.face });
+      burst(p.x + 5 + p.face * 16, p.y + 14, 10, [C.color, "#ffffff"], 120, 0.3, 0, 1);
     }
     if (p.atkT > 0.3) p.atkT = -1;
   }
@@ -1854,7 +1862,7 @@ function drawPlayer(p) {
   if (p.dashT > 0) for (let i = 1; i <= 3; i++) drawChar(p.C, fr, x - p.face * i * 9, y, p.face, 1, 0.18 * (4 - i) * a);
   drawChar(p.C, fr, x, y, p.face, 1, a);
   drawHeldWeapon(p, fr, x, y, a);
-  if (p.powerOn && powerOf(p.C) && powerOf(p.C).shield) drawFrame("fx_bouclier", animFrame("fx_bouclier", "play", time, 8), x, p.y + 16, 1, 0.8, 0.9);
+  if (p.powerOn && powerOf(p.C) && powerOf(p.C).shield) drawShieldFx(p, x);
 }
 // Robots de l'ancienne aventure : planche fournie (robot_marcheur, robot_canon, drone_ancien, voir preparer_laverie.py) si elle
 // existe, sinon dessin du code ; dans les deux cas avec la variante tirée au hasard (couleur proche, effet), comme les ennemis de la campagne.
