@@ -219,7 +219,7 @@ const CHARS = [
     color: "#ff8ad8", glow: "255,138,216", ui: "#ff8ad8", ui2: "#c86eff", atkW: 30,
     sky: ["#1a0820", "#4a1240", "#8a2a6a"], moon: ["#fff0fa", "#ff9ad8"], stripe: "#4a1240", stars: "255,220,245", city: ["#22091e", "#180616"] },
   // grunt : bruitage de la voix (sfx/joueur/<grunt>/grunt.mp3 et ses variantes) aux coups, sauts, dash et dégâts, hauteur au hasard
-  { id: "simon", name: "Simon", special: "dash", power: null, grunt: "simon", atkLabel: "coups de poing", atkVerb: "frapper", music: "backgroundhelio", logo: "helio", theme: null, unlock: null,
+  { id: "simon", name: "Simon", special: "dash", power: null, grunt: "simon", idleBonus: "victoire", atkLabel: "coups de poing", atkVerb: "frapper", music: "backgroundhelio", logo: "helio", theme: null, unlock: null,
     desc: "Il cogne fort avec ses gros gants !",
     color: "#ffb46a", glow: "255,180,106", ui: "#ffb46a", ui2: "#4a6aa8", atkW: 28,
     sky: ["#100a08", "#2a1a14", "#5a3020"], moon: ["#fff0e0", "#ffb46a"], stripe: "#2a1a14", stars: "255,230,210", city: ["#1a120e", "#100a08"] },
@@ -1504,6 +1504,7 @@ function updatePlayer(p, dt) {
     msg = { text: "+1 cœur", t: 1.2 };
   }
   if (Math.abs(p.vx) > 20 && p.onGround) p.runT += dt * boost;
+  p.idleT = p.onGround && Math.abs(p.vx) <= 20 && p.atkT < 0 && p.dashT <= 0 ? (p.idleT || 0) + dt : 0;   // immobile depuis combien de temps
   if (lvl.json) { if (p.y > VH + 8) campFall(p); return; }
   if (p.y > VH + 40) { if (buddyOn()) { p.x = lvl.start.x; p.y = lvl.start.y; p.vy = 0; p.inv = 0; } hurtPlayer(p, p.x); }
   if (doorOpen && ov(p, lvl.door)) { state = "clear"; clearT = 1.6; audio.sfx("start"); setTimeFx(false, false); }
@@ -1863,6 +1864,9 @@ function basePlayerFrame(p) {
   }
   if (!p.onGround) return 18 + (p.vy < 0 ? 0 : 1);
   if (Math.abs(p.vx) > 20) return 6 + Math.floor(p.runT * 12) % 6;
+  // au repos, de temps en temps, une pose à soi (idleBonus : Simon lève les bras de victoire) : 1,4 s toutes les 6 s
+  const ib = p.C.idleBonus && An[p.C.idleBonus], k = (p.idleT || 0) - 2.5;
+  if (ib && k > 0 && k % 6 > 4.6) return ib[0] + Math.min(ib[1] - 1, Math.floor((k % 6 - 4.6) / 1.4 * ib[1]));
   return Math.floor(time * 5) % 4;
 }
 // Les personnages sont dessinés depuis leur atlas (perso_<id>), ancrés au milieu des pieds
