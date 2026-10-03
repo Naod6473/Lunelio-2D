@@ -2687,10 +2687,10 @@
   },
   "tour_base": {
    "src": "assets/laverie/tour_base.png",
-   "cw": 170,
-   "ch": 110,
-   "ax": 85,
-   "ay": 110,
+   "cw": 112,
+   "ch": 80,
+   "ax": 56,
+   "ay": 80,
    "cols": 1,
    "anims": {
     "play": [
@@ -2698,7 +2698,7 @@
      1
     ]
    },
-   "note": "tour : la base"
+   "note": "tour : la porte (porte.png)"
   },
   "fx_explosion": {
    "src": "assets/laverie/fx_explosion.png",

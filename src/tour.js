@@ -364,7 +364,11 @@ function tourDrawTower(pc) {
 function tourDrawGround(pc) {
   const fy = Math.round(TOUR_F + TW.off); if (fy > VH + 200) return;
   const a = tWrap(TOUR_C - 85 - pc) / TOUR_R, c = Math.cos(a);
-  if (c > 0.1 && hasAtlas("tour_base")) tourSlab("tour_base", 0, TOUR_CX + TOUR_R * Math.sin(a), fy + 4, c, c);
+  if (c > 0.1 && hasAtlas("tour_base")) {   // la porte et ses lanternes, sur le mur au point de départ
+    const x = TOUR_CX + TOUR_R * Math.sin(a), lit = 0.3 + 0.06 * Math.sin(time * 5);
+    tourSlab("tour_base", 0, x, fy + 1, c, c);
+    for (const d of [-44, 44]) glow(ctx, x + d * c, fy - 50, 16, "255,170,90", lit * c);
+  }
   if (fy < VH) { R(0, fy, VW, VH - fy, "#140c26"); R(0, fy, VW, 2, "#3a2a6c"); R(0, fy + 2, VW, 1, "#5ef0ff33"); }
 }
 function tourDrawFoe(e, x, c) {

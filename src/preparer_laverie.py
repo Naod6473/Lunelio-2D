@@ -960,11 +960,13 @@ def prepare_tour():
             small = sharp(part.resize((max(1, round(part.width * 0.12)), max(1, round(part.height * 0.12))), Image.BOX))
             c = Image.new("RGBA", (32, 32)); c.paste(small, ((32 - small.width) // 2, (32 - small.height) // 2), small); bub.append(c)
         out.update(tour_sheet("tour_bulles", bub, len(bub), 16, 16, {"bulle": [0, 6], "eclate": [6, max(0, len(bub) - 6)]}, "tour : bulles de savon"))
-    if os.path.exists(f("base_sommet.png")):   # la base (porte et lanternes), à gauche de l'image
-        im = Image.open(f("base_sommet.png")).convert("RGBA"); half = im.crop((0, 0, im.width // 2, im.height)); b = alpha_box(half)
-        part = half.crop(b); s = 170 / part.width; small = sharp(part.resize((170, round(part.height * s)), Image.BOX))
+    # la porte de la tour et ses deux lanternes (porte.png), posée sur le mur au point de départ ; sinon la base de base_sommet.png
+    if os.path.exists(f("porte.png")) or os.path.exists(f("base_sommet.png")):
+        door = os.path.exists(f("porte.png")); im = Image.open(f("porte.png" if door else "base_sommet.png")).convert("RGBA")
+        half = im if door else im.crop((0, 0, im.width // 2, im.height)); part = half.crop(alpha_box(half, 60)); w = 112 if door else 170
+        small = sharp(part.resize((w, round(part.height * w / part.width)), Image.BOX))
         small.save(os.path.join(OUT, "tour_base.png"), optimize=True)
-        out["tour_base"] = {"src": "assets/laverie/tour_base.png", "cw": 170, "ch": small.height, "ax": 85, "ay": small.height, "cols": 1, "anims": {"play": [0, 1]}, "note": "tour : la base"}
+        out["tour_base"] = {"src": "assets/laverie/tour_base.png", "cw": w, "ch": small.height, "ax": w // 2, "ay": small.height, "cols": 1, "anims": {"play": [0, 1]}, "note": "tour : la porte (porte.png)" if door else "tour : la base"}
     return out
 
 # Explosions (5 images sur une ligne, de tailles inégales : découpées aux colonnes vides, ou aux bornes données quand les
