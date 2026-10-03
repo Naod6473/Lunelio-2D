@@ -264,10 +264,14 @@ SCREENS.tour = {
     for (const q0 of TW.pops) { const q = proj(q0.x); if (q.c < 0.05) continue; const aid = q0.kind === "robot" ? "tour_robot" : "tour_tonneau", an = q0.kind === "robot" ? "explose" : "eclate";
       if (hasAtlas(aid)) drawFrame(aid, animFrame(aid, an, q0.t, 9, false), Math.round(q.x), Math.round(q0.kind === "robot" ? q0.y + 12 : q0.y), q0.face); }
     for (const l of lasers) { const q = proj(l.x + (l.w || 0) / 2); if (q.c < 0.1) continue; ctx.save(); ctx.translate(Math.round(q.x - l.x - (l.w || 0) / 2), 0); drawWProj(l); ctx.restore(); }
+    // effets (explosions, téléportation…) : chacun à sa place sur le cylindre, comme les tirs
+    const fxAt = under => { const all = fxs; for (const f of all) { if (f.under !== under) continue; const q = proj(f.x); if (q.c < 0.1) continue; fxs = [f]; ctx.save(); ctx.translate(Math.round(q.x - f.x), 0); drawFxList(under); ctx.restore(); } fxs = all; };
+    fxAt(true);
     ctx.save(); ctx.translate(Math.round(TOUR_CX - pc), 0);
     for (const b of lvl.blocks || []) R(Math.round(b.x), Math.round(b.y), b.w, b.h, "#4fbf3a");
-    drawFxList(true); drawGhosts(); drawCampPlayer(p); drawFxList(false);
+    drawGhosts(); drawCampPlayer(p);
     ctx.restore();
+    fxAt(false);
     for (const q of parts) { const s = proj(q.x); if (s.c < 0) continue; ctx.globalAlpha = Math.min(1, q.life / q.max * 1.5); R(Math.round(s.x), Math.round(q.y), q.size, q.size, q.color); }
     ctx.globalAlpha = 1;
     tourDrawFoam(pc);

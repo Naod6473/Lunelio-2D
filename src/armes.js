@@ -173,7 +173,8 @@ function explodeCar(l) {
   const cx = l.x + l.w / 2, cy = l.y + l.h / 2, box = { x: cx - 40, y: cy - 36, w: 80, h: 56 };
   for (const e of enemies) if (e.alive && ov(box, e)) hitEnemy(e, "proj", l.p, 3);
   if (lvl.json) { l.p.hitList = new Set(); campAttack(l.p, box, "atk"); }
-  if (hasAtlas("eg_boum")) addFx("eg_boum", cx, cy - 6, { anim: "play", fps: 8 });
+  if (hasAtlas("fx_explosion")) addFx("fx_explosion", cx, cy - 10, { anim: "play", fps: 10 });
+  else if (hasAtlas("eg_boum")) addFx("eg_boum", cx, cy - 6, { anim: "play", fps: 8 });
   burst(cx, cy, 30, ["#ff5a3c", "#fccc28", "#ffffff", "#5a5a6a"], 220, 0.7, 300, 2);
   shake = Math.max(shake, 6); audio.sfx("boom"); rumble(220, 0.7, 0.5);
 }

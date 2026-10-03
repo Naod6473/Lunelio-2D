@@ -967,6 +967,40 @@ def prepare_tour():
         out["tour_base"] = {"src": "assets/laverie/tour_base.png", "cw": 170, "ch": small.height, "ax": 85, "ay": small.height, "cols": 1, "anims": {"play": [0, 1]}, "note": "tour : la base"}
     return out
 
+# Explosions (5 images sur une ligne, de tailles inégales : découpées aux colonnes vides, ou aux bornes données quand les
+# rayons se touchent) et le canapé de la laverie (décoration « Canapé » du coin détente).
+EXPLOSIONS = {"fx_explosion": ("fx/explosion.webp", None), "fx_explosion_magique": ("fx/explosion_magique.webp", [43, 304, 682, 1228, 1668, 1980])}
+
+def prepare_extras():
+    out = {}; os.makedirs(OUT, exist_ok=True)
+    for name, (rel, cuts) in EXPLOSIONS.items():
+        f = os.path.join(SRC, rel)
+        if not os.path.exists(f): continue
+        im = Image.open(f).convert("RGBA")
+        if cuts: spans = list(zip(cuts[:-1], cuts[1:]))
+        else:
+            a = im.split()[3].point(lambda v: 255 if v > 100 else 0); used = [a.crop((x, 0, x + 1, a.height)).getbbox() is not None for x in range(a.width)]
+            spans, x = [], 0
+            while x < len(used):
+                if used[x]:
+                    x0 = x
+                    while x < len(used) and any(used[x:x + 15]): x += 1
+                    spans.append((x0, x))
+                x += 1
+        s, cw = 0.2, 112; frames = []
+        for x0, x1 in spans:
+            part = drop_edge_bits(im.crop((x0, 0, x1, im.height))); b = alpha_box(part, 60); part = part.crop(b)
+            small = sharp(part.resize((max(1, round(part.width * s)), max(1, round(part.height * s))), Image.BOX))
+            c = Image.new("RGBA", (cw, cw)); c.paste(small, ((cw - small.width) // 2, (cw - small.height) // 2), small); frames.append(c)
+        out.update(tour_sheet(name, frames, len(frames), cw // 2, cw // 2, {"play": [0, len(frames)]}, "explosion : " + rel))
+    f = os.path.join(SRC, "canape.webp")
+    if os.path.exists(f):
+        im = Image.open(f).convert("RGBA"); part = im.crop(alpha_box(im, 60)); w = 76
+        small = sharp(part.resize((w, round(part.height * w / part.width)), Image.BOX))
+        small.save(os.path.join(OUT, "canape.png"), optimize=True)
+        out["canape"] = {"src": "assets/laverie/canape.png", "cw": w, "ch": small.height, "ax": w // 2, "ay": small.height, "cols": 1, "anims": {"play": [0, 1]}, "note": "laverie : canapé du coin détente"}
+    return out
+
 def main():
     atlas, missing = {}, []
     d = prepare_dahaka()
@@ -990,6 +1024,7 @@ def main():
     atlas.update(prepare_bulle())   # après les planches génériques : remplace l'ancienne Mme Bulle
     atlas.update(prepare_bobine())  # de même pour Bobine
     atlas.update(prepare_tour())    # la tour qui tourne (niveau secret)
+    atlas.update(prepare_extras())  # explosions et canapé
     fade_foreground()
     prepare_loading()
     json.dump({"atlas": atlas}, open(os.path.join(HERE, "laverie.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)

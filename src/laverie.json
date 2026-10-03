@@ -2699,6 +2699,51 @@
     ]
    },
    "note": "tour : la base"
+  },
+  "fx_explosion": {
+   "src": "assets/laverie/fx_explosion.png",
+   "cw": 112,
+   "ch": 112,
+   "ax": 56,
+   "ay": 56,
+   "cols": 5,
+   "anims": {
+    "play": [
+     0,
+     5
+    ]
+   },
+   "note": "explosion : fx/explosion.webp"
+  },
+  "fx_explosion_magique": {
+   "src": "assets/laverie/fx_explosion_magique.png",
+   "cw": 112,
+   "ch": 112,
+   "ax": 56,
+   "ay": 56,
+   "cols": 5,
+   "anims": {
+    "play": [
+     0,
+     5
+    ]
+   },
+   "note": "explosion : fx/explosion_magique.webp"
+  },
+  "canape": {
+   "src": "assets/laverie/canape.png",
+   "cw": 76,
+   "ch": 50,
+   "ax": 38,
+   "ay": 50,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "laverie : canapé du coin détente"
   }
  }
 }

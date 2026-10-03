@@ -451,7 +451,7 @@ function egUpdateIncoming(dt) {
     c.t += dt; egIncPos(c);
     if (c.st === "back" && c.t >= 0.6) {   // elle revient sur Mamie : boum !
       c.alive = false; const g = EG.bosses.find(b => b.B.giant && !b.down);
-      EG.cars.push({ st: "boom", x: c.cx, y: c.cy, t: 0, sc: 1.2 }); audio.sfx("boom"); shake = Math.max(shake, 7);
+      EG.cars.push({ st: "boom", x: c.cx, y: c.cy, t: 0, sc: 1.2, magic: true }); audio.sfx("boom"); shake = Math.max(shake, 7);
       if (g) { g.inv = 0; egDamage(g, 1, true); if (!g.down) egSay(g, ["Aïe ! Ma voiture !", "Ouille ! Mes lunettes !", "Ma belle voiture !"][Math.floor(Math.random() * 3)]); }
     } else if (c.st === "in" && c.t >= c.T) {   // ratée : elle atterrit devant le muret
       c.alive = false; const car = { st: "fly", x: c.cx, y: EG_FLOOR - CAR_H / 2, vx: 0, vy: 1, g: 0, t: 0, face: c.face, furie: c.furie }; EG.cars.push(car); egCarLand(car);
@@ -508,6 +508,7 @@ function egUpdateGiant(e, p, dt) {
 function drawCar(c) {
   if (!hasAtlas("eg_voiture")) { R(Math.round(c.x - CAR_W / 2), Math.round(c.y - CAR_H / 2), CAR_W, CAR_H, "#e8e4dc"); return; }
   const A = ATL.eg_voiture, base = A.anims[c.furie ? "furie" : "rotation"][0];
+  if (c.st === "boom" && hasAtlas("fx_explosion")) { const id = c.magic ? "fx_explosion_magique" : "fx_explosion"; drawFrame(id, Math.min(4, Math.floor(c.t * 10)), Math.round(c.x), Math.round(c.y - 8), 1, 1, (c.sc || 1) * 0.95); return; }   // explosion en 5 images
   if (c.st === "boom") { drawFrame("eg_boum", c.t < 0.2 ? 0 : 1, Math.round(c.x), Math.round(c.y - 6), 1, Math.min(1, (0.5 - c.t) * 4), (c.sc || 1) * 0.9); return; }
   const fr = c.st === "fly" ? base + (c.vy < -90 ? 0 : c.vy > 90 ? 2 : 1) : base + 1;
   const left = carLife() - c.t, blink = c.st === "park" && left < 1.2 && Math.floor(c.t * (left < 0.5 ? 16 : 8)) % 2;

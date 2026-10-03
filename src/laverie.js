@@ -358,7 +358,8 @@ function drawShowcase() {
     drawSign(408, 109);
     // coin détente : objets à poser (dessins provisoires), devant les machines
     if (items.item_plante) { R(218, fl - 18, 10, 18, "#8a4a2a"); R(216, fl - 36, 4, 18, "#2fa85a"); R(221, fl - 42, 4, 24, "#3fd070"); R(225, fl - 34, 4, 16, "#2fa85a"); }
-    if (items.item_canape) { R(440, fl - 24, 50, 24, "#0e0a1a"); R(442, fl - 22, 46, 12, "#6a3a8a"); R(440, fl - 14, 50, 10, "#5a2a7a"); R(442, fl - 4, 4, 4, "#2a1a3a"); R(484, fl - 4, 4, 4, "#2a1a3a"); }
+    if (items.item_canape && hasAtlas("canape")) drawFrame("canape", 0, 465, fl + 2);
+    else if (items.item_canape) { R(440, fl - 24, 50, 24, "#0e0a1a"); R(442, fl - 22, 46, 12, "#6a3a8a"); R(440, fl - 14, 50, 10, "#5a2a7a"); R(442, fl - 4, 4, 4, "#2a1a3a"); R(484, fl - 4, 4, 4, "#2a1a3a"); }
     if (items.item_table) { R(300, fl - 10, 26, 3, "#8a5a3a"); R(302, fl - 7, 2, 7, "#5a3a2a"); R(322, fl - 7, 2, 7, "#5a3a2a"); R(304, fl - 14, 8, 4, "#5ef0ff"); }
     if (items.item_distributeur) { R(160, fl - 48, 22, 48, "#0e0a1a"); R(161, fl - 47, 20, 46, "#c8302a"); R(164, fl - 43, 14, 22, "#ffd0a0"); for (let i = 0; i < 3; i++) R(166 + i * 4, fl - 40, 2, 16, ["#ff8a3c", "#7dffb0", "#ff4fd8"][i]); R(164, fl - 14, 14, 4, "#0e0a1a"); }
     if (items.item_panier) { R(526, fl - 12, 22, 12, "#0e0a1a"); R(527, fl - 11, 20, 10, "#c89a5a"); R(529, fl - 15, 6, 5, "#5ef0ff"); R(537, fl - 16, 7, 6, "#ff8ab0"); }
