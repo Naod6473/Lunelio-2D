@@ -39,6 +39,7 @@ const NPCS = {
   laurene: { name: "Laurène", color: "#ff5a7a", talk: "talk_laurene", eglise: true },
   jules: { name: "Jules", color: "#6a8aff", talk: "talk_jules", eglise: true },
   brie: { name: "Brie", color: "#ff9a4a", talk: "talk_brie", eglise: true },
+  mamie: { name: "Mamie Florence", color: "#f0b0c8", talk: "talk_mamie", eglise: true },
   firmin: { name: "Grand-père Firmin", color: "#fccc28", skin: "#f0c8a0", hair: "#ffffff", cloth: "#4a6aa8", accent: "#fccc28", talk: "talk_bulle" },
 };
 
@@ -252,7 +253,7 @@ const BADGES = [
 const MEDALS = {
   "01_centrale": [240, 360, 600], "02_usine": [270, 400, 660], "03_temple": [300, 440, 720],
   "04_volcan": [300, 440, 720], "05_port": [330, 480, 780], "06_grotte": [330, 480, 780],
-  rush: [480, 720, 1140],
+  rush: [660, 960, 1440],
 };
 const MEDAL_NAMES = ["", "bronze", "argent", "or"], MEDAL_COLS = ["", "#cd7f32", "#d8e0f0", "#ffd23c"];
 const MEDAL_LABELS = ["", "Médaille de bronze", "Médaille d'argent", "Médaille d'or"];

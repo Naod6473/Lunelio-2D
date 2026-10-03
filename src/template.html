@@ -1325,6 +1325,7 @@ function damageBoss(e, dmg) {
 }
 // src : "atk" (sabre), "dash", "laser" (tir renvoyé) ou "proj" (arme du râtelier, dégâts dmg)
 function hitEnemy(e, src, p, dmg) {
+  if (e.type === "egcar") { egCarHit(e, p); return; }   // voiture de Mamie géante (eglise.js) : frappée au bon moment, elle repart
   if (e.type === "egboss") {   // boss de l'église (eglise.js) : un coup de sabre ou un dash ne touche qu'une fois
     if (src === "atk") { if (p.hitList.has(e)) return; p.hitList.add(e); audio.sfx("sword_hit"); }
     else if (src === "dash") { if (p.dashHits.has(e)) return; p.dashHits.add(e); }

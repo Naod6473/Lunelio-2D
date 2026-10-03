@@ -281,6 +281,197 @@
    },
    "note": "portrait de brie (église)"
   },
+  "eg_mamie": {
+   "src": "assets/laverie/eg_mamie.png",
+   "cw": 106,
+   "ch": 106,
+   "ax": 53,
+   "ay": 88,
+   "cols": 6,
+   "anims": {
+    "marche": [
+     0,
+     6
+    ],
+    "course": [
+     6,
+     6
+    ],
+    "saut": [
+     12,
+     6
+    ],
+    "glissade": [
+     18,
+     6
+    ],
+    "cri": [
+     24,
+     6
+    ],
+    "lancer_avant": [
+     30,
+     6
+    ],
+    "lancer_haut": [
+     36,
+     6
+    ],
+    "lancer_rotation": [
+     42,
+     6
+    ],
+    "furie": [
+     48,
+     6
+    ]
+   },
+   "note": "Mamie Florence (église)"
+  },
+  "eg_mamie_geante": {
+   "src": "assets/laverie/eg_mamie_geante.png",
+   "cw": 192,
+   "ch": 192,
+   "ax": 96,
+   "ay": 160,
+   "cols": 6,
+   "anims": {
+    "cri": [
+     0,
+     6
+    ],
+    "lancer_avant": [
+     6,
+     6
+    ],
+    "lancer_haut": [
+     12,
+     6
+    ],
+    "lancer_rotation": [
+     18,
+     6
+    ],
+    "furie": [
+     24,
+     6
+    ]
+   },
+   "note": "Mamie Florence géante (église, dernier combat)"
+  },
+  "eg_voiture": {
+   "src": "assets/laverie/eg_voiture.png",
+   "cw": 104,
+   "ch": 76,
+   "ax": 52,
+   "ay": 38,
+   "cols": 3,
+   "anims": {
+    "vues": [
+     0,
+     3
+    ],
+    "rotation": [
+     3,
+     3
+    ],
+    "furie": [
+     6,
+     3
+    ]
+   },
+   "note": "voitures de Mamie Florence"
+  },
+  "eg_pneu": {
+   "src": "assets/laverie/eg_pneu.png",
+   "cw": 36,
+   "ch": 32,
+   "ax": 18,
+   "ay": 16,
+   "cols": 3,
+   "anims": {
+    "play": [
+     0,
+     3
+    ]
+   },
+   "note": "pneu de Mamie Florence"
+  },
+  "eg_boum": {
+   "src": "assets/laverie/eg_boum.png",
+   "cw": 124,
+   "ch": 124,
+   "ax": 62,
+   "ay": 62,
+   "cols": 2,
+   "anims": {
+    "play": [
+     0,
+     2
+    ]
+   },
+   "note": "explosion des voitures"
+  },
+  "portrait_mamie": {
+   "src": "assets/laverie/portrait_mamie.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 40,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "portrait de Mamie Florence (église)"
+  },
+  "eglise_4": {
+   "src": "assets/laverie/eglise_4.webp",
+   "cw": 480,
+   "ch": 272,
+   "ax": 240,
+   "ay": 272,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "arène de Mamie Florence"
+  },
+  "eglise_5": {
+   "src": "assets/laverie/eglise_5.webp",
+   "cw": 504,
+   "ch": 284,
+   "ax": 252,
+   "ay": 284,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "arène de Mamie Florence"
+  },
+  "eglise_muret": {
+   "src": "assets/laverie/eglise_muret.png",
+   "cw": 504,
+   "ch": 88,
+   "ax": 252,
+   "ay": 88,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "muret de l'arène 3 de Mamie (premier plan)"
+  },
   "souvenir_1": {
    "src": "assets/laverie/souvenir_1.webp",
    "cw": 672,

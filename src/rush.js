@@ -1,12 +1,12 @@
 /* ---------------- Boss rush ---------------- */
 // Carte de l'écran des mondes (RUSH_CARD, après les 6 mondes) : les 6 boss de la campagne d'affilée, dans leurs arènes, puis
-// les combats de l'église (Brie, Jules, Laurène, puis le duo ; RUSH_EG : étapes de EG_SCRIPT), sans dialogue.
+// les combats de l'église (Brie, Jules, Laurène, le duo, puis Mamie Florence trois fois ; RUSH_EG : étapes de EG_SCRIPT), sans dialogue.
 // rush : { i (boss en cours), t (chrono, temps réel en jeu), hp (cœurs gardés d'un boss à l'autre), startHp, next (pause
 // entre deux boss), res (résultat) }. Perdre recommence le boss en cours, avec les cœurs du début de ce combat ; le chrono
 // continue. Record par difficulté, en solo et à deux : SAVE.rush.best["diff|1"] ou ["diff|2"].
 // Ni pièce, ni arme, ni chaussette : le boss rush ne compte que pour le record (et ses badges).
 let rush = null;
-const RUSH_EG = [0, 2, 4, 5], RUSH_TOTAL = CWORLDS.length + RUSH_EG.length;
+const RUSH_EG = [0, 2, 4, 5, 7, 9, 11], RUSH_TOTAL = CWORLDS.length + RUSH_EG.length;
 const rushName = i => i < CWORLDS.length ? BIG[CWORLDS[i].boss].name : EG_SCRIPT[RUSH_EG[i - CWORLDS.length]].fight.map(id => EGB[id].name).join(" et ");
 const rushOpen = () => campProgress() >= CWORLDS.length;
 const rushKey = () => `${df().id}|${COOP.on ? 2 : 1}`;

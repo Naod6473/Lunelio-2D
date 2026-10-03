@@ -360,6 +360,72 @@ def prepare_eg_portraits():
         out[f"portrait_{n}"] = {"src": f"assets/laverie/portrait_{n}.png", "cw": 40, "ch": 40, "ax": 20, "ay": 40, "cols": 1, "anims": {"play": [0, 1]}, "note": f"portrait de {n} (église)"}
     return out
 
+# Mamie Florence (la mère de Jules, boss de l'église après le duo) : planche de 9 lignes de 6 cases de 192 px, pieds en
+# (96, 160), tournée vers la droite (mamie.png, assemblée depuis les bandes du pack). Elle est réduite comme Jules (EG_SCALE) ;
+# la géante (dernier combat, derrière le muret) reprend en grand les lignes du cri, des lancers et de la furie (MAMIE_GEANTE_SCALE).
+# Voitures (voitures.png : 3 × 3 cases de 256 × 192 : vues, inclinaisons, furie), pneu et explosion (pneu_explosion.png :
+# 5 images sur une ligne), portrait recadré sur la tête (cri, image 0), arènes 1 et 3, muret de l'arène 3 (premier plan).
+MAMIE_DIR = "eglise/mamie"
+MAMIE_ANIMS = {"marche": [0, 6], "course": [6, 6], "saut": [12, 6], "glissade": [18, 6], "cri": [24, 6], "lancer_avant": [30, 6],
+               "lancer_haut": [36, 6], "lancer_rotation": [42, 6], "furie": [48, 6]}
+MAMIE_GEANTE_ROWS, MAMIE_GEANTE_SCALE = (4, 5, 6, 7, 8), 1.0
+VOITURE_SCALE, VOITURE_CELL = 0.48, (104, 76)
+PNEU_SPANS = [(99, 301), (472, 727), (873, 1127), (1263, 1537), (1661, 1939)]   # colonnes de chaque image (pneu ×3, explosion ×2)
+PNEU_SCALE, PNEU_CELL, BOUM_SCALE, BOUM_CELL = 0.13, (36, 32), 0.42, (124, 124)
+
+def recentre(im, cell, s):
+    """Image réduite à l'échelle s (alpha net), centrée sur sa silhouette dans une case cell."""
+    b = im.getbbox(); cw, ch = cell; out = Image.new("RGBA", cell)
+    if not b: return out
+    part = im.crop(b); part = part.resize((max(1, round(part.width * s)), max(1, round(part.height * s))), Image.BOX)
+    part.putalpha(part.split()[3].point(lambda v: 255 if v > 110 else 0))
+    out.paste(part, ((cw - part.width) // 2, (ch - part.height) // 2), part)
+    return out
+
+def prepare_mamie():
+    out = {}
+    a = prepare_grid("eg_mamie", MAMIE_DIR + "/mamie.png", 192, (96, 160), EG_SCALE, MAMIE_ANIMS, "Mamie Florence (église)")
+    if not a: return out
+    out["eg_mamie"] = a
+    im = Image.open(os.path.join(SRC, MAMIE_DIR, "mamie.png")).convert("RGBA")
+    # la géante : les lignes utiles seulement, plus grandes
+    n = round(192 * MAMIE_GEANTE_SCALE); g = Image.new("RGBA", (n * 6, n * len(MAMIE_GEANTE_ROWS))); anims = {}
+    names = {v[0] // 6: k for k, v in MAMIE_ANIMS.items()}
+    for k, r in enumerate(MAMIE_GEANTE_ROWS):
+        row = im.crop((0, r * 192, 1152, (r + 1) * 192)).resize((n * 6, n), Image.BOX)
+        row.putalpha(row.split()[3].point(lambda v: 255 if v > 110 else 0)); g.paste(row, (0, k * n)); anims[names[r]] = [k * 6, 6]
+    g.save(os.path.join(OUT, "eg_mamie_geante.png"), optimize=True)
+    out["eg_mamie_geante"] = {"src": "assets/laverie/eg_mamie_geante.png", "cw": n, "ch": n, "ax": round(96 * MAMIE_GEANTE_SCALE), "ay": round(160 * MAMIE_GEANTE_SCALE),
+                              "cols": 6, "anims": anims, "note": "Mamie Florence géante (église, dernier combat)"}
+    # voitures : chaque image centrée sur la carrosserie
+    v = Image.open(os.path.join(SRC, MAMIE_DIR, "voitures.png")).convert("RGBA"); cw, ch = VOITURE_CELL; sheet = Image.new("RGBA", (cw * 3, ch * 3))
+    for i in range(9): sheet.paste(recentre(v.crop(((i % 3) * 256, (i // 3) * 192, (i % 3 + 1) * 256, (i // 3 + 1) * 192)), VOITURE_CELL, VOITURE_SCALE), ((i % 3) * cw, (i // 3) * ch))
+    sheet.save(os.path.join(OUT, "eg_voiture.png"), optimize=True)
+    out["eg_voiture"] = {"src": "assets/laverie/eg_voiture.png", "cw": cw, "ch": ch, "ax": cw // 2, "ay": ch // 2, "cols": 3,
+                         "anims": {"vues": [0, 3], "rotation": [3, 3], "furie": [6, 3]}, "note": "voitures de Mamie Florence"}
+    # pneu (3 images : immobile, puis avec des traits de vitesse) et explosion (2 images)
+    p = Image.open(os.path.join(SRC, MAMIE_DIR, "pneu_explosion.png")).convert("RGBA")
+    cells = [p.crop((x0 - 4, 0, x1 + 4, p.height)) for x0, x1 in PNEU_SPANS]
+    for name, idx, s, cell in (("eg_pneu", (0, 1, 2), PNEU_SCALE, PNEU_CELL), ("eg_boum", (3, 4), BOUM_SCALE, BOUM_CELL)):
+        cw, ch = cell; sheet = Image.new("RGBA", (cw * len(idx), ch))
+        for k, i in enumerate(idx): sheet.paste(recentre(cells[i], cell, s), (k * cw, 0))
+        sheet.save(os.path.join(OUT, name + ".png"), optimize=True)
+        out[name] = {"src": f"assets/laverie/{name}.png", "cw": cw, "ch": ch, "ax": cw // 2, "ay": ch // 2, "cols": len(idx), "anims": {"play": [0, len(idx)]},
+                     "note": "pneu de Mamie Florence" if name == "eg_pneu" else "explosion des voitures"}
+    # portrait provisoire (tant que eglise/mamie/mamie_portrait.png manque) : la tête du cri
+    if not os.path.exists(os.path.join(SRC, MAMIE_DIR, "mamie_portrait.png")):
+      im.crop((76, 4 * 192 + 36, 126, 4 * 192 + 86)).resize((40, 40), Image.BOX).save(os.path.join(OUT, "portrait_mamie.png"), optimize=True)
+      out["portrait_mamie"] = {"src": "assets/laverie/portrait_mamie.png", "cw": 40, "ch": 40, "ax": 20, "ay": 40, "cols": 1, "anims": {"play": [0, 1]}, "note": "portrait de Mamie Florence (église)"}
+    # arènes (480 × 272) et muret de l'arène 3 (premier plan, en parallaxe ; un peu plus large que l'écran)
+    for name, f, size in (("eglise_4", "arene_1.jpeg", (480, 272)), ("eglise_5", "arene_3.jpeg", (504, 284))):
+        Image.open(os.path.join(SRC, MAMIE_DIR, f)).convert("RGB").resize(size, Image.LANCZOS).save(os.path.join(OUT, name + ".webp"), quality=86, method=6)
+        out[name] = {"src": f"assets/laverie/{name}.webp", "cw": size[0], "ch": size[1], "ax": size[0] // 2, "ay": size[1], "cols": 1, "anims": {"play": [0, 1]}, "note": "arène de Mamie Florence"}
+    m = Image.open(os.path.join(SRC, MAMIE_DIR, "arene_3_muret.png")).convert("RGBA"); m = m.crop(m.split()[3].point(lambda v: 255 if v > 100 else 0).getbbox())   # sans le halo transparent
+    mw = 504; m = m.resize((mw, round(m.height * mw / m.width)), Image.LANCZOS); m.putalpha(m.split()[3].point(lambda v: 255 if v > 110 else 0))
+    m.save(os.path.join(OUT, "eglise_muret.png"), optimize=True)
+    out["eglise_muret"] = {"src": "assets/laverie/eglise_muret.png", "cw": m.width, "ch": m.height, "ax": m.width // 2, "ay": m.height, "cols": 1, "anims": {"play": [0, 1]}, "note": "muret de l'arène 3 de Mamie (premier plan)"}
+    return out
+
 def fade_foreground():
     """Cadres de premier plan de la grotte : en bas (sous y = 150), seuls les bords gauche et droit restent, fondus vers le milieu."""
     for i in range(1, 5):
@@ -416,7 +482,7 @@ def main():
     if f: atlas["eg_laurene_furie"] = f
     b, c = prepare_brie()
     if b: atlas["eg_brie"], atlas["eg_crotte"] = b, c
-    atlas.update(prepare_eg_proj()); atlas.update(prepare_eg_portraits()); atlas.update(prepare_souvenirs())
+    atlas.update(prepare_eg_proj()); atlas.update(prepare_eg_portraits()); atlas.update(prepare_mamie()); atlas.update(prepare_souvenirs())
     for name, (base, anims) in HEROES.items():
         a = prepare_hero(name, base, anims)
         if a: atlas[name] = a

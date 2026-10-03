@@ -7,9 +7,16 @@
 // coups (EG_MOVES), avec des répliques en bulles et des tremblements d'écran quand ils crient. Musique : l'église, « à fond » au
 // début, pendant les dialogues, qui reprend là où elle s'était arrêtée (audio.resume) ; pendant un combat, le thème du boss
 // (musique/eglise/<boss>.mp3) s'il existe, les deux thèmes en alternance pour le duo. À la fin, les mariés explosent en confettis.
+// Puis Mamie Florence, la mère de Jules, venge le mariage : deux combats dans le cimetière (le deuxième plus rapide), une
+// transformation, puis la géante derrière le muret de la place (plan 4, en parallaxe) : il faut lui renvoyer ses voitures
+// en les frappant juste avant qu'elles tombent (voir « Mamie Florence » plus bas).
 // Pas de récompense : le niveau est fini (SAVE.flags.egliseWon) et la cloche se tait.
-const EG_READY = true, EG_FLOOR = 236, EG_MUSIC = "musique/eglise/eglise", EG_LEVEL = 0.9;
-const EG = { step: 0, plan: 0, st: "intro", t: 0, fade: 0, trans: null, paused: false, music: null, bell: null, bosses: [], poops: [], bubbles: [], brieEdge: null, deathT: 0, endT: 0, nextT: 0, loudT: 0 };
+const EG_READY = true, EG_MUSIC = "musique/eglise/eglise", EG_LEVEL = 0.9;
+// Sol de chaque plan (parvis, marches, nef, cimetière, place au muret : le héros est devant le muret, plus bas)
+const EG_FLOORS = [236, 236, 236, 236, 258], EG_PLANS = ["Le parvis", "Les marches", "La nef", "Le cimetière", "La place"];
+let EG_FLOOR = 236;
+function egSetPlan(plan) { EG.plan = plan; EG_FLOOR = EG_FLOORS[plan] || 236; if (lvl && lvl.eglise) { lvl.solids[0].y = EG_FLOOR; lvl.plats = []; } EG.cars = []; }
+const EG = { step: 0, plan: 0, st: "intro", t: 0, fade: 0, trans: null, paused: false, music: null, bell: null, bosses: [], poops: [], bubbles: [], brieEdge: null, deathT: 0, endT: 0, nextT: 0, loudT: 0, cars: [] };
 function egliseOpen() { return SAVE.camp.done >= CWORLDS.length && (EG_READY || !!SAVE.flags.egliseTest); }
 // Écran des mondes : Maj + E montre ou cache l'église tant qu'elle est en chantier (EG_READY faux)
 function egliseCheat() {
@@ -75,8 +82,37 @@ const EG_DLG = {
     ["laurene", "Non… Ma robe… Mon mariage…"],
     ["jules", "Chérie… Je crois qu'on va… exploser."],
   ],
+  mamie_arrivee: [
+    ["mamie", "QUI a transformé mon fils en confettis ?!"],
+    ["hero", "Euh… C'était joli, non ? Plein de couleurs…"],
+    ["mamie", "Mon petit Jules… et sa Laurène… le jour de leur mariage !"],
+    ["mamie", "Je suis Mamie Florence. Et Mamie Florence n'est PAS contente."],
+    ["mamie", "Tu aimes les voitures ? Moi, je les LANCE !"],
+  ],
+  mamie_1_fin: [
+    ["mamie", "Aïe, mon dos… Tu crois que c'est fini ?"],
+    ["mamie", "J'ai fait de la gym toute ma vie. Je ne fais que m'échauffer !"],
+  ],
+  mamie_2_debut: [
+    ["hero", "Mamie, on pourrait plutôt boire un chocolat chaud ?"],
+    ["mamie", "Plus tard ! D'abord, la deuxième manche. Et plus vite !"],
+  ],
+  mamie_furie: [
+    ["mamie", "ASSEZ !"],
+    ["mamie", "Tu vas voir la VRAIE Mamie Florence !"],
+    ["hero", "Euh… Elle grandit, là ?!"],
+  ],
+  mamie_geante: [
+    ["mamie", "Alors, petit invité ? On fait moins le malin ?"],
+    ["hero", "Ses voitures… Si je les frappe juste avant qu'elles tombent, elles repartent vers elle !"],
+  ],
+  mamie_fin: [
+    ["mamie", "Ma voiture… Mes pneus… Mon fils…"],
+    ["mamie", "Bon. Tu as gagné. Mais tu viendras goûter dimanche !"],
+  ],
   apres: [
     ["hero", "Tous mes vœux de bonheur… dans votre réalité !"],
+    ["hero", "Et pas de voiture au goûter, d'accord ?"],
   ],
 };
 // Chaque étape : plan de l'arène, dialogue (avant le combat), combat (boss qui entrent)
@@ -87,7 +123,13 @@ const EG_SCRIPT = [
   { plan: 1, dlg: "jules_fin" },
   { plan: 2, dlg: "laurene_debut", fight: ["laurene"] },
   { plan: 2, dlg: "duo", fight: ["laurene", "jules"], duo: true },
-  { plan: 2, dlg: "fin", end: true },
+  { plan: 2, dlg: "fin", confetti: true },
+  { plan: 3, dlg: "mamie_arrivee", fight: ["mamie"], extras: [{ id: "mamie", x: 390 }] },
+  { plan: 3, dlg: "mamie_1_fin" },
+  { plan: 3, dlg: "mamie_2_debut", fight: ["mamie"], fast: true },
+  { plan: 3, dlg: "mamie_furie" },
+  { plan: 4, dlg: "mamie_geante", fight: ["mamie_geante"], giant: true },
+  { plan: 4, dlg: "mamie_fin", end: true },
 ];
 
 /* ---- Les boss ---- */
@@ -99,14 +141,20 @@ const EGB = {
     say: ["Prends ça !", "Tiens, attaque-le, mon orbe !", "Admire ma danse !", "Pas sur les chaussures !", "Trop lent !"] },
   laurene: { name: "Laurène", atlas: "eg_laurene", hp: 20, w: 18, h: 58, spd: 70, color: "#ffe0f0",
     say: ["Prends ça !", "Tiens, attrape le bouquet !", "Une petite chèvre pour toi !", "Santé !", "Tu n'étais pas invité !"] },
+  mamie: { name: "Mamie Florence", atlas: "eg_mamie", hp: 22, w: 22, h: 60, spd: 72, color: "#f0e6d0",
+    say: ["Attrape, mon chou !", "Un petit pneu ?", "À mon âge, je lance encore loin !", "Range ta chambre !", "Bip bip !"] },
+  mamie_geante: { name: "Mamie Florence (géante)", atlas: "eg_mamie_geante", hp: 5, w: 60, h: 120, spd: 25, color: "#ff5a7a", giant: true,
+    say: ["Attrape celle-là !", "J'en ai plein d'autres !", "Bip bip !", "Tu ne m'auras pas !"] },
 };
 const EG_FPS = { repos: 7, course: 12, aboie: 9, saut: 9, crotte: 6, morte: 1, marche: 7, glissade: 10, cri: 8, lancer: 10, combat_pieds: 10,
-  lancer_bouquet: 10, lancer_chevre: 9, lancer_bouteille: 10, furie: 7 };
-function egMakeBoss(id, x, duo) {
-  const B = EGB[id], d = df(), hp = Math.max(4, Math.round(B.hp * d.bossHp * (duo ? 0.8 : 1)));
-  return { type: "egboss", id, B, alive: true, x: x - B.w / 2, y: EG_FLOOR - B.h, w: B.w, h: B.h, vx: 0, vy: 0, face: -1, ground: true,
+  lancer_bouquet: 10, lancer_chevre: 9, lancer_bouteille: 10, furie: 7, lancer_avant: 6, lancer_haut: 6, lancer_rotation: 7 };
+function egMakeBoss(id, x, duo, fast) {
+  const B = EGB[id], d = df(), hp = Math.max(B.giant ? 3 : 4, Math.round(B.hp * d.bossHp * (duo ? 0.8 : 1)));
+  const e = { type: "egboss", id, B, alive: true, x: x - B.w / 2, y: EG_FLOOR - B.h, w: B.w, h: B.h, vx: 0, vy: 0, face: -1, ground: true,
     hp, max: hp, mv: null, mt: 0, cd: 1.2, an: id === "brie" ? "repos" : "marche", anT: 0, inv: 0, flash: 0,
-    spd: (duo ? 1.1 : 1) * (d.id === "doom" ? 1.15 : d.id === "facile" ? 0.85 : 1), rage: false, furie: duo && id === "laurene", duo, down: false, sayCd: 2 };
+    spd: (duo ? 1.1 : 1) * (fast ? 1.25 : 1) * (d.id === "doom" ? 1.15 : d.id === "facile" ? 0.85 : 1), rage: false, furie: duo && id === "laurene", duo, fast: !!fast, down: false, sayCd: 2 };
+  if (B.giant) { e.x = x - B.w / 2; e.y = 30; e.ground = false; e.an = "furie"; e.anT = 9; e.cd = 2; }   // derrière le muret, hors d'atteinte
+  return e;
 }
 const egCx = e => e.x + e.w / 2;
 function egSay(e, text) { EG.bubbles = EG.bubbles.filter(b => b.e !== e); EG.bubbles.push({ e, text, t: 1.6 }); }
@@ -125,6 +173,8 @@ function egFrame(e) {
     if (an === "orbe") return e.mv === "orbe_furie" ? s0 + Math.min(n - 1, Math.floor(e.anT * 10)) : s0;
     return s0 + (e.vx ? Math.floor(e.anT * 12) % n : 0);
   }
+  if (e.transf || (e.B.giant && e.an === "furie")) return A.anims.furie[0] + Math.min(5, Math.floor(e.anT * 7));   // Mamie se transforme (dernière pose maintenue)
+  if (e.B.giant) { const [s0, n] = A.anims[e.an] || A.anims.furie; return s0 + Math.min(n - 1, Math.floor(e.anT * (EG_FPS[e.an] || 7))); }
   if (e.furie) return A.anims.furie[0] + (e.an === "furie" ? Math.min(5, Math.floor(e.anT * 7)) : 5);   // la transformation, puis sa dernière pose
   if (e.down) return e.id === "brie" ? A.anims.morte[0] : A.anims.glissade[0] + 5;   // à terre
   const [s, n] = A.anims[e.an] || A.anims[Object.keys(A.anims)[0]], f = Math.floor(e.anT * (EG_FPS[e.an] || 8));
@@ -132,9 +182,9 @@ function egFrame(e) {
 }
 // Projectiles (dans lasers, avec eg) : orbe et bouquet se renvoient au sabre ; bouteille, chèvre, aboiement et onde, non
 function egShot(kind, x, y, vx, vy, o = {}) {
-  const size = { orb: 10, bouquet: 14, bouteille: 10, chevre: 22, bark: 16, shock: 14, shard: 6 }[kind] || 10;
+  const size = { orb: 10, bouquet: 14, bouteille: 10, chevre: 22, bark: 16, shock: 14, shard: 6, pneu: 20 }[kind] || 10;
   lasers.push({ eg: true, kind, x: x - size / 2, y: y - size / 2, w: size, h: kind === "chevre" ? 16 : size, vx, vy, g: o.g || 0, owner: "enemy", alive: true,
-    noReflect: !["orb", "bouquet"].includes(kind), t: 0, life: o.life || 5, color: o.color || "#c86eff", ...o });
+    noReflect: !["orb", "bouquet", "pneu"].includes(kind), t: 0, life: o.life || 5, color: o.color || "#c86eff", ...o });
 }
 function egProj(l, dt) {
   l.t += dt; if (l.t > l.life) { l.alive = false; return; }
@@ -147,7 +197,8 @@ function egProj(l, dt) {
       for (const s of [-1, 1]) egShot("shard", l.x + 5, EG_FLOOR - 4, s * 150, 0, { life: 0.7 });
       return;
     }
-    if (l.kind === "chevre" && !l.run) { l.run = true; l.y = EG_FLOOR - l.h; l.vy = 0; l.g = 0; l.vx = Math.sign(l.vx || 1) * 190; l.life = l.t + 2.2; audio.sfx("land"); }
+    if (l.kind === "pneu" && l.owner === "enemy") { l.y = EG_FLOOR - l.h; if (l.bounce > 0 && l.vy > 60) { l.vy = -l.vy * 0.55; l.bounce--; audio.sfx("land"); } else { l.vy = 0; l.g = 0; } }
+    else if (l.kind === "chevre" && !l.run) { l.run = true; l.y = EG_FLOOR - l.h; l.vy = 0; l.g = 0; l.vx = Math.sign(l.vx || 1) * 190; l.life = l.t + 2.2; audio.sfx("land"); }
     else if (l.kind === "orb" || l.kind === "bouquet") { l.alive = false; burst(l.x + l.w / 2, EG_FLOOR - 3, 10, [l.kind === "orb" ? (l.red ? "#ff2d6a" : "#c86eff") : "#ff8ab0", "#ffffff"], 110, 0.4, 200, 2); return; }
     else if (l.vy > 0) { l.y = EG_FLOOR - l.h; l.vy = 0; }
   }
@@ -156,19 +207,27 @@ function egProj(l, dt) {
     for (const p of players) if (!p.dead && ov(l, p) && p.inv <= 0 && p.dashT <= 0) { if (!["bark", "shock"].includes(l.kind)) l.alive = false; hurtPlayer(p, l.x); break; }
   } else for (const e of enemies) if (e.alive && e.type === "egboss" && ov(l, e)) { hitEnemy(e, "laser"); l.alive = false; break; }
 }
-function egDamage(e, n) {
+function egDamage(e, n, car) {
   if (!e.alive || e.down || e.inv > 0 || EG.st !== "fight") return;
+  if (e.B.giant && !car) return;   // la géante est hors d'atteinte : seules ses voitures renvoyées la touchent
   e.hp -= n; e.inv = 0.22; e.flash = 0.15; hitstop = 0.05; shake = Math.max(shake, 3);
   audio.sfx("bosshit"); burst(egCx(e), e.y + e.h / 2, 10, [e.B.color, "#ffffff"], 150, 0.4, 200, 2);
-  if (e.hp <= 0) { e.hp = 0; egDown(e); return; }
+  if (e.hp <= 0) { e.hp = 0; if (e.id === "mamie" && e.fast) egTransform(e); else egDown(e); return; }
   if (!e.rage && e.hp <= e.max / 2) {   // à mi-vie : un cri, l'écran tremble, il accélère
     e.rage = true; e.spd *= 1.15; e.mv = null; egStartMove(e, "cri");
-    egSay(e, e.id === "brie" ? "GRRRR… WAF !" : e.id === "jules" ? "Pas sur les chaussures ! Elles sont neuves !" : e.furie ? "TU VAS ME LE PAYER !" : "Tu vas voir, petit invité !");
+    egSay(e, e.id === "brie" ? "GRRRR… WAF !" : e.id === "jules" ? "Pas sur les chaussures ! Elles sont neuves !" : e.id === "mamie" ? "Ah, tu veux jouer ? Mamie accélère !" : e.B.giant ? "MES VOITURES !" : e.furie ? "TU VAS ME LE PAYER !" : "Tu vas voir, petit invité !");
     audio.setLevel(1, 0.2); EG.loudT = 2.5;   // la musique monte un instant
   } else egTaunt(e, 0.25);
 }
+// Mamie, à la fin du deuxième combat : elle ne tombe pas, elle se transforme (la géante arrive au plan suivant)
+function egTransform(e) {
+  e.carry = false; e.down = true; e.transf = true; e.mv = null; e.vx = 0; e.inv = 99; e.alive = false; egAnim(e, "furie");
+  audio.sfx("transform"); shake = 8; rumble(500, 0.8, 0.6); lasers = lasers.filter(l => !l.eg); egCarsBoom();
+  for (let k = 0; k < 40; k++) parts.push({ x: egCx(e) + (Math.random() - 0.5) * 40, y: e.y + Math.random() * e.h, vx: (Math.random() - 0.5) * 80, vy: -40 - Math.random() * 80, life: 1, max: 1, color: k % 2 ? "#ff2d6a" : "#ff8ac8", size: 2, grav: 0 });
+}
 function egDown(e) {
-  e.down = true; e.mv = null; e.beam = null; e.vx = 0; e.inv = 99; e.alive = false;
+  e.carry = false; e.down = true; e.mv = null; e.beam = null; e.vx = 0; e.inv = 99; e.alive = false;
+  if (e.id.startsWith("mamie")) egCarsBoom();
   audio.sfx(e.id === "brie" ? "eg_aboie" : "boom"); shake = 6; rumble(300, 0.6, 0.5);
   burst(egCx(e), e.y + e.h / 2, 24, [e.B.color, "#ffffff", "#ff4f8a"], 200, 0.7, 250, 2);
   lasers = lasers.filter(l => !l.eg);
@@ -233,7 +292,7 @@ const EG_MOVES = {
       }
       return e.mt > 0.7; } },
   course: { start(e, p) { e.face = towards(e, p); egAnim(e, "course"); egTaunt(e, 0.4); },
-    update(e, p, dt) { e.vx = e.mt > 0.15 && e.mt < 0.95 ? e.face * 250 * e.spd : 0; if (Math.random() < 0.4) parts.push({ x: egCx(e) - e.face * 10, y: EG_FLOOR - 4 - Math.random() * 30, vx: -e.face * 40, vy: -10, life: 0.4, max: 0.4, color: "#ff2d6a", size: 2, grav: 0 }); return e.mt > 1.05; } },
+    update(e, p, dt) { e.vx = e.mt > 0.15 && e.mt < 0.95 ? e.face * 250 * e.spd : 0; if (Math.random() < 0.4) parts.push({ x: egCx(e) - e.face * 10, y: EG_FLOOR - 4 - Math.random() * 30, vx: -e.face * 40, vy: -10, life: 0.4, max: 0.4, color: e.furie ? "#ff2d6a" : "#c8c0b0", size: 2, grav: 0 }); return e.mt > 1.05; } },
   laser: { start(e, p) { e.face = towards(e, p); egAnim(e, "laser"); e.beam = null; egSay(e, "Mes yeux te voient !"); audio.sfx("aim"); },
     update(e, p, dt) {
       const on = e.mt > 0.6 && e.mt < 1.4;
@@ -245,14 +304,27 @@ const EG_MOVES = {
     update(e, p, dt) { e.vx = e.mt > 0.1 && e.mt < 0.5 ? e.face * 290 * e.spd : 0; return e.mt > 0.65; } },
   bascule: { start(e, p) { e.face = egCx(e) < VW / 2 ? 1 : -1; egAnim(e, "saut"); e.vy = -400; e.vx = e.face * 230 * e.spd; e.ground = false; },   // saute de l'autre côté
     update(e, p, dt) { if (e.ground && e.mt > 0.2) { e.vx = 0; shake = Math.max(shake, 2); return true; } return false; } },
+  // Mamie Florence : pneus qui roulent (renvoyables au sabre), voitures lancées (elles restent posées : des plateformes, puis
+  // elles explosent), course, glissade, saut avec ondes de choc
+  pneu: { start(e, p) { e.face = towards(e, p); egAnim(e, "lancer_avant"); e.n = 0; egTaunt(e, 0.4); },
+    update(e, p, dt) {
+      const times = e.rage || e.fast ? [0.5, 0.75] : [0.5];
+      if (e.n < times.length && e.mt > times[e.n] / e.spd) { egShot("pneu", egCx(e) + e.face * 20, e.y + 20, e.face * (170 + e.n * 30) * e.spd, -60, { g: 600, life: 4.5, bounce: e.rage ? 2 : 0 }); e.n++; audio.sfx("dash"); }
+      return e.mt > 1.0 / e.spd; } },
+  voiture: { start(e, p) { e.face = towards(e, p); egAnim(e, ["lancer_haut", "lancer_rotation", "lancer_avant"][Math.floor(Math.random() * 3)]); e.n = 0; e.carry = true; if (Math.random() < 0.6) egSay(e, ["Bip bip !", "Attrape, mon chou !", "Gare-toi là !"][Math.floor(Math.random() * 3)]); },
+    update(e, p, dt) {
+      const rel = 3 / ((EG_FPS[e.an] || 6));   // 4e pose : elle lâche la voiture
+      if (!e.n && e.anT >= rel) { e.n = 1; e.carry = false; const h = egCarHold(e); egThrowCar(h.x, h.y, clamp(p.x + 5 + (Math.random() - 0.5) * 30, 50, VW - 50), e.face, e.rage); audio.sfx("dash"); }
+      return e.anT > 6 / (EG_FPS[e.an] || 6); } },
 };
 const EG_CONTACT = { course: e => e.mt > 0.15 && e.mt < 0.95, charge: e => e.mt > 0.45, bond: e => !e.ground, glissade: e => e.mt > 0.1 && e.mt < 0.5, glisse: e => e.mt > 0.1 && e.mt < 0.5, saut: e => !e.ground, bascule: e => !e.ground };
 const EG_SETS = {
   brie: e => [["charge", 3], ["aboie", 3], ["bond", 2], ["crotte", e.rage ? 2 : 1]],
   jules: e => [["orbe", 3], ["glissade", 2], ["pieds", 2], ["saut", 2]],
+  mamie: e => [["voiture", e.fast ? 3 : 2], ["pneu", 3], ["course", 2], ["glisse", 1], ["saut", e.rage ? 2 : 1]],
   laurene: e => e.furie ? (hasAtlas("eg_laurene_furie") ? [["orbe_furie", 3], ["laser", 2], ["course", 2], ["bascule", 1]] : [["bouquet", 3], ["chevre", 2], ["bouteille", 3], ["bascule", 1]]) : [["bouquet", 3], ["chevre", 2], ["bouteille", 2], ["glisse", 2], ["bascule", 1]],
 };
-function egStartMove(e, name) { e.beam = null; e.mv = name; e.mt = 0; e.done = false; e.atkBox = false; EG_MOVES[name].start(e, targetOf(e)); }
+function egStartMove(e, name) { e.beam = null; e.carry = false; e.mv = name; e.mt = 0; e.done = false; e.atkBox = false; EG_MOVES[name].start(e, targetOf(e)); }
 function egPick(e) {
   const set = EG_SETS[e.id](e), tot = set.reduce((a, [, w]) => a + w, 0); let r = Math.random() * tot;
   for (const [n, w] of set) { r -= w; if (r <= 0) { if (n === e.lastMv && Math.random() < 0.6) continue; e.lastMv = n; return n; } }
@@ -261,13 +333,14 @@ function egPick(e) {
 function egUpdateBoss(e, dt) {
   const p = targetOf(e);
   e.inv = Math.max(0, e.inv - dt); e.flash = Math.max(0, e.flash - dt); e.sayCd -= dt; e.anT += dt;
+  if (e.B.giant) { egUpdateGiant(e, p, dt); return; }
   if (e.down) { e.vx = 0; }
   else if (EG.st !== "fight") { e.vx = 0; e.mv = null; e.face = towards(e, p); egAnim(e, e.id === "brie" ? "repos" : "marche"); if (e.id !== "brie") e.anT = 0; }
   else if (e.mv) { e.mt += dt; if (EG_MOVES[e.mv].update(e, p, dt)) { e.mv = null; e.vx = 0; e.cd = (e.rage ? 0.45 : 0.75) / e.spd + Math.random() * 0.4; } }
   else {
     // entre deux coups : il se place (Brie trotte, les mariés marchent) à bonne distance, en regardant le héros
     e.face = towards(e, p); e.cd -= dt;
-    const dx = p.x + 5 - egCx(e), want = e.id === "brie" ? 70 : 110, dir = Math.abs(dx) > want + 30 ? Math.sign(dx) : Math.abs(dx) < want - 30 ? -Math.sign(dx) : 0;
+    const dx = p.x + 5 - egCx(e), want = e.id === "brie" ? 70 : e.id === "mamie" ? 130 : 110, dir = Math.abs(dx) > want + 30 ? Math.sign(dx) : Math.abs(dx) < want - 30 ? -Math.sign(dx) : 0;
     e.vx = dir * e.B.spd * e.spd; egAnim(e, dir ? (e.id === "brie" ? "course" : "marche") : (e.id === "brie" ? "repos" : "marche"));
     if (!dir && e.id !== "brie") e.anT = 0;   // immobile : première pose de la marche
     // duo : un seul mari attaque à la fois
@@ -280,6 +353,173 @@ function egUpdateBoss(e, dt) {
   e.x = clamp(e.x, 2, VW - e.w - 2);
   // le contact ne fait mal que pendant les attaques qui foncent (charge, bond, glissade, saut) : on peut frôler un boss qui marche
   if (!e.down && EG.st === "fight" && e.mv && EG_CONTACT[e.mv] && EG_CONTACT[e.mv](e)) touchPlayers(e, egCx(e));
+}
+
+/* ---- Mamie Florence : voitures, pneus et géante ---- */
+// Voitures (EG.cars) : lancées en cloche vers le héros (une ombre montre où elles tombent), elles font mal en atterrissant,
+// restent posées quelques secondes (leur toit est une plateforme), clignotent puis explosent (eg_boum ; on s'éloigne).
+// La géante (plan 4, derrière le muret, hors d'atteinte) lance ses voitures vers l'avant : chacune est un « egcar » dans
+// enemies ; la frapper (sabre, dash, arme) pendant les derniers instants de sa chute (cercle vert, voiture qui brille) la
+// renvoie sur Mamie (egDamage(…, car)) ; trop tôt, rien ; ratée, elle atterrit et devient une voiture posée.
+// Poses de lancer (planche de Mamie, en pixels de la planche, depuis les pieds) : où sont les mains pendant les 4 premières
+// images (la 4e : le lâcher), relevées sur les lancers assemblés du pack.
+const MAMIE_HOLD = {
+  lancer_avant: [[28, -88], [43, -72], [30, -107], [116, -117]],
+  lancer_haut: [[12, -105], [14, -149], [6, -167], [99, -168]],
+  lancer_rotation: [[33, -121], [-35, -123], [25, -117], [119, -124]],
+};
+const CAR_W = 84, CAR_H = 44, GIANT_S = 1.3, GIANT_FEET = 230;
+const carLife = () => ({ facile: 4.5, normal: 3.5, doom: 2.6 }[df().id] || 3.5);
+const carWindow = () => ({ facile: 0.55, normal: 0.42, doom: 0.3 }[df().id] || 0.42);
+// Parallaxe du plan 4 (héros à gauche : le décor glisse un peu vers la droite) : -1 à 1
+const egPar = () => { const ps = players.filter(q => !q.dead); return ps.length ? clamp((ps.reduce((a, q) => a + q.x + 5, 0) / ps.length - VW / 2) / (VW / 2), -1, 1) : 0; };
+// Où est la voiture qu'elle porte (centre), d'après la pose en cours
+function egCarHold(e) {
+  const H = MAMIE_HOLD[e.an] || MAMIE_HOLD.lancer_haut, k = Math.min(3, Math.floor(e.anT * (EG_FPS[e.an] || 6))), o = H[k];
+  if (e.B.giant) return { x: egCx(e) - egPar() * 8 + e.face * o[0] * GIANT_S, y: GIANT_FEET + o[1] * GIANT_S };
+  return { x: egCx(e) + e.face * o[0] * EG_SCALE_JS, y: e.y + e.h + o[1] * EG_SCALE_JS };
+}
+const EG_SCALE_JS = 0.55;   // réduction des planches de l'église (EG_SCALE de preparer_laverie.py)
+function egThrowCar(x, y, tx, face, furie) {
+  const g = 700, yl = EG_FLOOR - CAR_H / 2, T = 0.85 + Math.abs(tx - x) / 700;
+  EG.cars.push({ st: "fly", x, y, tx, vx: (tx - x) / T, vy: (yl - y - 0.5 * g * T * T) / T, g, t: 0, face: tx >= x ? 1 : -1, furie: !!furie });
+}
+// Une voiture se pose : elle fait mal dessous, la poussière vole, son toit devient une plateforme
+function egCarLand(c) {
+  c.st = "park"; c.t = 0; c.y = EG_FLOOR - CAR_H / 2; c.vx = c.vy = 0;
+  shake = Math.max(shake, 5); audio.sfx("land"); rumble(160, 0.5, 0.4); addFx("fx_poussiere", c.x, EG_FLOOR, { scale: 2 });
+  const box = { x: c.x - CAR_W / 2 + 6, y: c.y - CAR_H / 2, w: CAR_W - 12, h: CAR_H };
+  for (const q of players) if (!q.dead && ov(box, q)) hurtPlayer(q, c.x);
+  c.plat = { x: c.x - CAR_W / 2 + 12, y: EG_FLOOR - CAR_H + 4, w: CAR_W - 24, h: 8 }; lvl.plats.push(c.plat);
+  const parked = EG.cars.filter(o => o.st === "park");
+  if (parked.length > 2) egCarBoom(parked[0]);   // pas plus de deux voitures posées
+}
+function egCarBoom(c) {
+  if (c.st === "boom") return;
+  c.st = "boom"; c.t = 0; if (c.plat) lvl.plats = lvl.plats.filter(s => s !== c.plat); c.plat = null;
+  audio.sfx("boom"); shake = Math.max(shake, 6); rumble(260, 0.7, 0.5);
+  const box = { x: c.x - CAR_W / 2 - 6, y: c.y - CAR_H / 2 - 10, w: CAR_W + 12, h: CAR_H + 10 };
+  for (const q of players) if (!q.dead && ov(box, q)) hurtPlayer(q, c.x);
+  for (let k = 0; k < 26; k++) parts.push({ x: c.x + (Math.random() - 0.5) * 50, y: c.y + (Math.random() - 0.5) * 20, vx: (Math.random() - 0.5) * 260, vy: -60 - Math.random() * 200, life: 0.8, max: 0.8, color: ["#ffb43c", "#ff6a2a", "#5a5a6a", "#c8c8d8"][k % 4], size: 2, grav: 400 });
+}
+function egCarsBoom() { for (const c of EG.cars) if (c.st !== "fly") egCarBoom(c); EG.cars = EG.cars.filter(c => c.st === "boom"); for (const c of enemies) if (c.type === "egcar") c.alive = false; }
+function egUpdateCars(dt) {
+  for (const c of EG.cars) {
+    c.t += dt;
+    if (c.st === "fly") { c.vy += c.g * dt; c.x += c.vx * dt; c.y += c.vy * dt; if (c.vy > 0 && c.y >= EG_FLOOR - CAR_H / 2) egCarLand(c); }
+    else if (c.st === "park" && c.t > carLife()) egCarBoom(c);
+  }
+  EG.cars = EG.cars.filter(c => c.st !== "boom" || c.t < 0.5);
+}
+// Voiture de la géante : elle arrive du fond (elle grossit) en cloche jusqu'au sol, devant le muret
+function egIncoming(e, x0, y0, tx) {
+  const T = ({ facile: 1.9, normal: 1.6, doom: 1.3 }[df().id] || 1.6) * (e.rage ? 0.88 : 1);
+  const c = { type: "egcar", alive: true, st: "in", x0, y0, tx, T, u1: Math.max(0.35, 1 - carWindow() / T), t: 0, face: tx >= x0 ? 1 : -1, furie: e.rage, early: false, x: 0, y: 0, w: 0, h: 0, sc: 0.8 };
+  egIncPos(c); enemies.push(c); return c;
+}
+function egIncPos(c) {
+  const u = clamp(c.t / c.T, 0, 1), yl = EG_FLOOR - CAR_H / 2;
+  if (c.st === "back") {   // renvoyée : elle repart vers Mamie en rapetissant
+    const v = clamp(c.t / 0.6, 0, 1); c.cx = c.bx + (c.gx - c.bx) * v; c.cy = c.by + (c.gy - c.by) * v - Math.sin(Math.PI * v) * 30; c.sc = 1.1 - 0.5 * v;
+  } else if (u <= c.u1) {   // elle vole par-dessus le muret jusqu'à hauteur du héros…
+    const v = u / c.u1, ylow = EG_FLOOR - 50; c.cx = c.x0 + (c.tx - c.x0) * 0.85 * v; c.cy = c.y0 + (ylow - c.y0) * v - Math.sin(Math.PI * v) * 40; c.sc = 0.8 + 0.3 * u;
+  } else {   // … puis elle descend doucement : c'est le moment de la frapper
+    const v = (u - c.u1) / (1 - c.u1), ylow = EG_FLOOR - 50; c.cx = c.x0 + (c.tx - c.x0) * (0.85 + 0.15 * v); c.cy = ylow + (yl - ylow) * v; c.sc = 0.8 + 0.3 * u;
+  }
+  c.w = CAR_W * c.sc; c.h = CAR_H * c.sc + 10; c.x = c.cx - c.w / 2; c.y = c.cy - c.h / 2;
+}
+const carHittable = c => c.st === "in" && c.t >= c.T * c.u1;
+// Coup sur une voiture qui arrive (hitEnemy) : au bon moment, elle repart vers Mamie
+function egCarHit(c, p) {
+  if (c.st !== "in") return;
+  if (!carHittable(c)) { if (!c.early) { c.early = true; audio.sfx("nope"); EG.bubbles.push({ e: null, at: { x: c.cx, y: c.cy - 22 }, text: "Trop tôt !", t: 0.9 }); } return; }
+  const g = EG.bosses.find(b => b.B.giant && !b.down); if (!g) return;
+  c.st = "back"; c.t = 0; c.bx = c.cx; c.by = c.cy; c.gx = egCx(g) - egPar() * 8; c.gy = 90;
+  audio.sfx("sword_hit"); audio.sfx("dash"); hitstop = 0.06; shake = Math.max(shake, 3); rumble(120, 0.6, 0.3);
+  for (let k = 0; k < 12; k++) parts.push({ x: c.cx, y: c.cy, vx: (Math.random() - 0.5) * 200, vy: (Math.random() - 0.5) * 200, life: 0.4, max: 0.4, color: "#fccc28", size: 2, grav: 0 });
+}
+function egUpdateIncoming(dt) {
+  for (const c of enemies) {
+    if (c.type !== "egcar" || !c.alive) continue;
+    c.t += dt; egIncPos(c);
+    if (c.st === "back" && c.t >= 0.6) {   // elle revient sur Mamie : boum !
+      c.alive = false; const g = EG.bosses.find(b => b.B.giant && !b.down);
+      EG.cars.push({ st: "boom", x: c.cx, y: c.cy, t: 0, sc: 1.2 }); audio.sfx("boom"); shake = Math.max(shake, 7);
+      if (g) { g.inv = 0; egDamage(g, 1, true); if (!g.down) egSay(g, ["Aïe ! Ma voiture !", "Ouille ! Mes lunettes !", "Ma belle voiture !"][Math.floor(Math.random() * 3)]); }
+    } else if (c.st === "in" && c.t >= c.T) {   // ratée : elle atterrit devant le muret
+      c.alive = false; const car = { st: "fly", x: c.cx, y: EG_FLOOR - CAR_H / 2, vx: 0, vy: 1, g: 0, t: 0, face: c.face, furie: c.furie }; EG.cars.push(car); egCarLand(car);
+    }
+  }
+  enemies = enemies.filter(c => c.type !== "egcar" || c.alive);
+}
+// La géante : elle se promène derrière le muret, lance ses voitures (et parfois une pluie de pneus) ; à mi-vie, elle crie
+function egUpdateGiant(e, p, dt) {
+  if (e.down) return;
+  if (EG.st !== "fight") { if (e.an !== "furie") { egAnim(e, "furie"); e.anT = 9; } return; }
+  const fps = EG_FPS[e.an] || 6;
+  if (e.mv === "g_car") {
+    if (!e.n && e.anT * fps >= 3) { e.n = 1; e.carry = false; const h = egCarHold(e); egIncoming(e, h.x, Math.max(16, h.y), clamp(p.x + 5 + (Math.random() - 0.5) * 40, 50, VW - 50)); audio.sfx("dash"); }
+    if (e.anT * fps >= 6) { e.mv = null; egAnim(e, "furie"); e.anT = 9; e.cd = (e.rage ? 1.0 : 1.5) + Math.random() * 0.6; }
+  } else if (e.mv === "g_pneus") {
+    if (!e.n && e.anT * fps >= 3) {
+      e.n = 1; audio.sfx("dash");
+      const n = e.rage ? 3 : 2;
+      for (let k = 0; k < n; k++) { const x = clamp(p.x + 5 + (k - (n - 1) / 2) * 90 + (Math.random() - 0.5) * 30, 30, VW - 30); egShot("pneu", x, -20 - k * 30, (Math.random() < 0.5 ? -1 : 1) * 110, 0, { g: 520, life: 5, bounce: 1, rain: true }); }
+    }
+    if (e.anT * fps >= 6) { e.mv = null; egAnim(e, "furie"); e.anT = 9; e.cd = 1.2 + Math.random() * 0.5; }
+  } else if (e.mv === "g_cri") {
+    shake = Math.max(shake, 4);
+    if (e.anT > 1.1) { e.mv = null; egAnim(e, "furie"); e.anT = 9; e.cd = 0.8; }
+  } else {
+    // entre deux lancers : elle suit le héros, lentement
+    e.face = towards(e, p); const dx = p.x + 5 - egCx(e); e.x += clamp(dx, -1, 1) * Math.min(Math.abs(dx), e.B.spd * dt * e.spd); e.x = clamp(e.x, 110, VW - 110 - e.w);
+    e.cd -= dt;
+    const busy = enemies.some(c => c.type === "egcar");   // une voiture à la fois
+    if (e.cd <= 0 && !busy) {
+      if (!e.rage && e.hp <= e.max / 2) { e.rage = true; e.mv = "g_cri"; egAnim(e, "cri"); egSay(e, "MES VOITURES ! Tu vas voir !"); audio.sfx("boss_intro"); audio.setLevel(1, 0.2); EG.loudT = 2.5; return; }
+      e.mv = Math.random() < (e.rage ? 0.3 : 0.2) ? "g_pneus" : "g_car"; e.n = 0;
+      egAnim(e, e.mv === "g_car" ? "lancer_haut" : "lancer_rotation"); e.carry = e.mv === "g_car";
+      if (Math.random() < 0.35) egTaunt(e, 1);
+    }
+  }
+}
+function drawCar(c) {
+  if (!hasAtlas("eg_voiture")) { R(Math.round(c.x - CAR_W / 2), Math.round(c.y - CAR_H / 2), CAR_W, CAR_H, "#e8e4dc"); return; }
+  const A = ATL.eg_voiture, base = A.anims[c.furie ? "furie" : "rotation"][0];
+  if (c.st === "boom") { drawFrame("eg_boum", c.t < 0.2 ? 0 : 1, Math.round(c.x), Math.round(c.y - 6), 1, Math.min(1, (0.5 - c.t) * 4), (c.sc || 1) * 0.9); return; }
+  const fr = c.st === "fly" ? base + (c.vy < -90 ? 0 : c.vy > 90 ? 2 : 1) : base + 1;
+  const left = carLife() - c.t, blink = c.st === "park" && left < 1.2 && Math.floor(c.t * (left < 0.5 ? 16 : 8)) % 2;
+  drawFrame("eg_voiture", fr, Math.round(c.x), Math.round(c.y), c.face);
+  if (blink) { ctx.save(); ctx.globalCompositeOperation = "lighter"; drawFrame("eg_voiture", fr, Math.round(c.x), Math.round(c.y), c.face, 0.7); ctx.restore(); }
+}
+function drawIncoming(c) {
+  const hit = carHittable(c), base = hasAtlas("eg_voiture") ? ATL.eg_voiture.anims[c.furie ? "furie" : "rotation"][0] : 0;
+  if (c.st === "in") {   // cercle au sol : il se resserre ; vert quand c'est le moment de frapper
+    const u = clamp(c.t / c.T, 0, 1), r = 10 + 30 * (1 - u);
+    ctx.globalAlpha = 0.25 + 0.5 * u; ctx.fillStyle = "#0e0a1a"; ctx.beginPath(); ctx.ellipse(c.tx, EG_FLOOR - 1, 30 * (0.4 + 0.6 * u), 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = hit ? "#7dffb0" : "#fccc28"; ctx.lineWidth = hit ? 2 : 1; ctx.beginPath(); ctx.ellipse(c.tx, EG_FLOOR - 1, r * 1.6, r * 0.35, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  if (!hasAtlas("eg_voiture")) { R(Math.round(c.x), Math.round(c.y), Math.round(c.w), Math.round(c.h), "#e8e4dc"); return; }
+  const fr = base + (c.st === "back" ? 0 : c.t < c.T * c.u1 * 0.45 ? 0 : c.t < c.T * c.u1 ? 2 : 1);
+  if (hit) glow(ctx, c.cx, c.cy, 40, "125,255,176", 0.35 + 0.2 * Math.sin(time * 20));
+  drawFrame("eg_voiture", fr, Math.round(c.cx), Math.round(c.cy), c.st === "back" ? -c.face : c.face, 1, c.sc);
+  if (hit) { ctx.save(); ctx.globalCompositeOperation = "lighter"; drawFrame("eg_voiture", fr, Math.round(c.cx), Math.round(c.cy), c.face, 0.35 + 0.25 * Math.sin(time * 24), c.sc); ctx.restore(); text("!", c.cx, c.cy - 24 * c.sc, 12, "#7dffb0", "center", "#0e0a1a"); }
+}
+// Plan 4 : la place, la géante derrière le muret (en parallaxe : le fond, la géante et le muret ne glissent pas autant)
+function drawGiantScene() {
+  const k = egPar();
+  if (hasAtlas("eglise_5")) drawFrame("eglise_5", 0, Math.round(VW / 2 - k * 4), VH + 6); else R(0, 0, VW, VH, "#2a0a2a");
+  for (const e of EG.bosses) {
+    if (!e.B.giant || e.gone) continue;
+    const x = Math.round(egCx(e) - k * 8), a = e.inv > 0 && !e.down && Math.floor(time * 30) % 2 ? 0.6 : 1;
+    glow(ctx, x, GIANT_FEET - 120, 90, "255,40,90", 0.18 + 0.06 * Math.sin(time * 3));
+    if (hasAtlas("eg_mamie_geante")) {
+      drawFrame("eg_mamie_geante", egFrame(e), x, GIANT_FEET + Math.round(Math.sin(time * 1.6) * 2), e.face, a, GIANT_S);
+      if (e.flash > 0) { ctx.save(); ctx.globalCompositeOperation = "lighter"; drawFrame("eg_mamie_geante", egFrame(e), x, GIANT_FEET, e.face, 0.6, GIANT_S); ctx.restore(); }
+    } else R(x - 40, 40, 80, 190, "#f0e6d0");
+    if (e.carry && hasAtlas("eg_voiture")) { const h = egCarHold(e); drawFrame("eg_voiture", ATL.eg_voiture.anims[e.rage ? "furie" : "rotation"][0] + 1, Math.round(h.x), Math.round(h.y), e.face, 1, 0.8); }
+  }
+  if (hasAtlas("eglise_muret")) drawFrame("eglise_muret", 0, Math.round(VW / 2 - k * 14), 244);
 }
 
 /* ---- Déroulement ---- */
@@ -295,6 +535,7 @@ function startEglise() {
   enemies = []; lasers = []; parts = []; pickups = []; ghosts = []; fxs = []; mach = null; chal = null; roomTime = 0; hitstop = 0; hub.dlg = null;
   players = makePlayers(); egPlace();
   Object.assign(EG, { step: 0, plan: 0, st: "intro", t: 0, fade: 1, trans: null, paused: false, music: null, bosses: [], poops: [], bubbles: [], brieEdge: null, deathT: 0, endT: 0, nextT: 0, loudT: 0, saidEnd: false });
+  egSetPlan(0); egPlace();
   audio.resume.add(EG_MUSIC); audio.load(EG_MUSIC);   // gros fichier : chargé pendant les cloches
   EG.bell = egSound("eg_mariage", 0.9);   // les cloches du mariage, puis la musique de l'église, à fond
   // les mariés et Brie attendent sur le parvis
@@ -306,7 +547,7 @@ function egStep(i) {
   EG.step = i; const S = EG_SCRIPT[i]; if (!S) return;
   const go = () => {
     EG.music = EG_MUSIC; audio.setLevel(EG_LEVEL, 0.5);
-    startDialog(EG_DLG[S.dlg], () => { if (S.fight) egFight(S); else if (S.end) egEnd(); else egStep(i + 1); });
+    startDialog(EG_DLG[S.dlg], () => { if (S.fight) egFight(S); else if (S.end) egEnd(); else if (S.confetti) { egConfetti(); EG.nextT = 3.2; } else egStep(i + 1); });
   };
   if (S.plan !== EG.plan) { EG.trans = { t: 0, done: false, plan: S.plan, then: go }; audio.sfx("eg_glas"); }
   else go();
@@ -315,8 +556,8 @@ function egFight(S) {
   EG.st = "fight"; EG.fightT = 0; lasers = []; EG.poops = []; EG.bubbles = [];
   // les boss du combat entrent (à leur place s'ils étaient déjà là, debout ou à terre) ; les vaincus des autres actes restent à terre en décor
   const fighters = S.fight.map((id, k) => {
-    const old = EG.bosses.find(b => b.id === id), x0 = S.duo ? (id === "jules" ? 270 : 370) : old ? egCx(old) : 380;
-    return old && !old.down && !S.duo ? old : egMakeBoss(id, x0, !!S.duo);
+    const old = EG.bosses.find(b => b.id === id), x0 = S.duo ? (id === "jules" ? 270 : 370) : S.giant ? VW / 2 : old ? egCx(old) : 380;
+    return old && !old.down && !S.duo ? old : egMakeBoss(id, x0, !!S.duo, S.fast);
   });
   EG.bosses = EG.bosses.filter(b => b.down && !S.fight.includes(b.id)).concat(fighters);
   EG.extras = S.duo ? [] : (EG.extras || []).filter(x => !S.fight.includes(x.id));
@@ -325,10 +566,12 @@ function egFight(S) {
   if (S.duo) { for (const b of fighters) egStartMove(b, "cri"); EG.brieEdge = { x: VW - 26, t: 0 }; }
   EG.music = egFightMusic(S);
   for (const p of players) p.inv = 1;
+  if (S.giant) msg = { text: say("Frappe ses voitures juste avant qu'elles tombent !", "Touche ⚔ juste avant que la voiture tombe !", "{ATK} juste avant que la voiture tombe !"), t: 4 };
 }
 // Musique d'un combat : le thème du boss s'il existe (musique/eglise/<boss>), sinon l'église ; le duo alterne les deux thèmes
 function egFightMusic(S) {
-  const th = S.fight.map(id => "musique/eglise/" + id).filter(hasSound);
+  if (!S || !S.fight) return EG_MUSIC;
+  const th = S.fight.map(id => "musique/eglise/" + id.replace("_geante", "")).filter(hasSound);
   for (const m of th) audio.resume.add(m);   // en alternance, chaque thème reprend là où il s'était arrêté
   if (!th.length) return EG_MUSIC;
   if (S.duo && th.length > 1) return th[Math.floor((EG.fightT || 0) / 20) % th.length];
@@ -342,7 +585,7 @@ function egliseMusic() {
 }
 // Fin du combat d'une étape : quand tous les boss sont à terre
 function egCheckWin() {
-  if (EG.st !== "fight" || enemies.some(b => !b.down)) return;
+  if (EG.st !== "fight" || enemies.some(b => b.type === "egboss" && !b.down)) return;
   EG.st = "talk"; lasers = lasers.filter(l => !l.eg); EG.poops = [];
   if (rush) { rushWin(null); return; }   // boss rush : pas de dialogue, le combat suivant
   EG.nextT = 1.2;
@@ -357,7 +600,7 @@ function egRushFight(i) {
     audio.resume.add(EG_MUSIC); state = "eglise";
   }
   enemies = []; lasers = []; parts = [];
-  Object.assign(EG, { step: i, plan: S.plan, fade: 1, bosses: [], extras: [], poops: [], bubbles: [], brieEdge: null });
+  Object.assign(EG, { step: i, fade: 1, bosses: [], extras: [], poops: [], bubbles: [], brieEdge: null }); egSetPlan(S.plan);
   players = makePlayers(); egPlace(); rushApply(false);
   egFight(S);
 }
@@ -380,7 +623,7 @@ function egLeave() {
 // Le héros est tombé : on recommence le combat en cours (sans redire le dialogue)
 function egRetry() {
   const S = EG_SCRIPT[EG.step];
-  players = makePlayers(); egPlace();
+  egSetPlan(EG.plan); players = makePlayers(); egPlace();
   EG.bosses = EG.bosses.filter(b => b.down && !(S.fight || []).includes(b.id)); lasers = []; parts = []; EG.poops = []; EG.bubbles = [];
   if (S.fight) egFight(S);
   if (rush) rushApply(true);
@@ -407,10 +650,15 @@ SCREENS.eglise = {
     if (EG.trans) {
       const T0 = EG.trans; T0.t += rdt;
       if (T0.t > 0.6 && !T0.done) {
-        T0.done = true; EG.plan = T0.plan; egPlace(); for (const q of players) if (q.dead) coopRevive(q, true); lasers = []; EG.poops = []; audio.duck(1.2);
-        for (const b of EG.bosses) if (b.down && b.id !== "brie") { b.x = VW - 120; }   // le marié vaincu suit sa femme dans la nef
-        if (EG.bosses.some(b => b.id === "brie")) EG.bosses = EG.bosses.filter(b => b.id !== "brie");   // Brie reste sur le parvis… jusqu'au duo
-        EG.extras = (EG.extras || []).map(x => ({ ...x, x: x.id === "laurene" ? 400 : 360 }));
+        T0.done = true; egSetPlan(T0.plan); egPlace(); for (const q of players) if (q.dead) coopRevive(q, true); lasers = []; EG.poops = []; audio.duck(1.2);
+        if (T0.plan >= 3) {   // chez Mamie : les mariés sont partis en confettis ; au plan 4, la géante attend derrière le muret
+          const S = EG_SCRIPT[EG.step]; EG.brieEdge = null; EG.extras = (S.extras || []).map(x => ({ ...x }));
+          EG.bosses = T0.plan === 4 ? [egMakeBoss("mamie_geante", VW / 2, false)] : [];
+        } else {
+          for (const b of EG.bosses) if (b.down && b.id !== "brie") { b.x = VW - 120; }   // le marié vaincu suit sa femme dans la nef
+          if (EG.bosses.some(b => b.id === "brie")) EG.bosses = EG.bosses.filter(b => b.id !== "brie");   // Brie reste sur le parvis… jusqu'au duo
+          EG.extras = (EG.extras || []).map(x => ({ ...x, x: x.id === "laurene" ? 400 : 360 }));
+        }
       }
       if (T0.t > 1.2) { const f = T0.then; EG.trans = null; if (f) f(); }
       updateParts(dt); return;
@@ -426,6 +674,7 @@ SCREENS.eglise = {
     for (const q of players) { if (!q.dead && EG.st !== "end") updatePlayer(q, dt); q.x = clamp(q.x, 2, VW - 12); }
     updateBubbles(dt);
     for (const e of EG.bosses) egUpdateBoss(e, dt);
+    egUpdateCars(dt); egUpdateIncoming(dt);
     updateLasers(dt);
     // crottes de Brie : elles restent quelques secondes ; les toucher fait mal
     for (const c of EG.poops) { c.t -= dt; for (const q of players) if (!q.dead && ov(c, q)) hurtPlayer(q, c.x + 7); }
@@ -433,7 +682,7 @@ SCREENS.eglise = {
     // Brie aboie depuis le bord pendant le duo (sans attaquer)
     if (EG.brieEdge && !EG.brieEdge.happy) { const B = EG.brieEdge; B.t += dt; if (B.t > 2.2 + Math.random()) { B.t = 0; audio.sfx("eg_aboie"); EG.bubbles.push({ edge: true, text: Math.random() < 0.5 ? "WAF !" : "WAF WAF !", t: 1 }); } }
     for (const b of EG.bubbles) b.t -= rdt;
-    EG.bubbles = EG.bubbles.filter(b => b.t > 0 && (b.edge || (EG.bosses.includes(b.e) && !b.e.gone)));
+    EG.bubbles = EG.bubbles.filter(b => b.t > 0 && (b.edge || b.at || (EG.bosses.includes(b.e) && !b.e.gone)));
     egCheckWin();
     // le héros est tombé : on recommence ce combat
     if (roomLost() && !(rush && rush.next > 0)) { EG.deathT += rdt; if (EG.deathT > 1.6) { EG.deathT = 0; egRetry(); } }
@@ -446,7 +695,8 @@ SCREENS.eglise = {
   },
   draw() {
     const p = players[0];
-    if (hasAtlas("eglise_" + (EG.plan + 1))) drawFrame("eglise_" + (EG.plan + 1), 0, VW / 2, VH, 1); else R(0, 0, VW, VH, "#1a0612");
+    if (EG.plan === 4) drawGiantScene();
+    else if (hasAtlas("eglise_" + (EG.plan + 1))) drawFrame("eglise_" + (EG.plan + 1), 0, VW / 2, VH, 1); else R(0, 0, VW, VH, "#1a0612");
     // la lumière des cierges vacille ; plus sombre et plus rouge pendant le duo
     const duo = EG_SCRIPT[EG.step] && EG_SCRIPT[EG.step].duo && EG.st === "fight";
     R(0, 0, VW, VH, `rgba(${duo ? 40 : 20},0,16,${(duo ? 0.25 : 0.12) + 0.05 * Math.sin(time * 3) + 0.03 * Math.sin(time * 11)})`);
@@ -459,11 +709,14 @@ SCREENS.eglise = {
       drawFrame("eg_brie", fr, B.x, EG_FLOOR, -1, 0.95);
     }
     // les boss
+    for (const c of EG.cars) drawCar(c);
+    for (const c of enemies) if (c.type === "egcar" && c.alive) drawIncoming(c);
     for (const e of EG.bosses) {
-      if (e.gone) continue;
+      if (e.gone || e.B.giant) continue;
       if (e.furie) glow(ctx, egCx(e), e.y + e.h / 2, 40, "255,40,80", 0.3 + 0.1 * Math.sin(time * 8));
       else if (e.rage) glow(ctx, egCx(e), e.y + e.h / 2, 32, e.id === "jules" ? "160,80,255" : "255,90,120", 0.2);
       const a = e.inv > 0 && !e.down && Math.floor(time * 30) % 2 ? 0.5 : 1;
+      if (e.carry && hasAtlas("eg_voiture")) { const h = egCarHold(e); drawFrame("eg_voiture", ATL.eg_voiture.anims.rotation[0] + 1, Math.round(h.x), Math.round(h.y), e.face); }   // derrière elle : on la voit porter
       if (hasAtlas(e.B.atlas)) drawFrame(egAtlas(e), egFrame(e), Math.round(egCx(e)), EG_FLOOR + (e.ground ? 0 : Math.round(e.y + e.h - EG_FLOOR)), e.face, a);
       else R(e.x, e.y, e.w, e.h, e.B.color);
       if (e.beam && !e.down) {   // le laser des yeux, prolongé jusqu'au bord de l'écran
@@ -487,13 +740,18 @@ SCREENS.eglise = {
         for (let k = 0; k < 3; k++) { const h = 4 + ((Math.floor(l.t * 20) + k) % 3) * 3; R(Math.round(l.x + 2 + k * 4), Math.round(l.y + l.h - h), 2, h, k === 1 ? "#ffffff" : "#c8a0ff"); }
       }
       else if (l.kind === "shard") R(Math.round(l.x), Math.round(l.y), 4, 3, "#7dffb0");
+      else if (l.kind === "pneu") {   // pneu qui roule (traits de vitesse quand il va vite) ; qui tombe : son ombre au sol
+        if (l.rain && l.vy > 0 && l.y < EG_FLOOR - 40) { ctx.globalAlpha = 0.4; ctx.fillStyle = "#0e0a1a"; ctx.beginPath(); ctx.ellipse(cx, EG_FLOOR - 1, 10, 3, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
+        if (l.owner === "player") glow(ctx, cx, cy, 12, "255,255,255", 0.5);
+        if (hasAtlas("eg_pneu")) drawFrame("eg_pneu", Math.abs(l.vx) > 120 ? 1 + spin % 2 : 0, Math.round(cx), Math.round(cy), l.vx < 0 ? -1 : 1); else R(l.x, l.y, l.w, l.h, "#2a2a32");
+      }
     }
     drawFxList(true); for (const q of players) drawCampPlayer(q); drawBubbles(); drawCoopTags(); drawFxList(false);
     for (const q of parts) { ctx.globalAlpha = Math.min(1, q.life / q.max * 1.5); R(Math.round(q.x), Math.round(q.y), q.size, q.size, q.color); }
     ctx.globalAlpha = 1;
     // bulles des répliques
     for (const b of EG.bubbles) {
-      const x = b.edge ? (EG.brieEdge ? EG.brieEdge.x : VW - 26) : egCx(b.e), y = b.edge ? EG_FLOOR - 34 : b.e.y - 10;
+      const x = b.at ? b.at.x : b.edge ? (EG.brieEdge ? EG.brieEdge.x : VW - 26) : b.e.B.giant ? egCx(b.e) - egPar() * 8 : egCx(b.e), y = b.at ? b.at.y : b.edge ? EG_FLOOR - 34 : b.e.B.giant ? 40 : b.e.y - 10;
       ctx.font = `700 8px ${FONT}`; const w = Math.ceil(ctx.measureText(b.text).width) + 8, bx = clamp(Math.round(x - w / 2), 2, VW - w - 2);
       ctx.globalAlpha = Math.min(1, b.t * 3); R(bx, y - 10, w, 13, "rgba(255,255,255,0.92)"); R(Math.round(x) - 2, y + 3, 4, 3, "rgba(255,255,255,0.92)");
       text(b.text, bx + w / 2, y - 3, 8, "#2a0a1a", "center"); ctx.globalAlpha = 1;
@@ -501,7 +759,7 @@ SCREENS.eglise = {
     // haut de l'écran : lieu, cœurs, pouvoir
     R(0, 0, VW, 16, "rgba(10,6,24,0.7)");
     if (rush) { text(`Boss rush  ${Math.min(rush.i + 1, RUSH_TOTAL)}/${RUSH_TOTAL}`, 6, 8, 9, "#ff5a7a"); text(fmtTime(rush.t), VW / 2, 8, 9, ch().ui, "center"); }
-    else { text("L'église", 6, 8, 9, "#ff5a7a"); text(["Le parvis", "Les marches", "La nef"][EG.plan], 58, 8, 8, "#e8dcff"); }
+    else { text("L'église", 6, 8, 9, "#ff5a7a"); text(EG_PLANS[EG.plan], 58, 8, 8, "#e8dcff"); }
     const d = df(); let hx = VW - (TOUCH && !PAD ? 52 : 8);
     if (d.id === "doom") text("☠ DOOM", hx, 8, 9, d.color, "right", d.color);
     else {
@@ -514,7 +772,7 @@ SCREENS.eglise = {
     const fs = enemies.filter(e => e.type === "egboss").sort((a, b) => egCx(a) - egCx(b));   // une barre par combattant, dans l'ordre de l'écran
     if (EG.st === "fight") fs.forEach((e, k) => {
       const bw = fs.length > 1 ? 150 : 220, bx = fs.length > 1 ? (k ? VW - bw - 20 : 20) : (VW - bw) / 2, by = VH - 14;
-      text(e.furie ? "Laurène (furie)" : e.B.name, bx, by - 6, 8, e.B.color);
+      text(e.furie ? "Laurène (furie)" : e.fast ? "Mamie Florence (2e manche)" : e.B.name, bx, by - 6, 8, e.B.color);
       R(bx, by, bw, 6, "#2a0a1a"); R(bx, by, Math.round(bw * e.hp / e.max), 6, e.rage || e.furie ? "#ff2d6a" : "#c8304a"); ctx.strokeStyle = "#0e0a1a"; ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, 5);
     });
     if (msg && msg.t > 0) text(msg.text, VW / 2, 40, 10, "#e8dcff", "center", "#ff5a7a");

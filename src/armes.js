@@ -176,7 +176,7 @@ function updateWProj(l, dt) {
     if (!e.alive || l.hits.has(e) || !ov(l, e)) continue;
     l.hits.add(e);
     if (l.kind === "ball") { explodeBall(l); return; }
-    if (l.kind === "bubble" && e.type !== "bigboss" && e.type !== "boss" && e.type !== "egboss") { e.bubT = 0.9; e.bubBy = l.p; wsfx("pistolet-bulle", "dj"); l.alive = false; return; }
+    if (l.kind === "bubble" && e.type !== "bigboss" && e.type !== "boss" && e.type !== "egboss" && e.type !== "egcar") { e.bubT = 0.9; e.bubBy = l.p; wsfx("pistolet-bulle", "dj"); l.alive = false; return; }
     hitEnemy(e, "proj", l.p, l.dmg);
     if (l.kind === "arrow") wsfx("arc-impact", "deflect");
     if (l.kind === "boom") { burst(cx(), cy(), 12, ["#fccc28", "#ff8a3c", "#ffffff"], 120, 0.4, 0, 1); l.alive = false; return; }
