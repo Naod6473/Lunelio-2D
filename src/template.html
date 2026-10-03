@@ -159,6 +159,9 @@ const POWERS = {
   aboi: { icon: "!", label: "aboiement", name: "Super aboiement", color: "#c8b8ff", burst: 0.6, effect: "bark",
     hint: ["Maj ou L : super aboiement, une vague qui renverse les ennemis", "Bouton ! : super aboiement, une vague qui renverse les ennemis", "Bouton {POW} : super aboiement, une vague qui renverse les ennemis"],
     kbHint: () => `${kbNames("power")} : super aboiement, une vague qui renverse les ennemis` },
+  chips: { icon: "◆", label: "chips", name: "Lancer de chips", color: "#ff7a3c", burst: 0.34, effect: "chips",
+    hint: ["Maj ou L : lance un paquet de chips qui éclate", "Bouton ◆ : lance un paquet de chips qui éclate", "Bouton {POW} : lance un paquet de chips qui éclate"],
+    kbHint: () => `${kbNames("power")} : lance un paquet de chips qui éclate` },
   amour: { icon: "♡", label: "bulle", name: "Bulle d'amour", color: "#ff8ad8", shield: true, fxTint: "#ff8ad8",
     hint: ["Maintiens Maj ou L : une bulle d'amour te protège", "Maintiens ♡ : une bulle d'amour te protège", "Maintiens {POW} : une bulle d'amour te protège"],
     kbHint: () => `Maintiens ${kbNames("power")} : une bulle d'amour te protège` },
@@ -223,6 +226,10 @@ const CHARS = [
     desc: "Il cogne fort avec ses gros gants !",
     color: "#ffb46a", glow: "255,180,106", ui: "#ffb46a", ui2: "#4a6aa8", atkW: 28,
     sky: ["#100a08", "#2a1a14", "#5a3020"], moon: ["#fff0e0", "#ffb46a"], stripe: "#2a1a14", stars: "255,230,210", city: ["#1a120e", "#100a08"] },
+  { id: "claire", name: "Claire", special: "dash", power: "chips", grunt: "claire", idleBonus: ["manger", "victoire", "ramasse"], atkLabel: "coups de livre", atkVerb: "frapper", music: "backgroundlune", logo: "lune", theme: null, unlock: null,
+    desc: "Elle tape avec son gros livre… et lance des chips !",
+    color: "#ff9a8a", glow: "255,154,138", ui: "#ffa898", ui2: "#c8604a", atkW: 30,
+    sky: ["#140a10", "#3a1a24", "#7a3a3a"], moon: ["#fff0e8", "#ffb4a0"], stripe: "#3a1a24", stars: "255,230,220", city: ["#1e0e14", "#14080e"] },
   // secret: héroïne cachée (carte « ? » sur l'écran du choix tant que SAVE.flags[secret] n'est pas posé) ; jumpV : saut plus haut
   { id: "guillie", name: "Guillie", special: null, power: "aboi", secret: "guillie", jumpV: 540, music: "backgroundhelio", logo: "helio", theme: null, unlock: null,
     desc: "Une chienne qui saute plus haut que tout le monde !", atkLabel: "coup de patte", atkVerb: "bousculer",
@@ -526,11 +533,11 @@ for (const W of WORLDS) {
 // Bruitages : nom utilisé par audio.sfx() → fichier ; sans fichier, le son synthétisé de audio.sfx() est joué.
 // jingle : courte musique qui baisse la musique de fond le temps de se jouer.
 // écart de hauteur des bruitages joués depuis un fichier (± 6 % d'habitude) : l'aboiement de Guillie change bien plus
-const SFX_PITCH = { aboi: 0.2, "voix:simon": 0.15 };
+const SFX_PITCH = { aboi: 0.2, "voix:simon": 0.15, "voix:claire": 0.15 };
 const SFX_FILES = {
   slash: "sfx/joueur/coup", sword_hit: "sfx/joueur/coup_touche", hit_foe: "sfx/ennemis/touche", hit_robot: "sfx/ennemis/touche_robot", jump: "sfx/joueur/saut", dj: "sfx/joueur/double_saut", dash: "sfx/joueur/dash", land: "sfx/joueur/atterrissage",
   deflect: "sfx/joueur/renvoi", hurt: "sfx/joueur/touche", heal: "sfx/joueur/soin",
-  aboi: "sfx/pouvoirs/aboiement", "voix:simon": "sfx/joueur/simon/grunt", pw_fast: "sfx/pouvoirs/rapide", pw_slow: "sfx/pouvoirs/ralenti", pw_shield: "sfx/pouvoirs/bouclier", pw_superjump: "sfx/pouvoirs/super_saut",
+  aboi: "sfx/pouvoirs/aboiement", "voix:simon": "sfx/joueur/simon/grunt", "voix:claire": "sfx/joueur/claire/grunt", pw_fast: "sfx/pouvoirs/rapide", pw_slow: "sfx/pouvoirs/ralenti", pw_shield: "sfx/pouvoirs/bouclier", pw_superjump: "sfx/pouvoirs/super_saut",
   pw_invisible: "sfx/pouvoirs/invisible", stun: "sfx/pouvoirs/etourdir", block: "sfx/pouvoirs/bloc", pw_heal: "sfx/pouvoirs/soin_groupe",
   gauge_full: "sfx/pouvoirs/jauge_pleine", pw_end: "sfx/pouvoirs/fin_pouvoir",
   sock: "sfx/collecte/chaussette", sock_bonus: "sfx/collecte/chaussette_bonus", heart: "sfx/collecte/coeur", energy: "sfx/collecte/energie",
@@ -1494,6 +1501,11 @@ function updatePlayer(p, dt) {
     if (p.atkT > 0.3) p.atkT = -1;
   }
   if (p.hurtT > 0) p.hurtT -= dt;
+  if (p.throwT > 0) { const t0 = p.throwT; p.throwT -= dt; if (t0 > 0.2 && p.throwT <= 0.2) {   // le paquet part à la 4e pose
+    const tg = enemies.filter(e => e.alive && Math.sign(e.x + e.w / 2 - p.x - 5) === p.face && Math.abs(e.x + e.w / 2 - p.x - 5) < 220).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0];
+    const vxT = tg ? clamp(Math.abs(tg.x + tg.w / 2 - p.x - 5 - p.face * 14) / 0.55, 90, 280) : 190;   // il vise l'ennemi devant
+    wProj(p, { kind: "chips", x: p.x + 5 + p.face * 14, y: p.y + 8, vx: p.face * vxT, vy: -170, g: 650, w: 10, h: 10, life: 2, dmg: 1, face: p.face });
+    if (p.C.grunt) audio.sfx("voix:" + p.C.grunt); } }
   if (fast) {
     p.ghostT -= dt;
     if (p.ghostT <= 0) { p.ghostT = 0.045; ghosts.push({ id: C.id, x: p.x, y: p.y, face: p.face, frame: playerFrame(p), life: 0.22 }); }
@@ -1790,6 +1802,9 @@ function burstPower(p, pw) {
     }
     for (let i = 0; i < 10; i++) parts.push({ x: cx, y: cy, vx: Math.cos(i * 0.63) * 120, vy: Math.sin(i * 0.63) * 80 - 40, life: 0.8, max: 0.8, color: i % 2 ? "#ff6ec7" : "#ffffff", size: 3, grav: 0 });
     flash = 0.06; audio.sfx("stun");
+  } else if (pw.effect === "chips") {   // lancer de chips : la pose de lancer, le paquet part en cloche et éclate (armes.js)
+    if (p.throwT > 0) return;
+    p.throwT = 0.45; p.atkT = -1; audio.sfx("dash");
   } else if (pw.effect === "bark") {   // super aboiement : une vague de son qui grandit autour du héros (armes.js, kind « aboi »)
     wProj(p, { kind: "aboi", x: cx, y: cy, w: 1, h: 1, life: 0.55, dmg: 9, pierce: 99, cx, cy });
     audio.sfx("aboi"); shake = Math.max(shake, 5); rumble(260, 0.8, 0.5); flash = 0.05;
@@ -1852,7 +1867,8 @@ function playerFrame(p) { const fr = basePlayerFrame(p); return curWeapon(p).id 
 function basePlayerFrame(p) {
   const C = ch(), An = (ATL[charAtlas(p.C)] || { anims: {} }).anims;
   if (p.dashT > 0) return An.dash ? An.dash[0] + Math.floor(time * 16) % An.dash[1] : 24 + (Math.floor(time * 20) % 2);
-  if (p.hurtT > 0 && An.hurt && p.atkT < 0) return An.hurt[0];   // pose de dégât si la planche en a une
+  if (p.hurtT > 0 && An.hurt && p.atkT < 0) return An.hurt[0];
+  if (p.throwT > 0 && An.lancer) return An.lancer[0] + Math.min(An.lancer[1] - 1, Math.floor((0.45 - p.throwT) / 0.45 * An.lancer[1]));   // pose de dégât si la planche en a une
   if (p.djT > 0) {   // double saut : pirouette de la ligne spéciale si la planche en a une (4 images), sinon la pose de saut
     const sp = (ATL[charAtlas(C)] || { anims: {} }).anims.special;
     return sp && sp[1] >= 4 ? sp[0] + Math.min(3, Math.floor((0.32 - p.djT) / 0.08)) : 18;
@@ -1865,7 +1881,7 @@ function basePlayerFrame(p) {
   if (!p.onGround) return 18 + (p.vy < 0 ? 0 : 1);
   if (Math.abs(p.vx) > 20) return 6 + Math.floor(p.runT * 12) % 6;
   // au repos, de temps en temps, une pose à soi (idleBonus : Simon lève les bras de victoire) : 1,4 s toutes les 6 s
-  const ib = p.C.idleBonus && An[p.C.idleBonus], k = (p.idleT || 0) - 2.5;
+  const k = (p.idleT || 0) - 2.5, il = [].concat(p.C.idleBonus || []), ib = il.length && An[il[Math.floor(Math.max(0, k) / 6) % il.length]];   // une liste : chacune à son tour
   if (ib && k > 0 && k % 6 > 4.6) return ib[0] + Math.min(ib[1] - 1, Math.floor((k % 6 - 4.6) / 1.4 * ib[1]));
   return Math.floor(time * 5) % 4;
 }

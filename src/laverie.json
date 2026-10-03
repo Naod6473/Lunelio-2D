@@ -2053,6 +2053,123 @@
     ]
    },
    "note": "portrait de Simon"
+  },
+  "perso_claire": {
+   "src": "assets/laverie/perso_claire.png",
+   "cw": 72,
+   "ch": 56,
+   "ax": 36,
+   "ay": 53,
+   "cols": 6,
+   "anims": {
+    "idle": [
+     0,
+     4
+    ],
+    "run": [
+     6,
+     6
+    ],
+    "attack": [
+     12,
+     5
+    ],
+    "jump": [
+     18,
+     2
+    ],
+    "land": [
+     21,
+     2
+    ],
+    "dash": [
+     24,
+     4
+    ],
+    "special": [
+     24,
+     4
+    ],
+    "hurt": [
+     28,
+     1
+    ],
+    "walk": [
+     30,
+     6
+    ],
+    "attack2": [
+     36,
+     4
+    ],
+    "etourdi": [
+     43,
+     3
+    ],
+    "ko": [
+     46,
+     4
+    ],
+    "victoire": [
+     50,
+     4
+    ],
+    "ramasse": [
+     54,
+     3
+    ],
+    "dead": [
+     49,
+     1
+    ],
+    "attack_air": [
+     40,
+     3
+    ],
+    "lancer": [
+     57,
+     5
+    ],
+    "manger": [
+     62,
+     3
+    ]
+   },
+   "note": "héros : heros/claire.png"
+  },
+  "portrait_perso_claire": {
+   "src": "assets/laverie/portrait_perso_claire.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 40,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "portrait de Claire"
+  },
+  "magie_chips": {
+   "src": "assets/laverie/magie_chips.png",
+   "cw": 36,
+   "ch": 30,
+   "ax": 18,
+   "ay": 15,
+   "cols": 5,
+   "anims": {
+    "paquet": [
+     0,
+     1
+    ],
+    "eclate": [
+     1,
+     4
+    ]
+   },
+   "note": "paquet de chips de Claire"
   }
  }
 }

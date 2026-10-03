@@ -176,12 +176,14 @@ function updateWProj(l, dt) {
     if (solidAt(cx(), cy())) { l.vx = -l.vx * 0.8; l.x += l.vx * dt * 2; } else { l.vy = -Math.abs(l.vy) * 0.6 - 120; }
     wsfx("lancepierre-rebond", "jump");
   } else if (l.kind === "ball" && (solid || solidAt(cx(), l.y + l.h))) { explodeBall(l); return; }
+  else if (l.kind === "chips" && (solid || solidAt(cx(), l.y + l.h) || (lvl.json && supportAt(cx(), l.y + l.h)))) { explodeChips(l); return; }
   else if (solid && l.kind !== "boom") { l.alive = false; if (l.kind === "arrow") wsfx("arc-impact", "deflect"); burst(cx(), cy(), 6, ["#ff8ab0", "#ffffff"], 90, 0.25, 0, 1); return; }
   if (l.kind === "swave" && lvl.json && !supportAt(cx(), l.y + l.h + 2)) { l.alive = false; return; }
   for (const e of enemies) {
     if (!e.alive || l.hits.has(e) || !ov(l, e)) continue;
     l.hits.add(e);
     if (l.kind === "ball") { explodeBall(l); return; }
+    if (l.kind === "chips") { explodeChips(l); return; }
     if (l.kind === "bubble" && e.type !== "bigboss" && e.type !== "boss" && e.type !== "egboss" && e.type !== "egcar") { e.bubT = 0.9; e.bubBy = l.p; wsfx("pistolet-bulle", "dj"); l.alive = false; return; }
     hitEnemy(e, "proj", l.p, l.dmg);
     if (l.kind === "arrow") wsfx("arc-impact", "deflect");
@@ -190,6 +192,16 @@ function updateWProj(l, dt) {
     if (l.pierce > 0) { l.pierce--; continue; }
     l.alive = false; return;
   }
+}
+// Paquet de chips de Claire : il éclate et tout autour prend des chips (2 dégâts aux boss)
+function explodeChips(l) {
+  if (!l.alive) return; l.alive = false;
+  const cx = l.x + l.w / 2, cy = l.y + l.h / 2, box = { x: cx - 32, y: cy - 30, w: 64, h: 54 };
+  for (const e of enemies) if (e.alive && ov(box, e)) hitEnemy(e, "proj", l.p, e.type === "bigboss" || e.type === "boss" || e.type === "egboss" ? 2 : 1);
+  if (lvl.json) { l.p.hitList = new Set(); campAttack(l.p, box, "atk"); }
+  addFx("magie_chips", cx, cy - 4, { anim: "eclate", fps: 10, face: l.face || 1 });
+  burst(cx, cy, 18, ["#ffd23c", "#ffb43c", "#ff6a2a"], 160, 0.6, 300, 2);
+  shake = Math.max(shake, 3); audio.sfx("break");
 }
 function explodeBall(l) {
   l.alive = false;
@@ -250,6 +262,10 @@ function drawWProj(l) {
       const k = l.t / l.life;
       for (let i = 0; i < 3; i++) { const r = l.r - i * 14; if (r <= 4) continue; ctx.globalAlpha = Math.max(0, (1 - k) * (0.8 - i * 0.22)); ctx.strokeStyle = i ? "#c8b8ff" : "#ffffff"; ctx.lineWidth = 3 - i; ctx.beginPath(); ctx.ellipse(l.cx, l.cy, r, r * 0.6, 0, 0, Math.PI * 2); ctx.stroke(); }
       ctx.globalAlpha = 1; break;
+    }
+    case "chips": {   // le paquet tourne en vol
+      if (!hasAtlas("magie_chips")) { R(Math.round(l.x), Math.round(l.y), 10, 10, "#ff3b2a"); break; }
+      ctx.save(); ctx.translate(Math.round(cx), Math.round(cy)); ctx.rotate(l.t * 9 * (l.face || 1)); drawFrame("magie_chips", 0, 0, 0); ctx.restore(); break;
     }
     case "pebble": R(Math.round(l.x), Math.round(l.y), 6, 6, "#8a7a6a"); R(Math.round(l.x), Math.round(l.y), 2, 2, "#c8b8a0"); break;
     case "swave": ctx.globalAlpha = 0.7 * (1 - l.t / l.life); for (let i = 0; i < l.w; i += 2) R(Math.round(l.x + i), Math.round(l.y + l.h - 2 - Math.abs(Math.sin(time * 30 + i)) * 8), 2, 3, i % 4 ? "#fccc28" : "#ffffff"); ctx.globalAlpha = 1; break;

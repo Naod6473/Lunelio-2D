@@ -644,19 +644,52 @@ SIMON_ROWS_N = {"idle": (0, 4), "marche": (1, 6), "course": (2, 6), "saut": (3, 
                 "haut": (7, 3), "air": (8, 3), "roulade": (9, 4), "degats": (10, 2), "etourdi": (11, 3), "ko": (12, 4), "victoire": (13, 4),
                 "ramasse": (14, 3), "levier": (15, 3)}
 
-def simon_layout():
-    R = lambda n: [(SIMON_ROWS_N[n][0], c) for c in range(SIMON_ROWS_N[n][1])]
+def simon_layout(rows_n=None):
+    """Disposition commune aux planches de 16 bandes (Simon, Claire) : rows_n = {pose: (ligne, nombre)}."""
+    SIMON_ROWS_N_ = rows_n or SIMON_ROWS_N
+    R = lambda n: [(SIMON_ROWS_N_[n][0], c) for c in range(SIMON_ROWS_N_[n][1])]
     lay = R("idle") + [None, None] + R("course") + R("forte") + [None] + [(3, 1), (3, 2), (3, 0)] + R("reception") + [None] + R("roulade") + R("degats")
     anims = {"idle": [0, 4], "run": [6, 6], "attack": [12, 5], "jump": [18, 2], "land": [21, 2], "dash": [24, 4], "special": [24, 4], "hurt": [28, 1]}
     for name, key in (("walk", "marche"), ("attack2", "legere"), ("attack_up", "haut"), ("attack_air", "air"), ("etourdi", "etourdi"),
                       ("ko", "ko"), ("victoire", "victoire"), ("ramasse", "ramasse"), ("levier", "levier")):
-        anims[name] = [len(lay), SIMON_ROWS_N[key][1]]; lay += R(key)
+        if key not in SIMON_ROWS_N_: continue
+        anims[name] = [len(lay), SIMON_ROWS_N_[key][1]]; lay += R(key)
     anims["dead"] = [anims["ko"][0] + 3, 1]
     return lay, anims
 
 def fx_simon(r, g, b):
     """Effets de la planche de Simon : éclat doré du coup fort, étoiles jaunes, pièce."""
     return r > 210 and g > 160 and b < 120
+
+# Claire : heros/claire.png (16 bandes : repos, marche, course, saut, réception, coup de livre léger et fort, coup vers le haut,
+# lancer de chips, roulade, dégâts, étourdissement, KO, victoire, ramassage, manger des chips), portrait, et le paquet de chips
+# qui éclate (heros/claire_chips.png : 5 images sur une ligne).
+CLAIRE_ROWS_N = {"idle": (0, 4), "marche": (1, 6), "course": (2, 6), "saut": (3, 3), "reception": (4, 2), "legere": (5, 4), "forte": (6, 5),
+                 "haut": (7, 3), "lancer": (8, 5), "roulade": (9, 4), "degats": (10, 2), "etourdi": (11, 3), "ko": (12, 4), "victoire": (13, 4),
+                 "ramasse": (14, 3), "manger": (15, 3)}
+CHIPS_SPANS = [(29, 370), (439, 799), (878, 1253), (1306, 1749), (1786, 2125)]
+
+def prepare_claire():
+    f = os.path.join(SRC, "heros/claire.png")
+    if not os.path.exists(f): return {}
+    im = Image.open(f).convert("RGBA"); lay, anims = simon_layout(CLAIRE_ROWS_N)
+    anims["attack_air"] = anims.pop("attack_up")   # coup de livre vers le haut : en l'air
+    for name in ("lancer", "manger"):
+        anims[name] = [len(lay), CLAIRE_ROWS_N[name][1]]; lay += [(CLAIRE_ROWS_N[name][0], c) for c in range(CLAIRE_ROWS_N[name][1])]
+    rows = [(r * 192, (r + 1) * 192) for r in range(im.height // 192)]
+    out = hero_sheet("perso_claire", im, rows, 192, 0.2, DINO_CELL, DINO_ANCHOR, lay, {}, anims, fx_simon, "héros : heros/claire.png")
+    p = os.path.join(SRC, "heros/claire_portrait.png")
+    if os.path.exists(p):
+        pim = Image.open(p).convert("RGBA"); out.update(hero_portrait("portrait_perso_claire", pim, (0, 0, pim.width, pim.height), "portrait de Claire"))
+    c = os.path.join(SRC, "heros/claire_chips.png")
+    if os.path.exists(c):
+        strip = Image.open(c).convert("RGBA"); cw, ch = 36, 30; sheet = Image.new("RGBA", (cw * len(CHIPS_SPANS), ch))
+        for k, (x0, x1) in enumerate(CHIPS_SPANS):   # le paquet seul, petit ; puis il éclate (chips qui volent)
+            sheet.paste(recentre(strip.crop((x0, 0, x1, strip.height)), (cw, ch), 0.04 if k == 0 else 0.075), (k * cw, 0))
+        sheet.save(os.path.join(OUT, "magie_chips.png"), optimize=True)
+        out["magie_chips"] = {"src": "assets/laverie/magie_chips.png", "cw": cw, "ch": ch, "ax": cw // 2, "ay": ch // 2, "cols": len(CHIPS_SPANS),
+                              "anims": {"paquet": [0, 1], "eclate": [1, 4]}, "note": "paquet de chips de Claire"}
+    return out
 
 def prepare_simon():
     f = os.path.join(SRC, SIMON_SRC)
@@ -725,7 +758,7 @@ def main():
     if f: atlas["eg_laurene_furie"] = f
     b, c = prepare_brie()
     if b: atlas["eg_brie"], atlas["eg_crotte"] = b, c
-    atlas.update(prepare_eg_proj()); atlas.update(prepare_eg_portraits()); atlas.update(prepare_mamie()); atlas.update(prepare_dino()); atlas.update(prepare_marylou()); atlas.update(prepare_guillie()); atlas.update(prepare_simon()); atlas.update(prepare_souvenirs())
+    atlas.update(prepare_eg_proj()); atlas.update(prepare_eg_portraits()); atlas.update(prepare_mamie()); atlas.update(prepare_dino()); atlas.update(prepare_marylou()); atlas.update(prepare_guillie()); atlas.update(prepare_simon()); atlas.update(prepare_claire()); atlas.update(prepare_souvenirs())
     for name, (base, anims) in HEROES.items():
         a = prepare_hero(name, base, anims)
         if a: atlas[name] = a
