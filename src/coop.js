@@ -12,7 +12,7 @@ function coopPads(list) {
     if (!g || !g.connected) continue;
     const st = padBtn(g, 9), sel = padBtn(g, 8), was = coopPrev[g.index] || {};
     coopPrev[g.index] = { st, sel };
-    if (state !== "chars") continue;
+    if (state !== "chars" && state !== "vssetup") continue;
     // Start sur une manette qui n'est pas celle du joueur 1 (ou sur la seule manette quand le joueur 1 joue au clavier)
     if (!COOP.on && st && !was.st && (g.index !== padIdx || !PAD)) { if (g.index === padIdx) padIdx = null; coopJoin("pad", g.index); }
     else if (COOP.on && COOP.dev === "pad" && g.index === COOP.pad && sel && !was.sel) coopLeave();
