@@ -226,7 +226,7 @@ const CHARS = [
     desc: "Il cogne fort avec ses gros gants !",
     color: "#ffb46a", glow: "255,180,106", ui: "#ffb46a", ui2: "#4a6aa8", atkW: 28,
     sky: ["#100a08", "#2a1a14", "#5a3020"], moon: ["#fff0e0", "#ffb46a"], stripe: "#2a1a14", stars: "255,230,210", city: ["#1a120e", "#100a08"] },
-  { id: "claire", name: "Claire", special: "dash", power: "chips", grunt: "claire", idleBonus: ["manger", "victoire", "ramasse"], atkLabel: "coups de livre", atkVerb: "frapper", music: "backgroundlune", logo: "lune", theme: null, unlock: null,
+  { id: "claire", name: "Claire", special: "dash", power: "chips", grunt: "claire", koSound: "claire", idleBonus: ["manger", "victoire", "ramasse"], atkLabel: "coups de livre", atkVerb: "frapper", music: "backgroundlune", logo: "lune", theme: null, unlock: null,
     desc: "Elle tape avec son gros livre… et lance des chips !",
     color: "#ff9a8a", glow: "255,154,138", ui: "#ffa898", ui2: "#c8604a", atkW: 30,
     sky: ["#140a10", "#3a1a24", "#7a3a3a"], moon: ["#fff0e8", "#ffb4a0"], stripe: "#3a1a24", stars: "255,230,220", city: ["#1e0e14", "#14080e"] },
@@ -533,11 +533,11 @@ for (const W of WORLDS) {
 // Bruitages : nom utilisé par audio.sfx() → fichier ; sans fichier, le son synthétisé de audio.sfx() est joué.
 // jingle : courte musique qui baisse la musique de fond le temps de se jouer.
 // écart de hauteur des bruitages joués depuis un fichier (± 6 % d'habitude) : l'aboiement de Guillie change bien plus
-const SFX_PITCH = { aboi: 0.2, "voix:simon": 0.15, "voix:claire": 0.15 };
+const SFX_PITCH = { aboi: 0.2, "voix:simon": 0.15, "voix:claire": 0.15, "ko:claire": 0.15 };
 const SFX_FILES = {
   slash: "sfx/joueur/coup", sword_hit: "sfx/joueur/coup_touche", hit_foe: "sfx/ennemis/touche", hit_robot: "sfx/ennemis/touche_robot", jump: "sfx/joueur/saut", dj: "sfx/joueur/double_saut", dash: "sfx/joueur/dash", land: "sfx/joueur/atterrissage",
   deflect: "sfx/joueur/renvoi", hurt: "sfx/joueur/touche", heal: "sfx/joueur/soin",
-  aboi: "sfx/pouvoirs/aboiement", "voix:simon": "sfx/joueur/simon/grunt", "voix:claire": "sfx/joueur/claire/grunt", pw_fast: "sfx/pouvoirs/rapide", pw_slow: "sfx/pouvoirs/ralenti", pw_shield: "sfx/pouvoirs/bouclier", pw_superjump: "sfx/pouvoirs/super_saut",
+  aboi: "sfx/pouvoirs/aboiement", "voix:simon": "sfx/joueur/simon/grunt", "voix:claire": "sfx/joueur/claire/grunt", "ko:claire": "sfx/joueur/claire/ko", pw_fast: "sfx/pouvoirs/rapide", pw_slow: "sfx/pouvoirs/ralenti", pw_shield: "sfx/pouvoirs/bouclier", pw_superjump: "sfx/pouvoirs/super_saut",
   pw_invisible: "sfx/pouvoirs/invisible", stun: "sfx/pouvoirs/etourdir", block: "sfx/pouvoirs/bloc", pw_heal: "sfx/pouvoirs/soin_groupe",
   gauge_full: "sfx/pouvoirs/jauge_pleine", pw_end: "sfx/pouvoirs/fin_pouvoir",
   sock: "sfx/collecte/chaussette", sock_bonus: "sfx/collecte/chaussette_bonus", heart: "sfx/collecte/coeur", energy: "sfx/collecte/energie",
@@ -1400,12 +1400,13 @@ function hurtPlayer(p, srcX) {
   burst(p.x + 5, p.y + 14, 14, ["#ff3b5c", "#ffffff", p.C.color], 180, 0.5, 300, 2);
   if (p.hp <= 0 && buddyOn()) {
     // mode copain : on repart sur place avec tous ses cœurs, les robots détruits le restent
-    deaths++; p.hp = df().hp; p.inv = 2; p.vx = Math.sign(p.x + 5 - srcX || 1) * 120; p.vy = -260;
+    deaths++; p.hp = df().hp; p.inv = 2; if (p.C.koSound) audio.sfx("ko:" + p.C.koSound); p.vx = Math.sign(p.x + 5 - srcX || 1) * 120; p.vy = -260;
     burst(p.x + 5, p.y + 16, 30, ["#7dffb0", "#ffffff", "#ff4f8a", p.C.color], 200, 0.7, 100, 2);
     audio.sfx("heal"); rumble(250, 0.5, 0.5);
     msg = { text: "Mode copain : on repart !", t: 2 }; voice.say("On repart !", true);
   } else if (p.hp <= 0) {
     p.dead = true; p.powerOn = false; deaths++; rumble(500, 1, 0.8);
+    if (p.C.koSound) audio.sfx("ko:" + p.C.koSound);   // son à soi quand le héros tombe (Claire : un petit pet comique)
     burst(p.x + 5, p.y + 16, 40, [p.C.color, "#ffffff", "#ff4fd8"], 260, 0.9, 250, 2);
     if (!roomLost()) coopBubble(p);   // à deux : le héros devient une bulle que son copain peut toucher
     else audio.sfx("gameover");
