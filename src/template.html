@@ -162,6 +162,18 @@ const POWERS = {
   chips: { icon: "◆", label: "chips", name: "Lancer de chips", color: "#ff7a3c", burst: 0.34, effect: "chips",
     hint: ["Maj ou L : lance un paquet de chips qui éclate", "Bouton ◆ : lance un paquet de chips qui éclate", "Bouton {POW} : lance un paquet de chips qui éclate"],
     kbHint: () => `${kbNames("power")} : lance un paquet de chips qui éclate` },
+  orbe: { icon: "◉", label: "orbe", name: "Orbe magique", color: "#a86aff", burst: 0.34, effect: "throw", throw: "orbe",
+    hint: ["Maj ou L : lance une orbe magique", "Bouton ◉ : lance une orbe magique", "Bouton {POW} : lance une orbe magique"],
+    kbHint: () => `${kbNames("power")} : lance une orbe magique` },
+  chevre: { icon: "♞", label: "chèvre", name: "Chèvre qui fonce", color: "#e8e0d0", burst: 0.4, effect: "throw", throw: "chevre",
+    hint: ["Maj ou L : lance une chèvre qui fonce au sol", "Bouton ♞ : lance une chèvre qui fonce au sol", "Bouton {POW} : lance une chèvre qui fonce au sol"],
+    kbHint: () => `${kbNames("power")} : lance une chèvre qui fonce au sol` },
+  voiture: { icon: "▣", label: "voiture", name: "Lancer de voiture", color: "#ff5a3c", burst: 0.5, effect: "throw", throw: "voiture",
+    hint: ["Maj ou L : lance une voiture qui explose", "Bouton ▣ : lance une voiture qui explose", "Bouton {POW} : lance une voiture qui explose"],
+    kbHint: () => `${kbNames("power")} : lance une voiture qui explose` },
+  crotte: { icon: "●", label: "crotte", name: "Petite surprise", color: "#a0703a", burst: 0.3, effect: "throw", throw: "crotte",
+    hint: ["Maj ou L : laisse une crotte où les autres glissent", "Bouton ● : laisse une crotte où les autres glissent", "Bouton {POW} : laisse une crotte où les autres glissent"],
+    kbHint: () => `${kbNames("power")} : laisse une crotte où les autres glissent` },
   amour: { icon: "♡", label: "bulle", name: "Bulle d'amour", color: "#ff8ad8", shield: true, fxTint: "#ff8ad8",
     hint: ["Maintiens Maj ou L : une bulle d'amour te protège", "Maintiens ♡ : une bulle d'amour te protège", "Maintiens {POW} : une bulle d'amour te protège"],
     kbHint: () => `Maintiens ${kbNames("power")} : une bulle d'amour te protège` },
@@ -235,6 +247,24 @@ const CHARS = [
     desc: "Une chienne qui saute plus haut que tout le monde !", atkLabel: "coup de patte", atkVerb: "bousculer",
     color: "#c8b8ff", glow: "200,184,255", ui: "#c8b8ff", ui2: "#8a6ad8", atkW: 30,
     sky: ["#0c0a16", "#24183a", "#4a2a5a"], moon: ["#f4f0ff", "#c8b8ff"], stripe: "#24183a", stars: "230,220,255", city: ["#140e22", "#0c0816"] },
+
+  // Boss jouables (bossChar) : débloqués en gagnant l'église (SAVE.flags.egliseWon) ; planches au format des héros (preparer_laverie.py, prepare_boss_heroes)
+  { id: "jules", name: "Jules", bossChar: true, special: "dash", power: "orbe", atkLabel: "coups de pied", atkVerb: "frapper", music: "backgroundhelio", logo: "helio", theme: null, unlock: null,
+    desc: "Le marié : coups de pied et orbes magiques !",
+    color: "#7aa2ff", glow: "122,162,255", ui: "#8ab0ff", ui2: "#3a4aa8", atkW: 34,
+    sky: ["#080a18", "#141a3a", "#2a3a6a"], moon: ["#f0f4ff", "#8ab0ff"], stripe: "#141a3a", stars: "220,230,255", city: ["#0e1224", "#080a18"] },
+  { id: "laurene", name: "Laurène", bossChar: true, special: "dash", power: "chevre", attack: "magie", proj: "bouquet", atkLabel: "lancer de bouquet", music: "backgroundlune", logo: "lune", theme: null, unlock: null,
+    desc: "La mariée lance des bouquets… et des chèvres !",
+    color: "#ffd0e0", glow: "255,208,224", ui: "#ffc0d8", ui2: "#a85a7a", atkW: 30,
+    sky: ["#14080e", "#3a1a2a", "#6a3a4a"], moon: ["#fff4f8", "#ffc0d8"], stripe: "#3a1a2a", stars: "255,230,240", city: ["#1e0c16", "#14080e"] },
+  { id: "brie", name: "Brie", bossChar: true, special: "dash", power: "crotte", jumpV: 500, atkLabel: "aboiements", atkVerb: "aboyer sur", grunt: null, music: "backgroundhelio", logo: "helio", theme: null, unlock: null,
+    desc: "La petite chienne : elle aboie fort… et laisse des surprises !",
+    color: "#ffa060", glow: "255,160,96", ui: "#ffb070", ui2: "#a85a2a", atkW: 30,
+    sky: ["#120a06", "#2e1a10", "#5a3220"], moon: ["#fff0e0", "#ffb070"], stripe: "#2e1a10", stars: "255,230,210", city: ["#1a100a", "#120a06"] },
+  { id: "mamie", name: "Mamie Florence", bossChar: true, special: "dash", power: "voiture", attack: "magie", proj: "pneu", atkLabel: "lancer de pneu", music: "backgroundhelio", logo: "helio", theme: null, unlock: null,
+    desc: "Elle lance des pneus… et même des voitures !",
+    color: "#e0e0f0", glow: "224,224,240", ui: "#e8d8ff", ui2: "#6a5a8a", atkW: 30,
+    sky: ["#0a0a10", "#1e1e2e", "#3a3a52"], moon: ["#ffffff", "#e8d8ff"], stripe: "#1e1e2e", stars: "235,235,250", city: ["#121218", "#0a0a10"] },
 ];
 const specialOf = C => SPECIALS[C.special] || null, powerOf = C => POWERS[C.power] || null;
 const abilityText = C => [specialOf(C), powerOf(C)].filter(Boolean).map(a => a.name).join(" · ");
@@ -1499,7 +1529,7 @@ function updatePlayer(p, dt) {
     if (magic && !p.cast && p.atkT > 0.18) {   // le dinosaure magique jaillit du poing (5e pose)
       p.cast = true;
       const big = C.proj !== "coeur";   // le dinosaure est plus gros que le cœur
-      wProj(p, { kind: C.proj || "dino", x: p.x + 5 + p.face * 22, y: p.y + 14, vx: p.face * 300, w: big ? 34 : 28, h: big ? 24 : 18, life: 0.75, dmg: 1, pierce: 2, face: p.face });
+      wProj(p, { kind: C.proj || "dino", x: p.x + 5 + p.face * 22, y: p.y + 14, vx: p.face * 300, w: big ? 34 : 28, h: big ? 24 : 18, life: 0.75, dmg: 1, pierce: 2, face: p.face, ...(PROJ_OPTS[C.proj] || {}), ...(PROJ_OPTS[C.proj] ? { vx: p.face * PROJ_OPTS[C.proj].speed } : {}) });
       burst(p.x + 5 + p.face * 16, p.y + 14, 10, [C.color, "#ffffff"], 120, 0.3, 0, 1);
     }
     if (p.atkT > 0.3) p.atkT = -1;
@@ -1508,7 +1538,8 @@ function updatePlayer(p, dt) {
   if (p.throwT > 0) { const t0 = p.throwT; p.throwT -= dt; if (t0 > 0.2 && p.throwT <= 0.2) {   // le paquet part à la 4e pose
     const tg = enemies.filter(e => e.alive && Math.sign(e.x + e.w / 2 - p.x - 5) === p.face && Math.abs(e.x + e.w / 2 - p.x - 5) < 220).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0];
     const vxT = tg ? clamp(Math.abs(tg.x + tg.w / 2 - p.x - 5 - p.face * 14) / 0.55, 90, 280) : 190;   // il vise l'ennemi devant
-    wProj(p, { kind: "chips", x: p.x + 5 + p.face * 14, y: p.y + 8, vx: p.face * vxT, vy: -170, g: 650, w: 10, h: 10, life: 2, dmg: 1, face: p.face });
+    if (p.throwKind && p.throwKind !== "chips") bossThrow(p, p.throwKind, vxT);   // pouvoirs des boss jouables (armes.js)
+    else wProj(p, { kind: "chips", x: p.x + 5 + p.face * 14, y: p.y + 8, vx: p.face * vxT, vy: -170, g: 650, w: 10, h: 10, life: 2, dmg: 1, face: p.face });
     if (p.C.grunt) audio.sfx("voix:" + p.C.grunt); } }
   if (fast) {
     p.ghostT -= dt;
@@ -1806,9 +1837,9 @@ function burstPower(p, pw) {
     }
     for (let i = 0; i < 10; i++) parts.push({ x: cx, y: cy, vx: Math.cos(i * 0.63) * 120, vy: Math.sin(i * 0.63) * 80 - 40, life: 0.8, max: 0.8, color: i % 2 ? "#ff6ec7" : "#ffffff", size: 3, grav: 0 });
     flash = 0.06; audio.sfx("stun");
-  } else if (pw.effect === "chips") {   // lancer de chips : la pose de lancer, le paquet part en cloche et éclate (armes.js)
+  } else if (pw.effect === "chips" || pw.effect === "throw") {   // lancer : la pose de lancer, puis le paquet de chips (ou l'orbe, la chèvre, la voiture, la crotte des boss jouables) part (armes.js)
     if (p.throwT > 0) return;
-    p.throwT = 0.45; p.atkT = -1; audio.sfx("dash");
+    p.throwT = 0.45; p.throwKind = pw.throw || "chips"; p.atkT = -1; audio.sfx("dash");
   } else if (pw.effect === "bark") {   // super aboiement : une vague de son qui grandit autour du héros (armes.js, kind « aboi »)
     wProj(p, { kind: "aboi", x: cx, y: cy, w: 1, h: 1, life: 0.55, dmg: 9, pierce: 99, cx, cy });
     audio.sfx("aboi"); shake = Math.max(shake, 5); rumble(260, 0.8, 0.5); flash = 0.05;
@@ -2424,9 +2455,9 @@ function drawMenu() {
 // Grille de portraits (4 × 2), aperçu animé, capacités et commandes du héros mis en avant.
 // Le thème musical suit le héros mis en avant ; le choix est confirmé par Entrée, {A}, un clic sur le héros déjà choisi ou « Choisir ».
 let charSel = 0, charSelT = 0;
-const CHAR_COLS = CHARS.length > 8 ? 5 : 4, CHAR_SMALL = CHARS.length > 10;   // plus de 10 héros : 3 lignes de cartes plus basses
+const CHAR_COLS = CHARS.length > 15 ? 6 : CHARS.length > 8 ? 5 : 4, CHAR_SMALL = CHARS.length > 10;   // plus de 10 héros : 3 lignes de cartes plus basses ; plus de 15 : 6 colonnes
 const CUI = {
-  cards: CHARS.map((C, i) => CHAR_SMALL ? { x: 12 + (i % 5) * 46, y: 30 + Math.floor(i / 5) * 46, w: 42, h: 44 } : CHAR_COLS > 4 ? { x: 12 + (i % 5) * 46, y: 34 + Math.floor(i / 5) * 66, w: 42, h: 60 } : { x: 12 + (i % 4) * 58, y: 34 + Math.floor(i / 4) * 66, w: 52, h: 60 }),
+  cards: CHARS.map((C, i) => CHAR_COLS === 6 ? { x: 12 + (i % 6) * 37, y: 30 + Math.floor(i / 6) * 46, w: 35, h: 44 } : CHAR_SMALL ? { x: 12 + (i % 5) * 46, y: 30 + Math.floor(i / 5) * 46, w: 42, h: 44 } : CHAR_COLS > 4 ? { x: 12 + (i % 5) * 46, y: 34 + Math.floor(i / 5) * 66, w: 42, h: 60 } : { x: 12 + (i % 4) * 58, y: 34 + Math.floor(i / 4) * 66, w: 52, h: 60 }),
   back: { x: 12, y: 214, w: 74, h: 20 }, ok: { x: 160, y: 214, w: 74, h: 20 },
 };
 (function loadLastChar() {
@@ -2437,7 +2468,7 @@ const CUI = {
 let charsFrom = "menu";
 // Héros secret pas encore trouvé : une carte « ? ». Frapper 7 fois à sa porte (la choisir encore et encore), ou taper son nom,
 // la fait venir (SAVE.flags[secret]).
-const charLocked = C => !!(C.secret && !SAVE.flags[C.secret]);
+const charLocked = C => !!((C.secret && !SAVE.flags[C.secret]) || (C.bossChar && !SAVE.flags.egliseWon));   // boss jouables : après l'église
 let knock = { i: -1, n: 0, t: 0 };
 function unlockSecretChar(C) {
   SAVE.flags[C.secret] = 1; saveGame(); audio.sfx("aboi"); shake = 4;
@@ -2453,6 +2484,7 @@ function knockSecret(i) {
 }
 function openChars(from = "menu") { charsFrom = from; state = "chars"; charSel = charIdx; charSelT = 0; audio.sfx("select"); }
 function confirmChar() {
+  if (charLocked(CHARS[charSel]) && CHARS[charSel].bossChar) { msg = { text: "Gagne le combat de l'église pour jouer avec !", t: 2.5 }; audio.sfx("nope"); return; }
   if (charLocked(CHARS[charSel])) { knockSecret(charSel); return; }
   charIdx = charSel; SAVE.lastChar = CHARS[charIdx].id; saveGame();
   audio.sfx("start"); enterHub({ x: charsFrom === "hub" ? 100 : undefined });
@@ -2460,7 +2492,7 @@ function confirmChar() {
 function moveCharSel(i) { if (i !== charSel) { charSel = i; charSelT = 0; audio.sfx("select"); } }
 function updateChars(rdt) {
   charSelT += rdt; if (knock.t > 0) knock.t -= rdt; if (msg && msg.t > 0) msg.t -= rdt;
-  for (const C of CHARS) if (charLocked(C) && typedBuf.endsWith(C.secret.toUpperCase())) { typedBuf = ""; charSel = CHARS.indexOf(C); unlockSecretChar(C); }
+  for (const C of CHARS) if (charLocked(C) && C.secret && typedBuf.endsWith(C.secret.toUpperCase())) { typedBuf = ""; charSel = CHARS.indexOf(C); unlockSecretChar(C); }
   const n = CHARS.length, cols = CHAR_COLS;
   if (hit("Escape", "GB", "Backspace") || (hit("Mouse0") && inside(CUI.back))) { if (charsFrom === "hub") enterHub({ x: 100 }); else goMenu(); audio.sfx("back"); return; }
   if (hit(...K.left)) moveCharSel((charSel + n - 1) % n);
@@ -2491,10 +2523,11 @@ function drawChars() {
     R(r.x, r.y, r.w, r.h, sel ? "rgba(40,20,64,0.92)" : "rgba(20,12,40,0.8)");
     const lk = charLocked(C2), ph = CHAR_SMALL ? 32 : 44;
     ctx.save(); ctx.beginPath(); ctx.rect(r.x + 2, r.y + 2, r.w - 4, ph); ctx.clip();
-    if (lk) { const k = knock.i === i && knock.t > 0 ? Math.sin(time * 60) * knock.n * 0.3 : 0; text("?", r.x + r.w / 2 + k, r.y + 2 + ph / 2 + 1, 20, sel ? "#c8b8ff" : "#5a4a80", "center"); }
+    if (lk && C2.bossChar) { ctx.filter = "brightness(0)"; drawHeroPortrait(C2, r.x + r.w / 2, r.y + 2 + ph, 0.6, 0.8); ctx.filter = "none"; }
+    else if (lk) { const k = knock.i === i && knock.t > 0 ? Math.sin(time * 60) * knock.n * 0.3 : 0; text("?", r.x + r.w / 2 + k, r.y + 2 + ph / 2 + 1, 20, sel ? "#c8b8ff" : "#5a4a80", "center"); }
     else drawHeroPortrait(C2, r.x + r.w / 2, r.y + 2 + ph, sel ? 1 : 0.75, CHAR_SMALL ? 0.8 : 1);
     ctx.restore();
-    text(lk ? "???" : C2.name.split(" ")[0], r.x + r.w / 2, r.y + r.h - (CHAR_SMALL ? 5 : 7), 7, sel ? C2.ui : "#b9a6e0", "center");
+    text(lk && !C2.bossChar ? "???" : C2.name.split(" ")[0], r.x + r.w / 2, r.y + r.h - (CHAR_SMALL ? 5 : 7), CHAR_COLS === 6 && C2.name.split(" ")[0].length > 8 ? 6 : 7, sel ? C2.ui : "#b9a6e0", "center");
     ctx.strokeStyle = sel ? C2.ui : inside(r) ? "#6a4f9a" : "#3a2a5c"; ctx.lineWidth = sel ? 2 : 1;
     if (sel) { ctx.shadowColor = C2.ui; ctx.shadowBlur = 10; }
     ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1); ctx.shadowBlur = 0;
@@ -2513,14 +2546,20 @@ function drawChars() {
   else if (cyc < 3.2) fr = 12 + Math.min(4, Math.floor((cyc - 2.4) / 0.12));
   else fr = A && A.anims.special ? A.anims.special[0] + Math.floor(cyc * (A.anims.special[1] > 2 ? 10 : 8)) % A.anims.special[1] : 24;
   R(px + 50, 118, pw - 100, 2, hexA(C.ui, 0.6));
-  if (hide) {   // héros secret : une silhouette, et un indice
+  if (hide && C.bossChar) {   // boss jouable pas encore débloqué : une silhouette
+    ctx.save(); ctx.filter = "brightness(0)"; drawChar(C, Math.floor(time * 5) % 4, px + pw / 2, 118, 1, 1.6, 0.8); ctx.restore();
+    text("Boss de l'église", px + pw / 2, 132, 14, "#ff5a7a", "center", "#ff5a7a");
+    text("Gagne le combat de l'église", px + pw / 2, 150, 8, "#e8dcff", "center");
+    text("pour jouer avec ce boss !", px + pw / 2, 162, 8, "#e8dcff", "center");
+    if (msg && msg.t > 0) text(msg.text, px + pw / 2, 190, 8, "#fccc28", "center");
+  } else if (hide) {   // héros secret : une silhouette, et un indice
     ctx.save(); ctx.filter = "brightness(0)"; drawChar(C, Math.floor(time * 5) % 4, px + pw / 2, 118, 1, 2, 0.8); ctx.restore();
     text("Héros secret", px + pw / 2, 132, 14, "#c8b8ff", "center", "#c8b8ff");
     text("Qui se cache derrière cette porte ?", px + pw / 2, 150, 8, "#e8dcff", "center");
     text(say("Frappe plusieurs fois : Entrée, Entrée, Entrée…", "Touche la carte encore et encore…", "Frappe plusieurs fois avec {A}…"), px + pw / 2, 166, 7, "#b9a6e0", "center");
     if (msg && msg.t > 0) text(msg.text, px + pw / 2, 190, 8, "#fccc28", "center");
   } else {
-  drawChar(C, fr, px + pw / 2, 118, 1, 2);
+  drawChar(C, fr, px + pw / 2, 118, 1, C.bossChar ? 1.6 : 2);
   text(C.name, px + pw / 2, 132, 14, C.ui, "center", C.ui);
   text(abilityText(C), px + pw / 2, 146, 8, "#ffffff", "center");
   text(C.desc || "", px + pw / 2, 158, 7, "#d8c8f0", "center");

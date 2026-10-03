@@ -152,6 +152,32 @@ function updateWeapon(p, dt, boost) {
   }
 }
 
+// Boss jouables : projectiles de leur coup (PROJ_OPTS, selon C.proj) et de leur pouvoir (bossThrow, selon POWERS[].throw)
+const PROJ_OPTS = {
+  bouquet: { w: 16, h: 16, speed: 260, life: 0.9, pierce: 0 },   // le bouquet de Laurène tourne en volant
+  pneu: { w: 14, h: 14, speed: 200, vy: -60, g: 900, life: 1.6, pierce: 1 },   // le pneu de Mamie roule et rebondit
+};
+function bossThrow(p, kind, vxT) {
+  const x = p.x + 5 + p.face * 14, y = p.y + 10, f = p.face;
+  if (kind === "orbe") wProj(p, { kind, x, y: p.y + 12, vx: f * 280, w: 14, h: 14, life: 1.2, dmg: 2, face: f });
+  else if (kind === "chevre") wProj(p, { kind, x, y, vx: f * Math.min(vxT, 200), vy: -200, g: 800, w: 20, h: 16, life: 2.6, dmg: 2, pierce: 4, face: f });
+  else if (kind === "voiture") wProj(p, { kind, x, y: p.y, vx: f * vxT, vy: -260, g: 650, w: 30, h: 18, life: 2.5, dmg: 3, face: f });
+  else if (kind === "crotte") wProj(p, { kind, x: p.x + 5 - f * 10, y: p.y + 24, vx: 0, vy: 0, g: 900, w: 10, h: 8, life: 6, dmg: 1, pierce: 3, face: f });
+  if (kind === "crotte") audio.sfx("dj"); else if (kind === "voiture") audio.sfx("boom");
+  if (p.C.grunt) audio.sfx("voix:" + p.C.grunt);
+}
+const GROUNDED = { pneu: 1, chevre: 1, crotte: 1, voiture: 1 };
+// La voiture de Mamie explose en touchant le sol ou un ennemi
+function explodeCar(l) {
+  if (!l.alive) return; l.alive = false;
+  const cx = l.x + l.w / 2, cy = l.y + l.h / 2, box = { x: cx - 40, y: cy - 36, w: 80, h: 56 };
+  for (const e of enemies) if (e.alive && ov(box, e)) hitEnemy(e, "proj", l.p, 3);
+  if (lvl.json) { l.p.hitList = new Set(); campAttack(l.p, box, "atk"); }
+  if (hasAtlas("eg_boum")) addFx("eg_boum", cx, cy - 6, { anim: "play", fps: 8 });
+  burst(cx, cy, 30, ["#ff5a3c", "#fccc28", "#ffffff", "#5a5a6a"], 220, 0.7, 300, 2);
+  shake = Math.max(shake, 6); audio.sfx("boom"); rumble(220, 0.7, 0.5);
+}
+
 // Tirs des armes (dans lasers)
 function updateWProj(l, dt) {
   l.t += dt; if (l.t > l.life) { l.alive = false; return; }
@@ -170,6 +196,15 @@ function updateWProj(l, dt) {
   if (l.kind === "bubble") { l.x += l.vx * dt; l.y = l.y0 - l.h / 2 + Math.sin(l.t * 7) * 5 - l.t * 6; }
   else { l.vy += l.g * dt; l.x += l.vx * dt; l.y += l.vy * dt; }
   if (l.x < -30 || l.x > (lvl.width || VW) + 30 || l.y > VH + 20 || l.y < -60) { l.alive = false; return; }
+  if (GROUNDED[l.kind] && l.vy >= 0) {   // pneu, chèvre, crotte, voiture : ils tombent sur le sol
+    const fy = l.y + l.h, ground = solidAt(cx(), fy) || (lvl.json && supportAt(cx(), fy));
+    if (ground) {
+      l.y -= l.vy * dt;
+      if (l.kind === "voiture") { explodeCar(l); return; }
+      if (l.kind === "pneu" && l.vy > 160) l.vy = -l.vy * 0.45; else l.vy = 0;
+      if (l.kind === "chevre" && !l.run) { l.run = true; l.vx = (l.face || 1) * 230; }
+    }
+  }
   const solid = solidAt(cx(), cy());
   if (l.kind === "pebble" && (solid || (l.vy > 0 && solidAt(cx(), l.y + l.h)))) {
     if (l.bounces-- <= 0) { l.alive = false; burst(cx(), cy(), 5, ["#c8b8a0", "#ffffff"], 80, 0.25, 200, 1); return; }
@@ -184,6 +219,7 @@ function updateWProj(l, dt) {
     l.hits.add(e);
     if (l.kind === "ball") { explodeBall(l); return; }
     if (l.kind === "chips") { explodeChips(l); return; }
+    if (l.kind === "voiture") { explodeCar(l); return; }
     if (l.kind === "bubble" && e.type !== "bigboss" && e.type !== "boss" && e.type !== "egboss" && e.type !== "egcar") { e.bubT = 0.9; e.bubBy = l.p; wsfx("pistolet-bulle", "dj"); l.alive = false; return; }
     hitEnemy(e, "proj", l.p, l.dmg);
     if (l.kind === "arrow") wsfx("arc-impact", "deflect");
@@ -267,6 +303,12 @@ function drawWProj(l) {
       if (!hasAtlas("magie_chips")) { R(Math.round(l.x), Math.round(l.y), 10, 10, "#ff3b2a"); break; }
       ctx.save(); ctx.translate(Math.round(cx), Math.round(cy)); ctx.rotate(l.t * 9 * (l.face || 1)); drawFrame("magie_chips", 0, 0, 0); ctx.restore(); break;
     }
+    case "orbe": glow(ctx, cx, cy, 14, "168,106,255", 0.45); if (hasAtlas("eg_orbe")) drawFrame("eg_orbe", 0, Math.round(cx), Math.round(cy)); else R(Math.round(l.x), Math.round(l.y), l.w, l.h, "#a86aff"); break;
+    case "bouquet": { ctx.save(); ctx.translate(Math.round(cx), Math.round(cy)); ctx.rotate(l.t * 12 * (l.face || 1)); if (hasAtlas("eg_proj")) drawFrame("eg_proj", animFrame("eg_proj", "bouquet", l.t, 10), 0, 0, 1, 1, 0.6); else R(-5, -5, 10, 10, "#ffd23c"); ctx.restore(); break; }
+    case "pneu": { ctx.save(); ctx.translate(Math.round(cx), Math.round(cy)); ctx.rotate(l.t * 14 * (l.face || 1)); if (hasAtlas("eg_pneu")) drawFrame("eg_pneu", 0, 0, 0, 1, 1, 0.5); else R(-6, -6, 12, 12, "#2a2a32"); ctx.restore(); break; }
+    case "chevre": if (hasAtlas("eg_proj")) drawFrame("eg_proj", animFrame("eg_proj", "chevre", l.t, 10), Math.round(cx), Math.round(cy - 2), -(l.face || 1), 1, 0.7); else R(Math.round(l.x), Math.round(l.y), l.w, l.h, "#e8e0d0"); break;
+    case "voiture": { ctx.save(); ctx.translate(Math.round(cx), Math.round(cy)); ctx.rotate(l.t * 5 * (l.face || 1)); if (hasAtlas("eg_voiture")) drawFrame("eg_voiture", ATL.eg_voiture.anims.vues[0], 0, 0, l.face || 1, 1, 0.42); else R(-14, -8, 28, 16, "#ff5a3c"); ctx.restore(); break; }
+    case "crotte": { ctx.globalAlpha = Math.min(1, (l.life - l.t) * 2); if (hasAtlas("eg_crotte")) drawFrame("eg_crotte", 0, Math.round(cx), Math.round(l.y + l.h)); else R(Math.round(l.x), Math.round(l.y), l.w, l.h, "#7a4a1a"); ctx.globalAlpha = 1; if (Math.random() < 0.04) parts.push({ x: cx + (Math.random() - 0.5) * 6, y: l.y - 2, vx: 0, vy: -14, life: 0.8, max: 0.8, color: "#9ac860", size: 1, grav: 0 }); break; }
     case "pebble": R(Math.round(l.x), Math.round(l.y), 6, 6, "#8a7a6a"); R(Math.round(l.x), Math.round(l.y), 2, 2, "#c8b8a0"); break;
     case "swave": ctx.globalAlpha = 0.7 * (1 - l.t / l.life); for (let i = 0; i < l.w; i += 2) R(Math.round(l.x + i), Math.round(l.y + l.h - 2 - Math.abs(Math.sin(time * 30 + i)) * 8), 2, 3, i % 4 ? "#fccc28" : "#ffffff"); ctx.globalAlpha = 1; break;
   }

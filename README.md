@@ -99,6 +99,12 @@ Pour l'instant, chaque appareil garde ses propres parties et le tableau de la fa
 
 Le jeu cache plusieurs secrets (une course sans fin, un mini-jeu, des modes rigolos, des devinettes…). Le **carnet des secrets**, dans les collections, liste ceux qui ont été trouvés et donne un indice pour les autres. La laverie se décore aussi toute seule à certaines dates.
 
+## Versus
+
+La dernière carte de l'écran des mondes, **Versus**, est un petit jeu de combat entre les héros, toujours ouvert. On choisit les deux combattants, la force de chacun (Facile : plus de vie et des coups plus forts, pour que les petits puissent battre les grands ; Normal ; Doom), l'adversaire (un deuxième joueur, qui rejoint avec Start sur une autre manette ou la touche 2, ou l'ordinateur : gentil, malin ou redoutable), l'arène (les 6 arènes des boss et 4 plans de l'église, ou au hasard), le nombre de manches gagnantes (1, 2 ou 3) et le chrono (60 s, 90 s ou sans : à la fin, la plus grande part de vie gagne la manche). Coups, dash, tirs magiques et armes du râtelier marchent comme en jeu ; le ralenti de Lune ne ralentit que l'adversaire, le rugissement l'étourdit, le pique-nique redonne de la vie. Le perdant finit étourdi avec des étoiles, le gagnant fait sa pose de victoire. Pas de récompense : c'est pour s'amuser.
+
+**Boss jouables** : une fois le combat de l'église gagné, Jules (coups de pied, orbe magique), Laurène (bouquets, chèvre qui fonce), Brie (aboiements, petite crotte où l'on glisse) et Mamie Florence (pneus, voiture qui explose) rejoignent les héros, en versus comme dans la campagne.
+
 ## Boss rush et médailles
 
 Une fois les 6 mondes terminés, la carte **Boss rush** apparaît sur l'écran des mondes : les 6 boss d'affilée, dans leurs arènes, puis les combats de l'église (Brie, Jules, Laurène, Laurène et Jules ensemble, puis Mamie Florence deux fois et en géante), sans les dialogues : 13 combats en tout. Les cœurs sont gardés d'un boss à l'autre (+1 cœur après chaque victoire) ; perdre fait recommencer le boss en cours avec les cœurs du début de ce combat, sans arrêter le chrono. Le record est gardé par difficulté, en solo et à deux.

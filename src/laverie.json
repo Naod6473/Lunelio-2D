@@ -2218,6 +2218,242 @@
     ]
    },
    "note": "paquet de chips de Claire"
+  },
+  "perso_jules": {
+   "src": "assets/laverie/perso_jules.png",
+   "cw": 84,
+   "ch": 64,
+   "ax": 42,
+   "ay": 60,
+   "cols": 6,
+   "anims": {
+    "idle": [
+     0,
+     4
+    ],
+    "run": [
+     6,
+     6
+    ],
+    "attack": [
+     12,
+     5
+    ],
+    "jump": [
+     18,
+     2
+    ],
+    "dash": [
+     24,
+     4
+    ],
+    "special": [
+     24,
+     4
+    ],
+    "victoire": [
+     30,
+     6
+    ],
+    "lancer": [
+     36,
+     6
+    ]
+   },
+   "note": "boss jouable : jules"
+  },
+  "portrait_perso_jules": {
+   "src": "assets/laverie/portrait_jules.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 40,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "portrait de jules (église)"
+  },
+  "perso_laurene": {
+   "src": "assets/laverie/perso_laurene.png",
+   "cw": 84,
+   "ch": 64,
+   "ax": 42,
+   "ay": 60,
+   "cols": 6,
+   "anims": {
+    "idle": [
+     0,
+     4
+    ],
+    "run": [
+     6,
+     6
+    ],
+    "attack": [
+     12,
+     5
+    ],
+    "jump": [
+     18,
+     2
+    ],
+    "dash": [
+     24,
+     4
+    ],
+    "special": [
+     24,
+     4
+    ],
+    "victoire": [
+     30,
+     6
+    ],
+    "lancer": [
+     36,
+     6
+    ]
+   },
+   "note": "boss jouable : laurene"
+  },
+  "portrait_perso_laurene": {
+   "src": "assets/laverie/portrait_laurene.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 40,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "portrait de laurene (église)"
+  },
+  "perso_mamie": {
+   "src": "assets/laverie/perso_mamie.png",
+   "cw": 84,
+   "ch": 64,
+   "ax": 42,
+   "ay": 60,
+   "cols": 6,
+   "anims": {
+    "idle": [
+     0,
+     4
+    ],
+    "run": [
+     6,
+     6
+    ],
+    "attack": [
+     12,
+     5
+    ],
+    "jump": [
+     18,
+     2
+    ],
+    "dash": [
+     24,
+     4
+    ],
+    "special": [
+     24,
+     4
+    ],
+    "victoire": [
+     30,
+     6
+    ],
+    "lancer": [
+     36,
+     6
+    ]
+   },
+   "note": "boss jouable : mamie"
+  },
+  "portrait_perso_mamie": {
+   "src": "assets/laverie/portrait_mamie.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 40,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "portrait de mamie (église)"
+  },
+  "perso_brie": {
+   "src": "assets/laverie/perso_brie.png",
+   "cw": 84,
+   "ch": 64,
+   "ax": 42,
+   "ay": 60,
+   "cols": 6,
+   "anims": {
+    "idle": [
+     0,
+     4
+    ],
+    "run": [
+     6,
+     6
+    ],
+    "attack": [
+     12,
+     5
+    ],
+    "jump": [
+     18,
+     2
+    ],
+    "dash": [
+     24,
+     4
+    ],
+    "special": [
+     24,
+     4
+    ],
+    "victoire": [
+     30,
+     5
+    ],
+    "lancer": [
+     35,
+     4
+    ],
+    "dead": [
+     39,
+     1
+    ]
+   },
+   "note": "boss jouable : brie"
+  },
+  "portrait_perso_brie": {
+   "src": "assets/laverie/portrait_brie.png",
+   "cw": 40,
+   "ch": 40,
+   "ax": 20,
+   "ay": 40,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "portrait de brie (église)"
   }
  }
 }

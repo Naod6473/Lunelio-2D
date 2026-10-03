@@ -603,6 +603,53 @@ def prepare_bulle():
                              "anims": {"play": [0, 1], "visages": [1, 6]}, "note": "portrait de Mme Bulle : grand dessin et 6 visages"}
     return out
 
+# Boss jouables (versus et campagne, une fois vaincus à l'église) : planches au format des héros (repos 0–3, course 6–11,
+# coup 12–16, saut 18–19, glissade du dash 24–27, puis victoire, lancer du pouvoir, KO), faites à partir des planches de
+# l'église : Jules, Laurène et Mamie depuis leurs sources (cases de 192 px, pieds en (96, 160)) à 0,374 (un peu plus grands
+# que les héros), Brie depuis sa planche de l'église telle quelle (une petite chienne). Indices = images des planches eg_*.
+BOSS_HERO_CELL, BOSS_HERO_ANCHOR = (84, 64), (42, 60)
+BOSS_HEROES = {
+    "jules": ("eglise/jules.png", {"idle": [36, 36, 41, 41], "run": list(range(6, 12)), "attack": [37, 38, 39, 40, 41], "jump": [13, 16],
+              "dash": [18, 19, 20, 21], "victoire": list(range(24, 30)), "lancer": list(range(30, 36))}),
+    "laurene": ("eglise/laurene.png", {"idle": [24, 24, 29, 29], "run": list(range(6, 12)), "attack": [30, 31, 32, 33, 34], "jump": [13, 16],
+                "dash": [18, 19, 20, 21], "victoire": list(range(24, 30)), "lancer": list(range(36, 42))}),
+    "mamie": (MAMIE_DIR + "/mamie.png", {"idle": [24, 24, 29, 29], "run": list(range(6, 12)), "attack": [30, 31, 32, 33, 34], "jump": [13, 16],
+              "dash": [18, 19, 20, 21], "victoire": list(range(24, 30)), "lancer": list(range(36, 42))}),
+    "brie": (None, {"idle": [0, 1, 2, 3], "run": list(range(6, 12)), "attack": [12, 13, 14, 15, 16], "jump": [18, 20],
+             "dash": [6, 7, 8, 9], "victoire": [17, 18, 19, 20, 21], "lancer": [22, 23, 24, 25], "dead": [26]}),
+}
+BOSS_HERO_SCALE = 0.374
+
+def prepare_boss_heroes():
+    out = {}; cw, ch = BOSS_HERO_CELL; ax, ay = BOSS_HERO_ANCHOR
+    for hid, (rel, L) in BOSS_HEROES.items():
+        if rel:
+            f = os.path.join(SRC, rel)
+            if not os.path.exists(f): continue
+            im = Image.open(f).convert("RGBA"); cols = im.width // 192; n = round(192 * BOSS_HERO_SCALE)
+            fx, fy = round(96 * BOSS_HERO_SCALE), round(160 * BOSS_HERO_SCALE)
+            def cell(i):
+                c = im.crop(((i % cols) * 192, (i // cols) * 192, (i % cols + 1) * 192, (i // cols + 1) * 192)).resize((n, n), Image.BOX)
+                c.putalpha(c.split()[3].point(lambda v: 255 if v > 110 else 0)); return c, ax - fx, ay - fy
+        else:
+            f = os.path.join(OUT, "eg_brie.png")
+            if not os.path.exists(f): continue
+            im = Image.open(f).convert("RGBA"); bw, bh = BRIE_CELL
+            def cell(i): return im.crop(((i % 6) * bw, (i // 6) * bh, (i % 6 + 1) * bw, (i // 6 + 1) * bh)), ax - bw // 2, ay - bh
+        lay = L["idle"] + [None, None] + L["run"] + L["attack"] + [None] + L["jump"] + [None] * 4 + L["dash"] + [None, None]
+        anims = {"idle": [0, 4], "run": [6, 6], "attack": [12, 5], "jump": [18, 2], "dash": [24, 4], "special": [24, 4]}
+        for k in ("victoire", "lancer", "dead"):
+            if k in L: anims[k] = [len(lay), len(L[k])]; lay += L[k]
+        cols = 6; sheet = Image.new("RGBA", (cw * cols, ch * ((len(lay) + cols - 1) // cols)))
+        for j, i in enumerate(lay):
+            if i is None: continue
+            c, dx, dy = cell(i); sheet.paste(c, ((j % cols) * cw + dx, (j // cols) * ch + dy), c)
+        name = "perso_" + hid; sheet.save(os.path.join(OUT, name + ".png"), optimize=True)
+        out[name] = {"src": f"assets/laverie/{name}.png", "cw": cw, "ch": ch, "ax": ax, "ay": ay, "cols": cols, "anims": anims, "note": f"boss jouable : {hid}"}
+        if ("portrait_" + hid) in ATLAS_PORTRAITS_DONE: out["portrait_perso_" + hid] = dict(ATLAS_PORTRAITS_DONE["portrait_" + hid])
+    return out
+ATLAS_PORTRAITS_DONE = {}
+
 # Bobine, le petit robot client de la laverie : pnj/bobine_planche.png (grand dessin à gauche, 6 visages, marche, coup de poing,
 # tourbillon, vaporisateur, serviette, joie, victoire, pile de linge, lessive, étourdi, sieste). Boîtes relevées à l'œil.
 BOBINE_PLANCHE = "pnj/bobine_planche.png"
@@ -807,7 +854,8 @@ def main():
     if f: atlas["eg_laurene_furie"] = f
     b, c = prepare_brie()
     if b: atlas["eg_brie"], atlas["eg_crotte"] = b, c
-    atlas.update(prepare_eg_proj()); atlas.update(prepare_eg_portraits()); atlas.update(prepare_mamie()); atlas.update(prepare_dino()); atlas.update(prepare_marylou()); atlas.update(prepare_guillie()); atlas.update(prepare_simon()); atlas.update(prepare_claire()); atlas.update(prepare_souvenirs())
+    atlas.update(prepare_eg_proj()); atlas.update(prepare_eg_portraits()); atlas.update(prepare_mamie())
+    ATLAS_PORTRAITS_DONE.update({k: v for k, v in atlas.items() if k.startswith("portrait_")}); atlas.update(prepare_boss_heroes()); atlas.update(prepare_dino()); atlas.update(prepare_marylou()); atlas.update(prepare_guillie()); atlas.update(prepare_simon()); atlas.update(prepare_claire()); atlas.update(prepare_souvenirs())
     for name, (base, anims) in HEROES.items():
         a = prepare_hero(name, base, anims)
         if a: atlas[name] = a

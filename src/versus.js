@@ -147,7 +147,8 @@ function vsBuildArena(a) {
 }
 // Un joueur vu comme un « ennemi » par l'autre : ses coups, tirs et pouvoirs passent par hitEnemy → vsHit
 function vsProxy(o) {
-  return { type: "vsp", pl: o, alive: true,
+  if (o.proxy) return o.proxy;   // toujours le même : un tir qui traverse ne touche qu'une fois
+  return o.proxy = { type: "vsp", pl: o, alive: true,
     get x() { return o.x; }, set x(v) {}, get y() { return o.y; }, set y(v) {}, get w() { return o.w; }, set w(v) {}, get h() { return o.h; }, set h(v) {} };
 }
 function vsStartRound() {
