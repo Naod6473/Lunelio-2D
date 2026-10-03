@@ -348,7 +348,7 @@ def prepare_eg_proj():
 
 # portraits des dialogues : (fichier, carré à recadrer dans la source)
 EG_PORTRAITS = {"laurene": ("eglise/laurene_portrait.png", (330, 0, 790, 460)), "jules": ("eglise/jules_portrait.png", (260, 0, 680, 420)),
-                "brie": ("eglise/brie_portrait.png", (680, 150, 1200, 670))}
+                "brie": ("eglise/brie_portrait.png", (680, 150, 1200, 670)), "mamie": ("eglise/mamie/mamie_portrait.png", (310, 120, 720, 530))}
 
 def prepare_eg_portraits():
     out = {}
