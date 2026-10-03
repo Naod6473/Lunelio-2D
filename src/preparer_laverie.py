@@ -551,6 +551,50 @@ def prepare_marylou():
                               "anims": {"depart": [0, 1], "vol": [1, 4], "fin": [5, 1]}, "note": "cœur lancé par Marylou"}
     return out
 
+# Mme Bulle (PNJ de la laverie) : pnj/bulle_repos.png (4 poses de repos, grandes) et pnj/bulle_planche.png (grand portrait,
+# visages, marche, coup de balai, vaporisateur et bulles, étoiles, cœurs, tasse, joie, nettoyage, sieste). Planche pnj_bulle
+# (mêmes noms d'animations que les autres clients : repos, parle, content, plus ses activités), portrait_bulle recadré sur le
+# grand portrait, et le nuage de bulles du vaporisateur (bulle_bulles).
+BULLE_REPOS, BULLE_PLANCHE = "pnj/bulle_repos.png", "pnj/bulle_planche.png"
+BULLE_CELL, BULLE_ANCHOR = (84, 52), (42, 49)
+BULLE_IDLE = [(40, 470), (520, 1000), (1010, 1460), (1510, 1960)]   # colonnes des 4 poses de repos (lignes 0 à 667)
+BULLE_ROWS = {"marche": (190, 368, [(530, 680), (680, 835), (835, 990), (990, 1140), (1140, 1310), (1310, 1470)]),
+              "balai": (370, 538, [(525, 690), (690, 905), (905, 1095), (1095, 1290), (1290, 1495)]),
+              "vapo": (548, 722, [(500, 680), (680, 830), (848, 990)]),
+              "divers": (782, 978, [(20, 200), (230, 440), (480, 670), (730, 935), (935, 1215), (1215, 1495)])}
+BULLE_BUBBLES = (990, 552, 1495, 722)
+BULLE_PORTRAIT = (140, 18, 420, 298)
+
+def fx_bulle(r, g, b):
+    """Effets de Mme Bulle : bulles et coup de balai bleu clair, étoiles et traits jaunes, cœurs roses."""
+    return (b > 200 and r < 190) or (r > 220 and g > 170 and b < 120) or (r > 220 and g < 140 and b > 100)
+
+def prepare_bulle():
+    f1, f2 = os.path.join(SRC, BULLE_REPOS), os.path.join(SRC, BULLE_PLANCHE)
+    if not (os.path.exists(f1) and os.path.exists(f2)): return {}
+    big, sheet_src = Image.open(f1).convert("RGBA"), Image.open(f2).convert("RGBA")
+    parts = [(big, (x0, 0, x1, big.height), 0.071) for x0, x1 in BULLE_IDLE]
+    for k in ("marche", "balai", "vapo", "divers"):
+        y0, y1, xs = BULLE_ROWS[k]; parts += [(sheet_src, (x0, y0, x1, y1), 0.255) for x0, x1 in xs]
+    cw, ch = BULLE_CELL; ax, ay = BULLE_ANCHOR; cols = 6
+    sheet = Image.new("RGBA", (cw * cols, ch * ((len(parts) + cols - 1) // cols)))
+    for i, (src, box, s) in enumerate(parts):
+        part = drop_edge_bits(src.crop(box)); mx, by = body_mass(part, fx_bulle)
+        small = part.resize((max(1, round(part.width * s)), max(1, round(part.height * s))), Image.BOX)
+        small.putalpha(small.split()[3].point(lambda v: 255 if v > 110 else 0))
+        sheet.paste(small, ((i % cols) * cw + round(ax - mx * s), (i // cols) * ch + round(ay - (by + 1) * s)), small)
+    sheet.save(os.path.join(OUT, "pnj_bulle.png"), optimize=True)
+    # indices : repos 0–3, marche 4–9, balai 10–14, vaporisateur 15–17, étoiles 18, cœurs 19, tasse 20, joie 21, nettoyage 22, sieste 23
+    anims = {"repos": [0, 4], "parle": [0, 1], "content": [19, 1], "marche": [4, 6], "balai": [10, 5], "vapo": [15, 3],
+             "etoiles": [18, 1], "coeurs": [19, 1], "tasse": [20, 1], "joie": [21, 1], "nettoie": [22, 1], "dort": [23, 1]}
+    out = {"pnj_bulle": {"src": "assets/laverie/pnj_bulle.png", "cw": cw, "ch": ch, "ax": ax, "ay": ay, "cols": cols, "anims": anims, "note": "Mme Bulle (laverie)"}}
+    bub = sheet_src.crop(BULLE_BUBBLES); bub = bub.crop(bub.getbbox())
+    bub = bub.resize((round(bub.width * 0.255), round(bub.height * 0.255)), Image.BOX); bub.putalpha(bub.split()[3].point(lambda v: 255 if v > 90 else 0))
+    bub.save(os.path.join(OUT, "bulle_bulles.png"), optimize=True)
+    out["bulle_bulles"] = {"src": "assets/laverie/bulle_bulles.png", "cw": bub.width, "ch": bub.height, "ax": 0, "ay": bub.height // 2, "cols": 1, "anims": {"play": [0, 1]}, "note": "bulles du vaporisateur de Mme Bulle"}
+    out.update(hero_portrait("portrait_bulle", sheet_src, BULLE_PORTRAIT, "portrait de Mme Bulle (grand portrait)"))
+    return out
+
 def fade_foreground():
     """Cadres de premier plan de la grotte : en bas (sous y = 150), seuls les bords gauche et droit restent, fondus vers le milieu."""
     for i in range(1, 5):
@@ -615,6 +659,7 @@ def main():
         a = prepare(name, spec)
         if a: atlas[name] = a
         else: missing.append(spec[0])
+    atlas.update(prepare_bulle())   # après les planches génériques : remplace l'ancienne Mme Bulle
     fade_foreground()
     prepare_loading()
     json.dump({"atlas": atlas}, open(os.path.join(HERE, "laverie.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)

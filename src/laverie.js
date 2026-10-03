@@ -205,7 +205,7 @@ function updateHub(rdt) {
     if (a.t > 1.6) hub.arrive = null;
   }
   if (updateHubTrans(rdt)) { updateParts(rdt); updateFx(rdt); return; }
-  if (updateDialog(rdt)) { updateParts(rdt); updateFx(rdt); return; }
+  if (updateDialog(rdt)) { updateBulle(rdt, players[0]); updateParts(rdt); updateFx(rdt); return; }
   if (!hub.arrive && hub.queue.length) { hub.queue.shift()(); if (state !== "hub") return; }
   if (hit("Escape", "KeyP", "GStart", "TPause", "HStart")) { openHubMenu(); return; }
   if (hit("KeyO", "GY")) { openOptions("hub"); return; }
@@ -227,6 +227,7 @@ function updateHub(rdt) {
   }
   if (!hub.arrive) for (const q of players) { updatePlayer(q, rdt); if (q.idx) coopKeepNear(q, H); }
   if (!hub.arrive) pluieTasUpdate(rdt, p);   // le secret du tas de chaussettes (pluie.js)
+  updateBulle(rdt, p);
   for (const s of STATIONS) if (s.id === "carnet") s.op = clamp((s.op || 0) + (hub.near === s ? 2.5 : -2.5) * rdt, 0, 1);   // le livre des secrets s'ouvre peu à peu
   updateParts(rdt); updateFx(rdt);
 }
@@ -390,6 +391,55 @@ function drawSecretBook(s, by, near) {
   if (Math.random() < 0.06 + op * 0.2) parts.push({ x: s.x + (Math.random() - 0.5) * 40, y: y - 10 - Math.random() * 30, vx: 0, vy: -12, life: 0.7, max: 0.7, color: "#fccc28", size: 1, grav: 0 });
   if (near) { ctx.globalAlpha = 0.25 + 0.15 * Math.sin(time * 6); R(s.x - s.w / 2, by - 1, s.w, 2, "#7dffb0"); ctx.globalAlpha = 1; }
 }
+// Mme Bulle vit sa vie dans la grande salle : promenade, coup de balai, vaporisateur (nuage de bulles), tasse, nettoyage du
+// sol, clin d'œil ; elle s'arrête et regarde le héros quand il s'approche ; après lui avoir parlé, des cœurs ; si personne ne
+// joue pendant 25 s, elle fait la sieste (réveil à la première touche). Poses de pnj_bulle (preparer_laverie.py, prepare_bulle).
+const BUL = { act: null, t: 0, next: 4, x: 618, home: 618, face: -1, idle: 0, fx: [], talked: false, to: 0, back: false };
+const BUL_ACTS = { balai: 1.6, vapo: 1.9, tasse: 2.6, nettoie: 2.3, etoiles: 1.1, coeurs: 1.4, joie: 1.4 };
+function bulleDo(act) { BUL.act = act; BUL.t = 0; if (act === "promenade") { BUL.to = clamp(BUL.home + (Math.random() < 0.5 ? -1 : 1) * (40 + Math.random() * 50), 560, 720); BUL.back = false; } }
+function updateBulle(rdt, p) {
+  const s = STATIONS.find(t => t.id === "bulle"); if (!s || hub.room !== "salle") return;
+  const busy = Object.values(keys).some(Boolean) || Object.keys(pressed).length > 0 || down("Mouse0");   // on joue (touches, clics, manette)
+  BUL.idle = busy ? 0 : BUL.idle + rdt;
+  const talk = hub.dlg && hub.dlg.lines[hub.dlg.i] && hub.dlg.lines[hub.dlg.i][0] === "bulle", near = hub.near === s;
+  if (talk) BUL.talked = true; else if (BUL.talked && !hub.dlg) { BUL.talked = false; bulleDo("coeurs"); }
+  BUL.t += rdt;
+  if (BUL.act === "dort") { if (busy || hub.dlg) bulleDo("etoiles"); }
+  else if (talk || (near && BUL.act !== "coeurs")) { BUL.act = null; BUL.face = p.x + 5 > BUL.x ? 1 : -1; }
+  else if (BUL.idle > 25 && !hub.dlg) bulleDo("dort");
+  else if (BUL.act === "promenade") {
+    const goal = BUL.back ? BUL.home : BUL.to, dx = goal - BUL.x;
+    if (Math.abs(dx) > 1) { BUL.face = Math.sign(dx); BUL.x += BUL.face * Math.min(Math.abs(dx), 28 * rdt); BUL.t = 0; }
+    else if (BUL.t > 1.2) { if (BUL.back) { BUL.act = null; BUL.next = 4 + Math.random() * 5; } else { BUL.back = true; BUL.t = 0; } }
+  } else if (BUL.act) {
+    if (BUL.act === "vapo" && !BUL.puff && BUL.t > 0.55) { BUL.puff = true; BUL.fx.push({ x: BUL.x + BUL.face * 16, y: thingFloor(s) - 24, face: BUL.face, t: 0 }); audio.sfx("dj"); }
+    if (BUL.act === "balai" && Math.random() < 0.35) parts.push({ x: BUL.x + BUL.face * (18 + Math.random() * 8), y: thingFloor(s) - 2 - Math.random() * 4, vx: BUL.face * (20 + Math.random() * 30), vy: -10 - Math.random() * 20, life: 0.5, max: 0.5, color: "#c8b8a0", size: 1, grav: 40 });
+    if (BUL.act === "nettoie" && Math.random() < 0.3) parts.push({ x: BUL.x + BUL.face * 12 + (Math.random() - 0.5) * 20, y: thingFloor(s) - 2, vx: (Math.random() - 0.5) * 20, vy: -15 - Math.random() * 20, life: 0.6, max: 0.6, color: Math.random() < 0.5 ? "#bff4ff" : "#ffffff", size: 1, grav: 30 });
+    if (BUL.act === "tasse" && Math.random() < 0.08) parts.push({ x: BUL.x + BUL.face * 10, y: thingFloor(s) - 30, vx: 0, vy: -12, life: 0.8, max: 0.8, color: "#e8e0ff", size: 1, grav: 0 });
+    if (BUL.t > (BUL_ACTS[BUL.act] || 1.5)) { BUL.act = null; BUL.puff = false; BUL.next = 4 + Math.random() * 5; }
+  } else {
+    BUL.face = p.x + 5 > BUL.x ? 1 : -1;
+    if ((BUL.next -= rdt) <= 0 && !hub.dlg) {
+      const r = Math.random();
+      bulleDo(r < 0.25 ? "promenade" : r < 0.45 ? "balai" : r < 0.62 ? "vapo" : r < 0.75 ? "tasse" : r < 0.9 ? "nettoie" : "etoiles");
+    }
+  }
+  s.x = Math.round(BUL.x);
+  for (const b of BUL.fx) { b.t += rdt; b.x += b.face * 22 * rdt; b.y -= 6 * rdt; }
+  BUL.fx = BUL.fx.filter(b => b.t < 1.8);
+}
+function drawBulle(s, by) {
+  const A = ATL.pnj_bulle.anims, act = BUL.act, t = BUL.t, x = s.x;
+  let fr;
+  if (act === "promenade" && Math.abs((BUL.back ? BUL.home : BUL.to) - BUL.x) > 1) fr = A.marche[0] + Math.floor(time * 9) % A.marche[1];
+  else if (act === "balai") fr = A.balai[0] + Math.floor(t * 7) % A.balai[1];
+  else if (act === "vapo") fr = A.vapo[0] + Math.min(A.vapo[1] - 1, Math.floor(t * 5));
+  else if (act && A[act]) fr = A[act][0];
+  else fr = A.repos[0] + Math.floor(time * 5) % A.repos[1];
+  drawFrame("pnj_bulle", fr, x, by, BUL.face);
+  if (act === "dort") for (let i = 0; i < 2; i++) { const k = (time * 0.6 + i * 0.5) % 1; ctx.globalAlpha = 1 - k; text("z", x + 14 + k * 8, by - 26 - k * 14, 7 + i * 2, "#e8dcff", "center"); ctx.globalAlpha = 1; }
+  for (const b of BUL.fx) if (hasAtlas("bulle_bulles")) drawFrame("bulle_bulles", 0, Math.round(b.x), Math.round(b.y), b.face, Math.max(0, Math.min(1, (1.8 - b.t) / 0.6)));
+}
 // Postes : ceux qui font partie du décor fourni ne sont pas redessinés (seulement un petit signe de vie)
 function drawStation(s) {
   const on = stationOn(s), x = s.x, by = thingFloor(s), near = hub.near === s;
@@ -461,7 +511,7 @@ function drawStation(s) {
       R(x + 6, by - 36, 2, 22, "#8a5a3a"); R(x - 2, by - 40, 16, 6, "#0e0a1a"); R(x - 1, by - 39, 14, 4, decoOf("sign").color);
       break;
     }
-    case "bulle": drawNpc("bulle", x, by, x > players[0].x ? -1 : 1, hub.dlg && hub.dlg.lines[hub.dlg.i][0] === "bulle", null); break;
+    case "bulle": if (hasAtlas("pnj_bulle")) drawBulle(s, by); else drawNpc("bulle", x, by, x > players[0].x ? -1 : 1, hub.dlg && hub.dlg.lines[hub.dlg.i][0] === "bulle", null); break;
   }
   ctx.restore();
   if (near && on) { ctx.globalAlpha = 0.25 + 0.15 * Math.sin(time * 6); R(x - s.w / 2, by - 1, s.w, 2, "#7dffb0"); ctx.globalAlpha = 1; }

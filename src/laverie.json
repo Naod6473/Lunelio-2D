@@ -919,26 +919,62 @@
   },
   "pnj_bulle": {
    "src": "assets/laverie/pnj_bulle.png",
-   "cw": 48,
-   "ch": 48,
-   "ax": 24,
-   "ay": 48,
-   "cols": 4,
+   "cw": 84,
+   "ch": 52,
+   "ax": 42,
+   "ay": 49,
+   "cols": 6,
    "anims": {
     "repos": [
      0,
      4
     ],
     "parle": [
-     4,
-     2
+     0,
+     1
     ],
     "content": [
-     8,
-     2
+     19,
+     1
+    ],
+    "marche": [
+     4,
+     6
+    ],
+    "balai": [
+     10,
+     5
+    ],
+    "vapo": [
+     15,
+     3
+    ],
+    "etoiles": [
+     18,
+     1
+    ],
+    "coeurs": [
+     19,
+     1
+    ],
+    "tasse": [
+     20,
+     1
+    ],
+    "joie": [
+     21,
+     1
+    ],
+    "nettoie": [
+     22,
+     1
+    ],
+    "dort": [
+     23,
+     1
     ]
    },
-   "note": "laverie : pnj/pnj_bulle.png"
+   "note": "Mme Bulle (laverie)"
   },
   "pnj_capitaine": {
    "src": "assets/laverie/pnj_capitaine.png",
@@ -1045,7 +1081,7 @@
      1
     ]
    },
-   "note": "laverie : pnj/portrait_bulle.png"
+   "note": "portrait de Mme Bulle (grand portrait)"
   },
   "portrait_capitaine": {
    "src": "assets/laverie/portrait_capitaine.png",
@@ -1834,6 +1870,21 @@
     ]
    },
    "note": "cœur lancé par Marylou"
+  },
+  "bulle_bulles": {
+   "src": "assets/laverie/bulle_bulles.png",
+   "cw": 126,
+   "ch": 43,
+   "ax": 0,
+   "ay": 21,
+   "cols": 1,
+   "anims": {
+    "play": [
+     0,
+     1
+    ]
+   },
+   "note": "bulles du vaporisateur de Mme Bulle"
   }
  }
 }
