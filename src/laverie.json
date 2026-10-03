@@ -328,37 +328,6 @@
    },
    "note": "Mamie Florence (église)"
   },
-  "eg_mamie_geante": {
-   "src": "assets/laverie/eg_mamie_geante.png",
-   "cw": 192,
-   "ch": 192,
-   "ax": 96,
-   "ay": 160,
-   "cols": 6,
-   "anims": {
-    "cri": [
-     0,
-     6
-    ],
-    "lancer_avant": [
-     6,
-     6
-    ],
-    "lancer_haut": [
-     12,
-     6
-    ],
-    "lancer_rotation": [
-     18,
-     6
-    ],
-    "furie": [
-     24,
-     6
-    ]
-   },
-   "note": "Mamie Florence géante (église, dernier combat)"
-  },
   "eg_voiture": {
    "src": "assets/laverie/eg_voiture.png",
    "cw": 104,
@@ -1749,6 +1718,37 @@
     ]
    },
    "note": "portrait du nouveau héros"
+  },
+  "eg_mamie_furie": {
+   "src": "assets/laverie/eg_mamie_furie.png",
+   "cw": 192,
+   "ch": 192,
+   "ax": 96,
+   "ay": 185,
+   "cols": 6,
+   "anims": {
+    "lancer": [
+     0,
+     6
+    ],
+    "seisme": [
+     6,
+     6
+    ],
+    "cri": [
+     12,
+     6
+    ],
+    "regard": [
+     18,
+     6
+    ],
+    "explosion": [
+     24,
+     6
+    ]
+   },
+   "note": "Mamie Florence géante en furie (église, dernier combat)"
   }
  }
 }

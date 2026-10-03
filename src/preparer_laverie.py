@@ -362,13 +362,15 @@ def prepare_eg_portraits():
 
 # Mamie Florence (la mère de Jules, boss de l'église après le duo) : planche de 9 lignes de 6 cases de 192 px, pieds en
 # (96, 160), tournée vers la droite (mamie.png, assemblée depuis les bandes du pack). Elle est réduite comme Jules (EG_SCALE) ;
-# la géante (dernier combat, derrière le muret) reprend en grand les lignes du cri, des lancers et de la furie (MAMIE_GEANTE_SCALE).
+# la géante en furie (dernier combat, derrière le muret) a sa planche à elle (furie/*.png : 5 bandes de 6 cases de 192 px,
+# pieds vers y = 185) : lancer de voiture, saut et séisme, cri monstrueux, regard laser vers le bas, explosion en flammes.
 # Voitures (voitures.png : 3 × 3 cases de 256 × 192 : vues, inclinaisons, furie), pneu et explosion (pneu_explosion.png :
 # 5 images sur une ligne), portrait recadré sur la tête (cri, image 0), arènes 1 et 3, muret de l'arène 3 (premier plan).
 MAMIE_DIR = "eglise/mamie"
 MAMIE_ANIMS = {"marche": [0, 6], "course": [6, 6], "saut": [12, 6], "glissade": [18, 6], "cri": [24, 6], "lancer_avant": [30, 6],
                "lancer_haut": [36, 6], "lancer_rotation": [42, 6], "furie": [48, 6]}
-MAMIE_GEANTE_ROWS, MAMIE_GEANTE_SCALE = (4, 5, 6, 7, 8), 1.0
+MAMIE_FURIE = [("lancer", "lancer"), ("seisme", "saut_seisme"), ("cri", "cri_monstrueux"), ("regard", "regard_laser_bas"), ("explosion", "explosion_flammes")]
+MAMIE_FURIE_FOOT = (96, 185)
 VOITURE_SCALE, VOITURE_CELL = 0.48, (104, 76)
 PNEU_SPANS = [(99, 301), (472, 727), (873, 1127), (1263, 1537), (1661, 1939)]   # colonnes de chaque image (pneu ×3, explosion ×2)
 PNEU_SCALE, PNEU_CELL, BOUM_SCALE, BOUM_CELL = 0.13, (36, 32), 0.42, (124, 124)
@@ -388,15 +390,20 @@ def prepare_mamie():
     if not a: return out
     out["eg_mamie"] = a
     im = Image.open(os.path.join(SRC, MAMIE_DIR, "mamie.png")).convert("RGBA")
-    # la géante : les lignes utiles seulement, plus grandes
-    n = round(192 * MAMIE_GEANTE_SCALE); g = Image.new("RGBA", (n * 6, n * len(MAMIE_GEANTE_ROWS))); anims = {}
-    names = {v[0] // 6: k for k, v in MAMIE_ANIMS.items()}
-    for k, r in enumerate(MAMIE_GEANTE_ROWS):
-        row = im.crop((0, r * 192, 1152, (r + 1) * 192)).resize((n * 6, n), Image.BOX)
-        row.putalpha(row.split()[3].point(lambda v: 255 if v > 110 else 0)); g.paste(row, (0, k * n)); anims[names[r]] = [k * 6, 6]
-    g.save(os.path.join(OUT, "eg_mamie_geante.png"), optimize=True)
-    out["eg_mamie_geante"] = {"src": "assets/laverie/eg_mamie_geante.png", "cw": n, "ch": n, "ax": round(96 * MAMIE_GEANTE_SCALE), "ay": round(160 * MAMIE_GEANTE_SCALE),
-                              "cols": 6, "anims": anims, "note": "Mamie Florence géante (église, dernier combat)"}
+    # la géante en furie : sa planche à elle (les petits morceaux des poses voisines, au bord des cases, sont effacés)
+    old = os.path.join(OUT, "eg_mamie_geante.png")
+    if os.path.exists(old): os.remove(old)
+    if all(os.path.exists(os.path.join(SRC, MAMIE_DIR, "furie", f + ".png")) for _, f in MAMIE_FURIE):
+        g = Image.new("RGBA", (192 * 6, 192 * len(MAMIE_FURIE))); anims = {}
+        for k, (name, f) in enumerate(MAMIE_FURIE):
+            row = Image.open(os.path.join(SRC, MAMIE_DIR, "furie", f + ".png")).convert("RGBA")
+            for c in range(6):
+                cell = drop_edge_bits(row.crop((c * 192, 0, (c + 1) * 192, 192)))
+                cell.putalpha(cell.split()[3].point(lambda v: 255 if v > 110 else 0)); g.paste(cell, (c * 192, k * 192))
+            anims[name] = [k * 6, 6]
+        g.quantize(colors=255, method=Image.Quantize.FASTOCTREE).save(os.path.join(OUT, "eg_mamie_furie.png"), optimize=True)   # 256 couleurs : 4 × plus léger
+        out["eg_mamie_furie"] = {"src": "assets/laverie/eg_mamie_furie.png", "cw": 192, "ch": 192, "ax": MAMIE_FURIE_FOOT[0], "ay": MAMIE_FURIE_FOOT[1],
+                                 "cols": 6, "anims": anims, "note": "Mamie Florence géante en furie (église, dernier combat)"}
     # voitures : chaque image centrée sur la carrosserie
     v = Image.open(os.path.join(SRC, MAMIE_DIR, "voitures.png")).convert("RGBA"); cw, ch = VOITURE_CELL; sheet = Image.new("RGBA", (cw * 3, ch * 3))
     for i in range(9): sheet.paste(recentre(v.crop(((i % 3) * 256, (i // 3) * 192, (i % 3 + 1) * 256, (i // 3 + 1) * 192)), VOITURE_CELL, VOITURE_SCALE), ((i % 3) * cw, (i // 3) * ch))
