@@ -81,7 +81,9 @@ function drawDkPick() {
   });
   text(say("Flèches pour choisir, Entrée pour courir, Échap pour revenir", "Touche un parcours, puis touche-le encore", "Croix pour choisir, {A} pour courir, {B} pour revenir"), VW / 2, 212, 8, "#b9a6e0", "center");
 }
-const dkSpeed = () => ({ facile: 100, normal: 116, doom: 132 })[df().id] || 116;
+// vitesse de base (le héros court à 132) ; plus loin que DK_CATCHUP px, il accélère pour ne jamais sortir de l'écran
+const dkSpeed = () => ({ facile: 118, normal: 126, doom: 134 })[df().id] || 126;
+const DK_CATCHUP = 120, DK_LEASH = 190;
 // Trous du sol d'un morceau (1 ou 2), en coordonnées du morceau : bouts de sol et trous
 function dkGaps(level, F) {
   const solids = [], gaps = [], n = level < 2 ? 1 : Math.random() < 0.5 ? 1 : 2, gw = () => Math.min(40 + level * 6 + Math.random() * 24, 96);
@@ -237,10 +239,10 @@ SCREENS.dahaka = {
     }
     DK.dist = Math.max(DK.dist, (p.x - DK.startX) / 16);
     // le Dahaka : il court (un peu plus vite avec la distance), passe au-dessus des trous, et se rapproche s'il est trop loin
-    const sp = Math.min(dkSpeed() + DK.dist * 0.06, dkSpeed() + 40) * (slowOn ? 0.35 : 1);
+    const sp = (Math.min(dkSpeed() + DK.dist * 0.06, dkSpeed() + 40) + Math.max(0, p.x - DK.dx - DK_CATCHUP) * 0.6) * (slowOn ? 0.35 : 1);
     if (!(DK.an === "cri" && DK.anT < 0.75)) {   // il pousse d'abord son cri
       DK.dx += sp * rdt;
-      if (p.x - DK.dx > 260) DK.dx = p.x - 260;   // jamais trop loin : la poursuite reste tendue
+      if (p.x - DK.dx > DK_LEASH) DK.dx = p.x - DK_LEASH;   // jamais hors de l'écran : la poursuite reste tendue
       // au bord d'un trou, il saute par-dessus ; sinon il court, plus vite quand il talonne le héros
       DK.jumpT = Math.max(0, DK.jumpT - rdt);
       if (DK.jumpT <= 0 && !lvl.solids.some(s => DK.dx + 24 >= s.x && DK.dx + 24 <= s.x + s.w)) { DK.jumpT = 0.67; DK.anT = 0; }
