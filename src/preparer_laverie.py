@@ -1003,6 +1003,23 @@ def prepare_extras():
         out["canape"] = {"src": "assets/laverie/canape.png", "cw": w, "ch": small.height, "ax": w // 2, "ay": small.height, "cols": 1, "anims": {"play": [0, 1]}, "note": "laverie : canapé du coin détente"}
     return out
 
+# Arènes du versus faites à partir d'un GIF fourni : la pluie est retirée (médiane de toutes les images : les gouttes qui
+# bougent disparaissent), puis une bande du bas est cadrée et réduite en 480 × 272 ; le jeu redessine la pluie lui-même.
+VS_GIF_ARENAS = {"vs_gare": ("versus/gare.gif", (0, 506, 660, 880))}
+
+def prepare_vs_arenas():
+    import numpy as np
+    out = {}; os.makedirs(OUT, exist_ok=True)
+    for name, (rel, box) in VS_GIF_ARENAS.items():
+        f = os.path.join(SRC, rel)
+        if not os.path.exists(f): continue
+        im = Image.open(f); n = getattr(im, "n_frames", 1); frames = []
+        for i in range(0, n, max(1, n // 50)): im.seek(i); frames.append(np.array(im.convert("RGB")))
+        med = Image.fromarray(np.median(np.stack(frames), 0).astype("uint8"))
+        med.crop(box).resize((480, 272), Image.NEAREST).save(os.path.join(OUT, name + ".webp"), lossless=True, quality=100, method=6)
+        out[name] = {"src": f"assets/laverie/{name}.webp", "cw": 480, "ch": 272, "ax": 240, "ay": 272, "cols": 1, "anims": {"play": [0, 1]}, "note": f"arène du versus : {rel} (sans la pluie)"}
+    return out
+
 def main():
     atlas, missing = {}, []
     d = prepare_dahaka()
@@ -1027,6 +1044,7 @@ def main():
     atlas.update(prepare_bobine())  # de même pour Bobine
     atlas.update(prepare_tour())    # la tour qui tourne (niveau secret)
     atlas.update(prepare_extras())  # explosions et canapé
+    atlas.update(prepare_vs_arenas())  # arènes du versus faites d'un GIF
     fade_foreground()
     prepare_loading()
     json.dump({"atlas": atlas}, open(os.path.join(HERE, "laverie.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)

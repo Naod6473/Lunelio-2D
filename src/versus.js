@@ -16,7 +16,11 @@ const VS_TIMES = [{ t: 60, label: "60 s" }, { t: 90, label: "90 s" }, { t: 0, la
 // Arènes : les 6 arènes de boss de la campagne (sol à 240, deux plateformes) et les plans de l'église (sol à 236)
 const VS_ARENAS = [
   ...[0, 1, 2, 3, 4, 5].map(wi => ({ camp: wi })),
-  { eg: 1, name: "Le parvis" }, { eg: 2, name: "Les marches" }, { eg: 3, name: "La nef" }, { eg: 4, name: "Le cimetière" }];
+  { eg: 1, name: "Le parvis" }, { eg: 2, name: "Les marches" }, { eg: 3, name: "La nef" }, { eg: 4, name: "Le cimetière" },
+  // arènes dessinées d'une image (img : atlas) : sol, plateformes (girder : passerelle suspendue dessinée par le jeu ; sinon partie
+  // du décor, comme le toit du camion), pluie redessinée par le jeu, néon qui clignote
+  { img: "vs_gare", name: "La gare", floor: 218, rain: true, neon: { x: 287, y: 0, w: 122, h: 44 },
+    plats: [{ x: 52, y: 164, w: 80, h: 8, girder: 1 }, { x: 344, y: 164, w: 80, h: 8, girder: 1 }, { x: 108, y: 110, w: 118, h: 8 }] }];
 const vsArenaName = a => a.camp !== undefined ? CWORLDS[a.camp].name : a.name;
 const VS_RANGED = new Set(["arc", "boomerang", "pistolet", "canon", "laser", "lancepierre"]);   // armes qui tirent : l'ordinateur garde ses distances
 const KAI = { left: ["ALeft"], right: ["ARight"], jump: ["AJump"], drop: ["ADown"], attack: ["AAtk"], special: ["ASpec"], power: ["APow"], act: [] };
@@ -106,6 +110,7 @@ SCREENS.vssetup = {
     R(px - 2, py - 2, pw + 4, ph + 4, "#0e0a1a");
     ctx.imageSmoothingEnabled = true;
     if (a && a.camp !== undefined) { const im = getImg(CWORLDS[a.camp].rooms[CWORLDS[a.camp].rooms.length - 1].bg); if (im.ok) ctx.drawImage(im.img, px, py, pw, ph); }
+    else if (a && a.img && hasAtlas(a.img)) { const A = ATL[a.img]; ctx.drawImage(atlasImg(a.img), 0, 0, A.cw, A.ch, px, py, pw, ph); }
     else if (a && hasAtlas("eglise_" + a.eg)) { const A = ATL["eglise_" + a.eg]; ctx.drawImage(atlasImg("eglise_" + a.eg), 0, 0, A.cw, A.ch, px, py, pw, ph); }
     else { R(px, py, pw, ph, "#1a1030"); text("?", px + pw / 2, py + ph / 2, 30, "#6a5a88", "center"); }
     ctx.imageSmoothingEnabled = false;
@@ -131,11 +136,15 @@ function vsTryStart() {
 /* ---- Match et manches ---- */
 function vsStartMatch() {
   const c = VS.cfg;
+  VS.seed = Math.floor(Math.random() * 100);
   VS.arena = c.arena < 0 ? VS_ARENAS[Math.floor(Math.random() * VS_ARENAS.length)] : VS_ARENAS[c.arena];
   VS.wins = [0, 0]; VS.round = 0; VS.winner = -1; VS.paused = false;
   vsStartRound();
 }
 function vsBuildArena(a) {
+  if (a.img) return { json: true, vs: true, img: a.img, W: CWORLDS[0], R: CWORLDS[0].rooms[0], width: VW, solids: [{ x: -40, y: a.floor, w: 560, h: VH - a.floor + 40 }],
+    plats: a.plats.map(q => ({ ...q })), blocks: [], decor: [], hazards: [], dest: [], items: [], exits: [], machine: null, ckpt: null, start: { x: 100, y: a.floor - 40 },
+    foeSpawns: [], bossSpawn: null, lastSafe: null, leaving: false, arena: null, covers: [], gold: [], qitems: [], sock: null, floor: a.floor };
   if (a.camp !== undefined) {
     const W = CWORLDS[a.camp];
     return { json: true, vs: true, W, R: W.rooms[W.rooms.length - 1], width: VW, solids: [{ x: 0, y: 240, w: 480, h: 32 }],
@@ -348,6 +357,7 @@ SCREENS.versus = {
     for (const l of lasers) if (l.wpn) drawWProj(l);
     drawGhosts();
     for (const p of players) vsDrawPlayer(p);
+    if (VS.arena.rain) vsRain(true);
     drawFxList(false);
     for (const q of parts) { ctx.globalAlpha = Math.min(1, q.life / q.max * 1.5); R(Math.round(q.x), Math.round(q.y), q.size, q.size, q.color); }
     ctx.globalAlpha = 1;
@@ -369,6 +379,7 @@ SCREENS.versus = {
 };
 function vsDrawArena() {
   const a = VS.arena;
+  if (a.img) { vsDrawImgArena(a); return; }
   if (a.eg) { if (hasAtlas("eglise_" + a.eg)) drawFrame("eglise_" + a.eg, 0, VW / 2, VH, 1); else R(0, 0, VW, VH, "#1a0612"); R(0, 0, VW, VH, "rgba(20,0,16,0.15)"); return; }
   const bg = getImg(lvl.R.bg);
   if (bg.ok) ctx.drawImage(bg.img, 0, 0, VW, VH); else R(0, 0, VW, VH, "#120a22");
@@ -376,6 +387,40 @@ function vsDrawArena() {
   if (terrainFor !== lvl) { terrainCanvas = makeTerrain(lvl); if (terrainCanvas) terrainFor = lvl; }
   if (terrainCanvas) ctx.drawImage(terrainCanvas, 0, 0);
   else { ctx.fillStyle = "#2a2440"; for (const s of lvl.solids) ctx.fillRect(s.x, s.y, s.w, s.h); for (const s of lvl.plats) ctx.fillRect(s.x, s.y, s.w, 6); }
+}
+// Arène faite d'une image : le décor, le néon qui clignote parfois, les passerelles suspendues, la pluie de fond
+function vsDrawImgArena(a) {
+  if (hasAtlas(a.img)) drawFrame(a.img, 0, VW / 2, VH, 1); else R(0, 0, VW, VH, "#0a1a2a");
+  if (a.neon) {
+    const n = a.neon, off = Math.sin(time * 13) + Math.sin(time * 7.3) > 1.75;   // une coupure brève de temps en temps
+    if (off) R(n.x, n.y, n.w, n.h, "rgba(4,10,24,0.5)");
+    else glow(ctx, n.x + n.w * 0.4, n.y + n.h * 0.5, 60, "220,255,90", 0.1 + 0.03 * Math.sin(time * 4));
+  }
+  for (const q of a.plats) if (q.girder) {
+    R(q.x + 10, 0, 1, q.y, "#0c1420"); R(q.x + q.w - 11, 0, 1, q.y, "#0c1420");   // câbles
+    R(q.x, q.y, q.w, 6, "#0e0a1a"); R(q.x + 1, q.y + 1, q.w - 2, 4, "#263850"); R(q.x + 1, q.y + 1, q.w - 2, 1, "#4a6a88");
+    for (let x = q.x + 6; x < q.x + q.w - 4; x += 12) R(x, q.y + 2, 2, 2, "#16243a");
+    glow(ctx, q.x + q.w / 2, q.y + 7, 30, "94,240,255", 0.12); R(q.x + 3, q.y + 6, q.w - 6, 1, "#5ef0ff");
+  }
+  if (a.rain) vsRain(false);
+}
+// Pluie : traits obliques (le fond, plus sombre, derrière les héros ; quelques gouttes claires devant), éclaboussures sur le sol
+// et les plateformes. Tout est calculé à partir du temps : rien à garder en mémoire.
+function vsRain(front) {
+  const n = front ? 26 : 90, sp = front ? 520 : 380, len = front ? 9 : 6, col = front ? "rgba(190,225,255,0.55)" : "rgba(130,180,230,0.35)";
+  ctx.fillStyle = col;
+  for (let i = 0; i < n; i++) {
+    const h = (i * 2654435761) % 1000 / 1000, y = (h * 300 + time * sp * (0.85 + h * 0.3)) % 300 - 20, x = ((i * 97 + h * 480) - (y + 20) * 0.22 + 480) % 500 - 10;
+    for (let k = 0; k < len; k++) ctx.fillRect(Math.round(x - k * 0.22), Math.round(y - k), 1, 1);
+  }
+  if (front) return;
+  const surf = [{ x: 0, y: lvl.floor, w: VW }, ...lvl.plats];
+  for (let i = 0; i < 22; i++) {
+    const ph = time * 2.2 + i * 0.61, c = Math.floor(ph), f = ph - c; if (f > 0.3) continue;
+    const s = surf[(i * 7 + c) % surf.length], x = s.x + ((c * 131 + i * 53) % 1000) / 1000 * s.w, r = 1 + f * 8;
+    ctx.globalAlpha = 0.6 * (1 - f / 0.3); R(Math.round(x - r), s.y - 1, 1, 1, "#bfe4ff"); R(Math.round(x + r), s.y - 1, 1, 1, "#bfe4ff"); R(Math.round(x), s.y - 2 - Math.round(f * 6), 1, 1, "#bfe4ff");
+  }
+  ctx.globalAlpha = 1;
 }
 // Héros en versus : comme en jeu ; étourdi : petites étoiles ; K.O. : sa pose de KO (ou couché) ; vainqueur : sa pose de victoire
 function vsDrawPlayer(p) {
@@ -452,6 +497,11 @@ function vsEndDraw() {
 function versusMusic() {
   if (state === "vssetup" || !VS.arena) return charMusic(CHARS[VS.cfg.c1]);
   const a = VS.arena;
+  if (a.img) {   // une musique de boss de la campagne, une autre à chaque manche
+    const all = CWORLDS.flatMap(W => audio.list("boss:" + W.boss, "musique/boss/" + W.boss));
+    if (all.length) return all[(VS.round * 5 + (VS.seed || 0)) % all.length];
+    return pickList(audio.list("boss", MUSIC_BASES.boss), VS.round) || "synth:boss";
+  }
   if (a.eg) { const th = ["jules", "laurene", "mamie", "eglise"].map(n => "musique/eglise/" + n).filter(hasSound); if (th.length) return th[(a.eg + VS.round) % th.length]; }
   else { const id = CWORLDS[a.camp].boss, m = pickList(audio.list("boss:" + id, "musique/boss/" + id), VS.round); if (m) return m; }
   return pickList(audio.list("boss", MUSIC_BASES.boss), 0) || "synth:boss";
